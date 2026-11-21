@@ -74,6 +74,7 @@ const SCHEMA_SQL = `
     business_id INTEGER NOT NULL REFERENCES businesses(id),
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
+    mobile TEXT,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('owner','staff')),
     access TEXT NOT NULL DEFAULT 'all' CHECK (access IN ('all','billing','stock')),
@@ -910,6 +911,13 @@ async function init() {
     // gain a blocked flag; existing users stay unblocked (0).
     const userCols = sdb.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
     if (!userCols.includes('blocked')) sdb.exec("ALTER TABLE users ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0");
+    // Mobile-login migration (same idempotent pattern): users gain a
+    // nullable login mobile (normalized 10-digit, set at signup or later
+    // from Settings). Existing users stay NULL — a UNIQUE index still
+    // allows any number of NULLs in SQLite, so old rows never collide;
+    // the index only stops two accounts sharing one real number.
+    if (!userCols.includes('mobile')) sdb.exec("ALTER TABLE users ADD COLUMN mobile TEXT");
+    sdb.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_mobile ON users(mobile)");
     if (!invCols.includes('due_date')) sdb.exec("ALTER TABLE invoices ADD COLUMN due_date TEXT");
     if (!purCols.includes('due_date')) sdb.exec("ALTER TABLE purchases ADD COLUMN due_date TEXT");
     // Bill edit/cancel migration (same idempotent pattern): a cancelled
@@ -1000,6 +1008,11 @@ async function init() {
       // Admin Panel upgrade migration (same as the SQLite branch): users
       // gain the per-user blocked flag; existing users stay unblocked.
       await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked INTEGER NOT NULL DEFAULT 0");
+      // Mobile-login migration (same as the SQLite branch): nullable
+      // login mobile on users; existing rows stay NULL (Postgres unique
+      // indexes allow multiple NULLs, exactly like SQLite).
+      await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile TEXT");
+      await client.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_mobile ON users(mobile)");
       await client.query("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS due_date TEXT");
       await client.query("ALTER TABLE purchases ADD COLUMN IF NOT EXISTS due_date TEXT");
       // Bill edit/cancel migration (same as the SQLite branch): nullable
