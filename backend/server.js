@@ -78,7 +78,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { db, TABLES } = require('./db');
-const { sendMail, mailConfig } = require('./mailer');
+const { sendMail, mailConfig, otpEmailHtml } = require('./mailer');
 const { qrSvg } = require('./qrcode');
 
 const app = express();
@@ -459,7 +459,8 @@ async function issueOtp(email, purpose) {
     ? 'BizYour — password reset code'
     : 'BizYour — verify your email';
   const mail = await sendMail(email, subject,
-    `Your BizYour code is ${code}. It is valid for ${OTP_TTL_MIN} minutes. If you did not ask for this, ignore this email.`);
+    `Your BizYour code is ${code}. It is valid for ${OTP_TTL_MIN} minutes. If you did not ask for this, ignore this email.`,
+    otpEmailHtml(code, purpose, OTP_TTL_MIN));
   return { ok: true, mail_configured: mail.mail_configured, sent: mail.sent };
 }
 
