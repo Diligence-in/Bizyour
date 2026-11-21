@@ -53,7 +53,10 @@ function showErr(id, msg) { const e = $(id); if (!e) return; e.textContent = msg
 function hideErr(id) { const e = $(id); if (e) e.style.display = 'none'; }
 function friendly(err) {
   const map = {
-    'invalid email or password': ['Wrong email or password.', 'ईमेल या पासवर्ड गलत है।', 'Email ya password galat hai.'],
+    'invalid email or password': ['Wrong email/mobile or password.', 'ईमेल/मोबाइल या पासवर्ड गलत है।', 'Email/mobile ya password galat hai.'],
+    'mobile_required': ['Enter your mobile number.', 'अपना मोबाइल नंबर डालो।', 'Apna mobile number daalo.'],
+    'invalid_mobile': ['That mobile number does not look right — enter a 10-digit number starting with 6, 7, 8 or 9.', 'मोबाइल नंबर सही नहीं लग रहा — 6, 7, 8 या 9 से शुरू होने वाला 10 अंकों का नंबर डालो।', 'Mobile number sahi nahi lag raha — 6, 7, 8 ya 9 se shuru hone wala 10 digit ka number daalo.'],
+    'mobile_taken': ['This mobile number is already registered with another account.', 'ये मोबाइल नंबर पहले से किसी और खाते पर registered है।', 'Ye mobile number pehle se kisi aur account par registered hai.'],
     'email already registered': ['This email is already registered. Log in instead.', 'ये ईमेल पहले से registered है। लॉगिन करो।', 'Ye email pehle se registered hai. Login karo.'],
     'password must be at least 6 characters': ['Password must be at least 6 characters.', 'पासवर्ड कम से कम 6 अक्षरों का हो।', 'Password kam se kam 6 character ka ho.'],
     'owner_only': ['Only the owner can do this.', 'ये सिर्फ़ owner कर सकता है।', 'Ye sirf owner kar sakta hai.'],
@@ -324,12 +327,25 @@ function lpShowAuth(mode) {
 $('loginHome').addEventListener('click', () => { showLanding(); window.scrollTo(0, 0); });
 $('signupHome').addEventListener('click', () => { showLanding(); window.scrollTo(0, 0); });
 
+// Client-side mirror of the server's mobile rule (normalizeMobile in
+// server.js): strip spaces/dashes and a +91 / 91 prefix, then exactly
+// 10 digits starting 6-9. Returns the normalized number or null. The
+// server re-checks everything — this only saves a round trip.
+function validMobileClient(v) {
+  let d = String(v || '').replace(/[\s-]+/g, '');
+  if (d.startsWith('+91')) d = d.slice(3);
+  else if (d.length === 12 && d.startsWith('91')) d = d.slice(2);
+  return /^[6-9]\d{9}$/.test(d) ? d : null;
+}
+
 $('signupForm').addEventListener('submit', async (e) => {
   e.preventDefault(); hideErr('signupErr');
+  const mob = validMobileClient($('suMobile').value);
+  if (!mob) { showErr('signupErr', friendly(new Error('invalid_mobile'))); return; }
   try {
     // SaaS Stage 2: signup no longer logs in directly — it creates a
     // PENDING account and emails an OTP. Verification starts the trial.
-    const r = await api('POST', '/api/auth/signup', { name: $('suName').value, email: $('suEmail').value, password: $('suPass').value });
+    const r = await api('POST', '/api/auth/signup', { name: $('suName').value, email: $('suEmail').value, mobile: mob, password: $('suPass').value });
     openOtpView(r.email || $('suEmail').value.trim(), r.mail_configured);
   } catch (err) {
     if (err.message === 'email_pending_verification') {
@@ -342,13 +358,17 @@ $('signupForm').addEventListener('submit', async (e) => {
 $('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault(); hideErr('loginErr');
   try {
-    const r = await api('POST', '/api/auth/login', { email: $('loginEmail').value, password: $('loginPass').value });
+    // The identifier field takes an email OR a mobile number — the
+    // server works out which from the '@'.
+    const r = await api('POST', '/api/auth/login', { identifier: $('loginEmail').value, password: $('loginPass').value });
     token = r.token; localStorage.setItem('bos_token', token);
     me = { user: r.user, business: r.business };
     if (me.user.role === 'superadmin') { enterAdmin(); return; }
     if (!me.business.setup_complete && me.user.role === 'owner') openSetup(); else await enterApp();
   } catch (err) {
-    if (err.message === 'email_not_verified') {
+    // The OTP view is keyed by email — only route there when the user
+    // actually typed an email; a mobile identifier just gets the note.
+    if (err.message === 'email_not_verified' && $('loginEmail').value.includes('@')) {
       openOtpView($('loginEmail').value.trim(), undefined);
       showErr('otpErr', friendly(err));
     } else showErr('loginErr', friendly(err));
@@ -580,6 +600,7 @@ function fillSettings() {
   $('setOwner').value = b.owner_name || '';
   $('setPhone').value = b.phone || '';
   $('setCity').value = b.city || '';
+  $('setMobile').value = (me.user && me.user.mobile) || '';
   $('setGst').checked = !!b.gst_enabled;
   $('setGstin').value = b.gstin || '';
   $('setGstinWrap').classList.toggle('hidden', !b.gst_enabled);
@@ -590,7 +611,7 @@ function fillSettings() {
   setLangSel = b.language || 'en';
   ['en', 'hi', 'hg'].forEach((l) => { const c = $('setLang' + l[0].toUpperCase() + l[1]); if (c) c.classList.toggle('sel', setLangSel === l); });
   const owner = me.user.role === 'owner';
-  ['setName', 'setOwner', 'setPhone', 'setCity', 'setGst', 'setGstin', 'setUpiId', 'setUpiName'].forEach((id) => { $(id).disabled = !owner; });
+  ['setName', 'setOwner', 'setPhone', 'setCity', 'setMobile', 'setGst', 'setGstin', 'setUpiId', 'setUpiName'].forEach((id) => { $(id).disabled = !owner; });
   $('setQrFile').disabled = !owner;
   $('setSaveBtn').disabled = !owner;
   $('staffReadonlyNote').classList.toggle('hidden', owner);
@@ -642,6 +663,15 @@ $('setQrRemove').addEventListener('click', () => {
 
 $('settingsForm').addEventListener('submit', async (e) => {
   e.preventDefault(); hideErr('setErr'); $('setOk').style.display = 'none';
+  // Login mobile lives on the USER (not the business), so it is checked
+  // here first and saved through its own route after the business save.
+  const mobRaw = $('setMobile').value.trim();
+  const mobChanged = mobRaw !== ((me.user && me.user.mobile) || '');
+  let mobNorm = null;
+  if (mobChanged && mobRaw !== '') {
+    mobNorm = validMobileClient(mobRaw);
+    if (!mobNorm) { showErr('setErr', friendly(new Error('invalid_mobile'))); return; }
+  }
   try {
     const body = {
       name: $('setName').value, owner_name: $('setOwner').value, phone: $('setPhone').value,
@@ -652,6 +682,10 @@ $('settingsForm').addEventListener('submit', async (e) => {
     if (paymentQrState.touched) body.payment_qr = paymentQrState.value;
     const r = await api('PUT', '/api/business', body);
     me.business = r.business;
+    if (mobChanged) {
+      const mr = await api('PUT', '/api/auth/mobile', { mobile: mobRaw === '' ? '' : mobNorm });
+      me.user = mr.user;
+    }
     renderShellBits(); fillSettings();
     const ok = $('setOk');
     ok.textContent = tr("Settings saved ✓", "सेटिंग सेव हो गई ✓");
