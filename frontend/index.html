@@ -332,7 +332,7 @@
     <div class="hint" data-en="Log in to your business." data-hi="अपने बिज़नेस में लॉगिन करो।">Log in to your business.</div>
     <div class="err" id="loginErr"></div>
     <form id="loginForm">
-      <div class="field"><label>Email</label><input class="input" id="loginEmail" type="email" required autocomplete="email"></div>
+      <div class="field"><label data-en="Email or mobile number" data-hi="ईमेल या मोबाइल नंबर">Email or mobile number</label><input class="input" id="loginEmail" type="text" required autocomplete="username" data-en-ph="Email or mobile number" data-hi-ph="ईमेल या मोबाइल नंबर" placeholder="Email or mobile number"></div>
       <div class="field"><label data-en="Password" data-hi="पासवर्ड">Password</label><input class="input" id="loginPass" type="password" required autocomplete="current-password"></div>
       <button class="btn btn-blue big-btn" type="submit" data-en="Log in" data-hi="लॉगिन">Log in</button>
     </form>
@@ -533,6 +533,7 @@
     <form id="signupForm">
       <div class="field"><label data-en="Your name" data-hi="तुम्हारा नाम">Your name</label><input class="input" id="suName" required autocomplete="name"></div>
       <div class="field"><label>Email</label><input class="input" id="suEmail" type="email" required autocomplete="email"></div>
+      <div class="field"><label data-en="Mobile number" data-hi="मोबाइल नंबर">Mobile number</label><input class="input" id="suMobile" type="tel" inputmode="numeric" autocomplete="tel" required placeholder="+91 98765 43210"><div class="hint" data-en="10-digit mobile number. You can also log in with this number." data-hi="10 अंकों का मोबाइल नंबर। इस नंबर से भी लॉगिन कर सकते हो।">10 digit ka mobile number. Is number se bhi login kar sakte ho.</div></div>
       <div class="field"><label data-en="Password (min 6 characters)" data-hi="पासवर्ड (कम से कम 6 अक्षर)">Password (min 6 characters)</label><input class="input" id="suPass" type="password" required minlength="6" autocomplete="new-password"></div>
       <button class="btn btn-blue big-btn" type="submit" data-en="Create account" data-hi="खाता बनाओ">Create account</button>
     </form>
@@ -1528,6 +1529,7 @@
             <div class="field"><label data-en="Phone" data-hi="फ़ोन">Phone</label><input class="input" id="setPhone" inputmode="tel"></div>
           </div>
           <div class="field"><label data-en="City" data-hi="शहर">City</label><input class="input" id="setCity"></div>
+          <div class="field"><label data-en="Login mobile number" data-hi="लॉगिन मोबाइल नंबर">Login mobile number</label><input class="input" id="setMobile" type="tel" inputmode="numeric" autocomplete="tel" placeholder="+91 98765 43210"><div class="hint" data-en="Your login mobile — you can log in with this number or your email. Only you can change it." data-hi="तुम्हारा लॉगिन मोबाइल — इस नंबर या ईमेल, दोनों से लॉगिन होगा। इसे सिर्फ़ तुम बदल सकते हो।">Tumhara login mobile — is number ya email, dono se login hoga. Ise sirf tum badal sakte ho.</div></div>
           <div class="tgl-row">
             <div class="t-txt"><b data-en="GST billing" data-hi="GST बिलिंग">GST billing</b><span data-en="Turn ON if your business makes GST bills." data-hi="ON करो अगर तुम्हारा बिज़नेस GST बिल बनाता है।">Turn ON if your business makes GST bills.</span></div>
             <label class="switch"><input type="checkbox" id="setGst"><span class="slider"></span></label>
