@@ -149,7 +149,7 @@ for (const m of ['get', 'post', 'put', 'delete', 'use']) {
 function makeToken() { return crypto.randomBytes(32).toString('hex'); }
 
 function publicUser(u) {
-  return { id: u.id, business_id: u.business_id, name: u.name, email: u.email, role: u.role, access: u.access, blocked: !!u.blocked };
+  return { id: u.id, business_id: u.business_id, name: u.name, email: u.email, mobile: u.mobile || null, role: u.role, access: u.access, blocked: !!u.blocked };
 }
 function publicBusiness(b) {
   if (!b) return null;
@@ -206,10 +206,29 @@ app.get('/api/health', async (req, res) => {
 });
 
 // ---------- auth API ----------
+// Login mobile: stored normalized as a plain 10-digit Indian mobile.
+// Spaces/dashes are stripped, then a leading +91 (or a 91 prefix on a
+// 12-digit string) comes off; the result must be exactly 10 digits
+// starting 6-9, else null. NOTE: the mobile is NOT OTP-verified — there
+// is no SMS provider. It is only a second login identifier; the email
+// OTP verification flow is completely unchanged.
+function normalizeMobile(raw) {
+  if (raw === undefined || raw === null) return null;
+  let d = String(raw).replace(/[\s-]+/g, '');
+  if (d.startsWith('+91')) d = d.slice(3);
+  else if (d.length === 12 && d.startsWith('91')) d = d.slice(2);
+  return /^[6-9]\d{9}$/.test(d) ? d : null;
+}
+
 app.post('/api/auth/signup', async (req, res) => {
-  const { name, email, password } = req.body || {};
+  const { name, email, password, mobile } = req.body || {};
   if (!name || !email || !password) return res.status(400).json({ error: 'name, email and password are required' });
   if (String(password).length < 6) return res.status(400).json({ error: 'password must be at least 6 characters' });
+  if (mobile === undefined || mobile === null || String(mobile).trim() === '') {
+    return res.status(400).json({ error: 'mobile_required' });
+  }
+  const mobileNorm = normalizeMobile(mobile);
+  if (!mobileNorm) return res.status(400).json({ error: 'invalid_mobile' });
   const emailNorm = String(email).trim().toLowerCase();
   const existing = await db.get('SELECT * FROM users WHERE email = ?', emailNorm);
   if (existing) {
@@ -219,6 +238,8 @@ app.post('/api/auth/signup', async (req, res) => {
     if (pend) return res.status(409).json({ error: 'email_pending_verification' });
     return res.status(409).json({ error: 'email already registered' });
   }
+  const mobExisting = await db.get('SELECT id FROM users WHERE mobile = ?', mobileNorm);
+  if (mobExisting) return res.status(409).json({ error: 'mobile_taken' });
 
   // Create empty business + owner user together — but PENDING: the user
   // row gets a pending_signups marker, no session is issued, and login
@@ -229,8 +250,8 @@ app.post('/api/auth/signup', async (req, res) => {
   , String(name).trim());
   const hash = bcrypt.hashSync(String(password), 10);
   const user = await db.run(
-    `INSERT INTO users (business_id, name, email, password_hash, role, access) VALUES (?, ?, ?, ?, 'owner', 'all')`
-  , biz.lastInsertRowid, String(name).trim(), emailNorm, hash);
+    `INSERT INTO users (business_id, name, email, mobile, password_hash, role, access) VALUES (?, ?, ?, ?, ?, 'owner', 'all')`
+  , biz.lastInsertRowid, String(name).trim(), emailNorm, mobileNorm, hash);
   await db.run('INSERT INTO pending_signups (user_id, email) VALUES (?, ?)', user.lastInsertRowid, emailNorm);
 
   const issued = await issueOtp(emailNorm, 'signup');
@@ -318,10 +339,26 @@ app.post('/api/auth/reset-password', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
-  const emailNorm = String(email).trim().toLowerCase();
-  const u = await db.get('SELECT * FROM users WHERE email = ?', emailNorm);
+  const body = req.body || {};
+  // The identifier arrives as `identifier` (current frontend) or as the
+  // original `email` field (older clients — still accepted). An
+  // identifier containing '@' is an email; anything else is treated as
+  // a mobile number and normalized the same way as at signup. Every
+  // failure below returns the SAME generic 401 — the response never
+  // reveals whether the identifier or the password was wrong.
+  const ident = body.identifier !== undefined ? body.identifier : body.email;
+  const password = body.password;
+  if (!ident || !password) return res.status(400).json({ error: 'email and password are required' });
+  const idStr = String(ident).trim();
+  const isEmail = idStr.includes('@');
+  const emailNorm = isEmail ? idStr.toLowerCase() : null;
+  let u = null;
+  if (isEmail) {
+    u = await db.get('SELECT * FROM users WHERE email = ?', emailNorm);
+  } else {
+    const mob = normalizeMobile(idStr);
+    if (mob) u = await db.get('SELECT * FROM users WHERE mobile = ?', mob);
+  }
   if (u && bcrypt.compareSync(String(password), u.password_hash)) {
     // SaaS Stage 2: an OTP-pending account cannot log in yet.
     const pend = await db.get('SELECT id FROM pending_signups WHERE user_id = ?', u.id);
@@ -332,17 +369,19 @@ app.post('/api/auth/login', async (req, res) => {
     await db.run('INSERT INTO sessions (token, user_id) VALUES (?, ?)', token, u.id);
     return res.json({ token, user: publicUser(u), business: publicBusiness(await getBusiness(u.business_id)) });
   }
-  // SaaS Stage 2: the same login form serves the DILIGENCE super admin
-  // (seeded from SUPER_ADMIN_* env into platform_admins at boot).
-  const adm = await db.get('SELECT * FROM platform_admins WHERE email = ?', emailNorm);
-  if (adm && bcrypt.compareSync(String(password), adm.password_hash)) {
-    const token = makeToken();
-    await db.run('INSERT INTO admin_sessions (token, admin_id) VALUES (?, ?)', token, adm.id);
-    return res.json({
-      token,
-      user: { id: adm.id, business_id: null, name: adm.name, email: adm.email, role: 'superadmin', access: 'all' },
-      business: null
-    });
+  if (isEmail) {
+    // SaaS Stage 2: the same login form serves the DILIGENCE super admin
+    // (seeded from SUPER_ADMIN_* env into platform_admins at boot).
+    const adm = await db.get('SELECT * FROM platform_admins WHERE email = ?', emailNorm);
+    if (adm && bcrypt.compareSync(String(password), adm.password_hash)) {
+      const token = makeToken();
+      await db.run('INSERT INTO admin_sessions (token, admin_id) VALUES (?, ?)', token, adm.id);
+      return res.json({
+        token,
+        user: { id: adm.id, business_id: null, name: adm.name, email: adm.email, role: 'superadmin', access: 'all' },
+        business: null
+      });
+    }
   }
   return res.status(401).json({ error: 'invalid email or password' });
 });
@@ -357,6 +396,27 @@ app.get('/api/me', requireAuth, async (req, res) => {
   if (req.isAdmin) return res.json({ user: publicUser(req.user), business: null });
   const b = await getBusiness(req.user.business_id);
   res.json({ user: publicUser(req.user), business: publicBusiness(b) });
+});
+
+// Set/update the signed-in user's OWN login mobile (the owner Settings
+// screen uses this; the route only ever touches req.user's own row, so
+// nobody can change another user's number). Same validation and
+// uniqueness as signup. An empty value clears the mobile — email login
+// always remains available, so clearing can never lock anyone out.
+app.put('/api/auth/mobile', requireAuth, async (req, res) => {
+  if (req.isAdmin) return res.status(403).json({ error: 'admin_only' });
+  const raw = (req.body || {}).mobile;
+  if (raw === undefined) return res.status(400).json({ error: 'mobile_required' });
+  let mobileNorm = null;
+  if (raw !== null && String(raw).trim() !== '') {
+    mobileNorm = normalizeMobile(raw);
+    if (!mobileNorm) return res.status(400).json({ error: 'invalid_mobile' });
+    const dup = await db.get('SELECT id FROM users WHERE mobile = ? AND id != ?', mobileNorm, req.user.id);
+    if (dup) return res.status(409).json({ error: 'mobile_taken' });
+  }
+  await db.run(`UPDATE users SET mobile = ?, updated_at = datetime('now') WHERE id = ?`, mobileNorm, req.user.id);
+  const u = await db.get('SELECT * FROM users WHERE id = ?', req.user.id);
+  res.json({ ok: true, user: publicUser(u) });
 });
 
 // =====================================================================
