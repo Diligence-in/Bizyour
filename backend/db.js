@@ -71,6 +71,8 @@ const SCHEMA_SQL = `
     upi_id TEXT NOT NULL DEFAULT '',
     upi_payee_name TEXT NOT NULL DEFAULT '',
     payment_qr TEXT,
+    logo TEXT,
+    shop_photo TEXT,
     language TEXT NOT NULL DEFAULT 'en',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -956,6 +958,10 @@ async function init() {
     // uploaded UPI QR image (JPEG data URL) for the printed bill —
     // nullable, older local DBs gain it as NULL (no QR on bills).
     if (!bizCols.includes('payment_qr')) sdb.exec("ALTER TABLE businesses ADD COLUMN payment_qr TEXT");
+    // Shop logo + shop photo (23 Nov, both optional, image data URLs):
+    // the logo replaces the initial-letter tile on bills.
+    if (!bizCols.includes('logo')) sdb.exec("ALTER TABLE businesses ADD COLUMN logo TEXT");
+    if (!bizCols.includes('shop_photo')) sdb.exec("ALTER TABLE businesses ADD COLUMN shop_photo TEXT");
     // Feature 2 migration: stock_movements gains the 'return' movement
     // type. A CHECK constraint cannot be ALTERed in SQLite, so an older
     // table is rebuilt in place (rows copied verbatim, index recreated).
@@ -1068,6 +1074,8 @@ async function init() {
       // Payment QR migration (same as the SQLite branch): the shop's own
       // uploaded UPI QR image for the printed bill; NULL = no QR shown.
       await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_qr TEXT");
+      await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS logo TEXT");
+      await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS shop_photo TEXT");
       // Feature 2 migration: widen the stock_movements type CHECK to
       // include 'return' (drop + re-add is a no-op outcome on fresh DBs,
       // whose DDL already carries the wider check).

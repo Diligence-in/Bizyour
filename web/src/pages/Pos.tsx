@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, MessageCircle, Minus, Plus, Printer, Search, Trash2, UserRound, X } from 'lucide-react';
-import { get, post } from '../lib/api';
-import { billShareMessage, downloadBlob, fetchBillPdf, hasPhone, openWa, tryShareFile } from '../lib/shareBill';
+import { get, post, put } from '../lib/api';
+import { billShareMessage, downloadBlob, fetchBillPdf, hasPhone, openBillPdf, openWa, tryShareFile } from '../lib/shareBill';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { gstPart, qty as fmtQty, round2, rupees } from '../lib/format';
@@ -18,6 +18,11 @@ import { useIsMobile, usePageTitle } from '../components/shell/AppShell';
 // Maths mirrors the server exactly (GST-inclusive, discount off the total);
 // the server recomputes everything on save, so the screen can never
 // disagree with the stored bill.
+//
+// Edit mode (23 Nov): /pos?edit=<bill id> opens the same counter filled with
+// a saved bill — items, rates, customer, discount, payment — and saves back
+// to that bill (PUT /api/invoices/:id), replacing the old "Edit in classic
+// screen" link. The bill's own quantities count as available stock.
 
 type Mode = 'Cash' | 'UPI' | 'Bank' | 'Udhaar';
 interface Line { product: BillingProduct; qty: number; price: number }
@@ -34,7 +39,15 @@ export default function PosPage() {
   const qc = useQueryClient();
   const nav = useNavigate();
   const mobile = useIsMobile();
-  usePageTitle(t('New bill', 'नया बिल', 'Naya bill'));
+  const [sp] = useSearchParams();
+  const editId = sp.get('edit');
+  const editBill = useQuery({
+    queryKey: ['invoice', editId],
+    queryFn: () => get<{ invoice: Invoice; customer: Customer | null; items: { product_id: number; product_name: string; qty: number; sell_price: number; gst_rate: number; p_unit?: string }[]; returns: unknown[] }>(`/api/invoices/${editId}`),
+    enabled: !!editId
+  });
+  const editInv = editBill.data?.invoice;
+  usePageTitle(editId ? t(`Edit bill #${editInv?.bill_no ?? ''}`, `बिल #${editInv?.bill_no ?? ''} बदलें`, `Bill #${editInv?.bill_no ?? ''} badlo`) : t('New bill', 'नया बिल', 'Naya bill'));
 
   const products = useQuery({ queryKey: ['billing-products'], queryFn: () => get<{ products: BillingProduct[] }>('/api/billing-products'), staleTime: 15_000 });
   const recent = useQuery({ queryKey: ['recent-items'], queryFn: () => get<{ items: { product_id: number; name: string; last_rate: number }[] }>('/api/billing/recent-items') });
@@ -55,7 +68,37 @@ export default function PosPage() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   const gstOn = !!me?.business?.gst_enabled;
-  const all = products.data?.products || [];
+  // While editing, the quantities already on this bill are back in stock.
+  const origQty = useMemo(() => {
+    const m = new Map<number, number>();
+    (editBill.data?.items || []).forEach((it) => m.set(it.product_id, (m.get(it.product_id) || 0) + Number(it.qty)));
+    return m;
+  }, [editBill.data]);
+  const all = useMemo(() => (products.data?.products || []).map((p) => (origQty.has(p.id) ? { ...p, stock_qty: p.stock_qty + (origQty.get(p.id) || 0) } : p)), [products.data, origQty]);
+  const loadedRef = useRef(false);
+  useEffect(() => {
+    const d = editBill.data;
+    if (!d || !products.data || !customers.data || loadedRef.current) return;
+    loadedRef.current = true;
+    const inv = d.invoice;
+    const merged: Line[] = [];
+    for (const it of d.items) {
+      const i = merged.findIndex((l) => l.product.id === it.product_id);
+      if (i >= 0) { merged[i] = { ...merged[i], qty: merged[i].qty + Number(it.qty) }; continue; }
+      const p = all.find((x) => x.id === it.product_id) || { id: it.product_id, name: it.product_name, unit: it.p_unit || '', sell_price: it.sell_price, gst_rate: it.gst_rate, stock_qty: Number(it.qty) };
+      merged.push({ product: p, qty: Number(it.qty), price: Number(it.sell_price) });
+    }
+    setLines(merged);
+    setCustomer(inv.customer_id ? (customers.data.customers.find((c) => c.id === inv.customer_id) || d.customer) : null);
+    setDiscount(Number(inv.discount) > 0 ? String(inv.discount) : '');
+    const paidNow = Number(inv.paid_amount) || 0;
+    if (paidNow >= Number(inv.total)) { setMode(((inv.payment_mode as Mode) || 'Cash')); setReceived(null); }
+    else { setMode('Udhaar'); setReceived(paidNow ? String(paidNow) : null); }
+    if (inv.due_date) setDue(inv.due_date);
+  }, [editBill.data, products.data, customers.data, all]);
+  // What the customer owes apart from this bill (so editing never double-counts).
+  const custPending = customer ? round2(customer.pending - (editInv && customer.id === editInv.customer_id ? Math.max(0, Number(editInv.total) - Number(editInv.paid_amount)) : 0)) : 0;
+  const editBlocked = !!editBill.data && (editBill.data.invoice.cancelled || (editBill.data.returns || []).length > 0 || editBill.data.invoice.kind !== 'sale');
   const inBill = (id: number) => lines.find((l) => l.product.id === id)?.qty || 0;
 
   const matches = useMemo(() => {
@@ -108,6 +151,14 @@ export default function PosPage() {
       };
       if (customer) body.customer_id = customer.id;
       if (balance > 0) body.due_date = due || null;
+      if (editId) {
+        body.customer_id = customer ? customer.id : null;
+        await put<{ invoice: Invoice }>(`/api/invoices/${editId}`, body);
+        ['invoice', 'billing-products', 'recent-items', 'dash-summary', 'invoices', 'customers', 'alerts', 'day-end', 'dash-finance', 'products'].forEach((k) => qc.invalidateQueries({ queryKey: k === 'invoice' ? ['invoice', editId] : [k] }));
+        toast({ text: t(`Bill #${editInv?.bill_no ?? ''} updated`, `बिल #${editInv?.bill_no ?? ''} बदल गया`, `Bill #${editInv?.bill_no ?? ''} badal gaya`) });
+        nav(`/bills/${editId}`, { replace: true });
+        return;
+      }
       const r = await post<{ invoice: Invoice }>('/api/invoices', body);
       setDone(r.invoice);
       setPayOpen(false);
@@ -171,7 +222,7 @@ export default function PosPage() {
         <span className="grow" style={{ textAlign: 'left', minWidth: 0 }}>
           <span className="ellipsis" style={{ display: 'block', fontWeight: 500 }}>{customer ? customer.name : words.walkin}</span>
           {customer ? (
-            <span className="muted" style={{ fontSize: 12 }}>{customer.pending > 0 ? t(`Already owes ${rupees(customer.pending)}`, `पहले से ${rupees(customer.pending)} बाकी`, `Pehle se ${rupees(customer.pending)} baaki`) : customer.phone}</span>
+            <span className="muted" style={{ fontSize: 12 }}>{custPending > 0 ? t(`Already owes ${rupees(custPending)}`, `पहले से ${rupees(custPending)} बाकी`, `Pehle se ${rupees(custPending)} baaki`) : customer.phone}</span>
           ) : <span className="muted" style={{ fontSize: 12 }}>{t('Change customer', 'ग्राहक चुनें', 'Customer chuno')}</span>}
         </span>
         {customer && <IconButton size="sm" label={t('Remove customer', 'ग्राहक हटाएं', 'Customer hatao')} onClick={(e) => { e.stopPropagation(); setCustomer(null); }}><X size={14} /></IconButton>}
@@ -214,13 +265,13 @@ export default function PosPage() {
       {balance > 0 && (
         <div className={`banner ${customer ? 'banner-warn' : 'banner-owed'}`} style={{ fontSize: 13 }}>
           {customer
-            ? t(`${rupees(balance)} goes to ${customer.name}’s udhaar. New balance ${rupees(customer.pending + balance)}.`, `${rupees(balance)} ${customer.name} के उधार में जुड़ेगा। नया बाकी ${rupees(customer.pending + balance)}।`, `${rupees(balance)} ${customer.name} ke udhaar me judega. Naya baaki ${rupees(customer.pending + balance)}.`)
+            ? t(`${rupees(balance)} goes to ${customer.name}’s udhaar. New balance ${rupees(custPending + balance)}.`, `${rupees(balance)} ${customer.name} के उधार में जुड़ेगा। नया बाकी ${rupees(custPending + balance)}।`, `${rupees(balance)} ${customer.name} ke udhaar me judega. Naya baaki ${rupees(custPending + balance)}.`)
             : t(`${rupees(balance)} unpaid with no customer named — pick a customer so you can collect it later.`, `${rupees(balance)} बाकी है पर ग्राहक नहीं चुना — बाद में वसूली के लिए ग्राहक चुनें।`, `${rupees(balance)} baaki hai par customer nahi chuna — baad me vasooli ke liye customer chuno.`)}
         </div>
       )}
 
-      <Button variant="primary" size="xl" block onClick={save} loading={saving} disabled={!lines.length}>
-        <Check size={20} /> {balance > 0 && paid === 0 ? t('Save on udhaar', 'उधार में सेव करें', 'Udhaar me save karo') : t('Save bill', 'बिल सेव करें', 'Bill save karo')} · {rupees(total)}
+      <Button variant="primary" size="xl" block onClick={save} loading={saving} disabled={!lines.length || editBlocked}>
+        <Check size={20} /> {editId ? t('Save changes', 'बदलाव सेव करें', 'Badlav save karo') : balance > 0 && paid === 0 ? t('Save on udhaar', 'उधार में सेव करें', 'Udhaar me save karo') : t('Save bill', 'बिल सेव करें', 'Bill save karo')} · {rupees(total)}
       </Button>
     </div>
   );
@@ -229,11 +280,17 @@ export default function PosPage() {
     <div className="pos">
       <div className="pos-main">
         <div className="pos-top">
-          <Link to="/" className="icon-btn" aria-label={t('Back', 'वापस', 'Wapas')}><ArrowLeft size={18} /></Link>
-          <h1 className="pos-title">{t('New bill', 'नया बिल', 'Naya bill')}</h1>
+          <Link to={editId ? `/bills/${editId}` : '/'} className="icon-btn" aria-label={t('Back', 'वापस', 'Wapas')}><ArrowLeft size={18} /></Link>
+          <h1 className="pos-title">{editId ? t(`Edit bill #${editInv?.bill_no ?? ''}`, `बिल #${editInv?.bill_no ?? ''} बदलें`, `Bill #${editInv?.bill_no ?? ''} badlo`) : t('New bill', 'नया बिल', 'Naya bill')}</h1>
           <span className="muted hide-mobile" style={{ fontSize: 13 }}>{gstOn ? t('Prices include GST', 'कीमतों में GST शामिल', 'Price me GST shaamil') : t('GST off', 'GST बंद', 'GST band')}</span>
         </div>
 
+        {editId && editBlocked && (
+          <div className="banner banner-owed" role="alert" style={{ margin: '0 0 12px' }}>{t('This bill can’t be edited — it is cancelled or has returned items. Cancel it and make a new bill instead.', 'यह बिल नहीं बदल सकता — रद्द है या इसमें वापसी हुई है। इसे रद्द करके नया बिल बनाएं।', 'Ye bill nahi badal sakta — cancel hai ya isme wapsi hui hai. Ise cancel karke naya bill banao.')}</div>
+        )}
+        {editId && !editBlocked && editInv && (
+          <div className="banner banner-info" role="status" style={{ margin: '0 0 12px' }}>{t(`You are changing bill #${editInv.bill_no}. Stock, udhaar and GST are recalculated when you save.`, `आप बिल #${editInv.bill_no} बदल रहे हैं। सेव करने पर स्टॉक, उधार और GST फिर से गिने जाएंगे।`, `Aap bill #${editInv.bill_no} badal rahe ho. Save karne pe stock, udhaar aur GST phir se gine jayenge.`)}</div>
+        )}
         <div className="pos-search">
           <div className="input-wrap">
             <Search size={18} />
@@ -388,7 +445,7 @@ export default function PosPage() {
           <div className="done-actions">
             <Button variant="primary" size="lg" onClick={share} loading={wa}><MessageCircle size={18} /> {t('Send bill on WhatsApp', 'WhatsApp पर बिल भेजें', 'WhatsApp par bill bhejo')}</Button>
             <Button size="lg" onClick={onNew} autoFocus><Plus size={18} /> {t('Next bill', 'अगला बिल', 'Agla bill')}</Button>
-            <Button size="lg" onClick={() => nav(`/bills/${inv.id}?print=1`)}><Printer size={18} /> {t('Print / PDF', 'प्रिंट / PDF', 'Print / PDF')}</Button>
+            <Button size="lg" onClick={() => openBillPdf(inv.id, inv.bill_no).catch(() => nav(`/bills/${inv.id}`))}><Printer size={18} /> {t('Print / PDF', 'प्रिंट / PDF', 'Print / PDF')}</Button>
           </div>
           {askPhone && (
             <div className="stack" style={{ gap: 8, marginTop: 14, textAlign: 'left' }}>

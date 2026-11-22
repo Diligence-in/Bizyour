@@ -289,3 +289,102 @@ test('CSV export works and XLSX import previews via exceljs', async () => {
   assert.equal(r.json.valid_count, 1);
   assert.ok(JSON.stringify(r.json).includes('Test Biscuit'));
 });
+
+// ---------- 23 Nov 2026: setup guide, import everywhere, bill format ----------
+test('shop setup needs only shop name and city; optional fields are still checked', async () => {
+  const bcrypt = require('bcryptjs');
+  const hash = bcrypt.hashSync('password123', 10);
+  if (PG_URL) {
+    const { Client } = require('pg');
+    const c = new Client({ connectionString: PG_URL });
+    await c.connect();
+    const b = await c.query("INSERT INTO businesses (name, owner_name) VALUES ('', 'Guide Owner') RETURNING id");
+    await c.query("INSERT INTO users (business_id, name, email, password_hash, role, access) VALUES ($1, 'Guide Owner', 'guide@bizyour.demo', $2, 'owner', 'all')", [b.rows[0].id, hash]);
+    await c.end();
+  } else {
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(path.join(DATA, 'business-os.db'));
+    const b = db.prepare("INSERT INTO businesses (name, owner_name) VALUES ('', 'Guide Owner')").run();
+    db.prepare("INSERT INTO users (business_id, name, email, password_hash, role, access) VALUES (?, 'Guide Owner', 'guide@bizyour.demo', ?, 'owner', 'all')").run(b.lastInsertRowid, hash);
+    db.close();
+  }
+  const t = await login('guide@bizyour.demo', 'password123');
+  const noCity = await api('POST', '/api/workspace/activate', { token: t, body: { name: 'Guide Store' } });
+  assert.equal(noCity.status, 400); assert.equal(noCity.json.error, 'city_required');
+  const badPin = await api('POST', '/api/workspace/activate', { token: t, body: { name: 'Guide Store', city: 'Patna', pincode: '12' } });
+  assert.equal(badPin.status, 400); assert.equal(badPin.json.error, 'invalid_pincode');
+  const ok = await api('POST', '/api/workspace/activate', { token: t, body: { name: 'Guide Store', city: 'Patna' } });
+  assert.equal(ok.status, 200, ok.text);
+  assert.equal(ok.json.business.workspace_active, true);
+  assert.equal(ok.json.business.category, 'other');
+  // optional GST + UPI step
+  const up = await api('PUT', '/api/business', { token: t, body: { gst_enabled: true, gstin: '10ABCDE1234F1Z5', upi_id: 'guide@okaxis', upi_payee_name: 'Guide Store' } });
+  assert.equal(up.status, 200, up.text);
+  assert.equal(up.json.business.upi_id, 'guide@okaxis');
+  // customers step: quick-add rides the import pipeline (opening udhaar)
+  const cust = await api('POST', '/api/import/customers/commit', { token: t, body: { content: 'Name,Phone,Opening Balance\nMohan,9811000001,450\n"Gupta, R.",,0\n', duplicate: 'skip' } });
+  assert.equal(cust.status, 200, cust.text); assert.equal(cust.json.created, 2);
+  const sum = (await api('GET', '/api/dashboard-summary', { token: t })).json;
+  assert.equal(sum.total_pending_collection, 450);
+  assert.ok(Array.isArray(sum.top_items));
+});
+
+test('expenses import: dates, categories and duplicates', async () => {
+  const t = await login('demo@businessos.app');
+  const csv = 'Date,Title,Category,Amount,Payment Mode,Notes\n01-11-2026,Shop rent,Rent,15000,Bank,Nov\n2026-11-05,Diwali lights,Decoration,1200,gpay,\n31-02-2026,Bad date,Other,10,Cash,\n05-11-2026,No amount,Other,,Cash,\n';
+  const prev = await api('POST', '/api/import/expenses/preview', { token: t, body: { content: csv } });
+  assert.equal(prev.status, 200, prev.text);
+  assert.equal(prev.json.valid_count, 2); assert.equal(prev.json.error_count, 2);
+  const lights = prev.json.sample.find((s) => s.name === 'Diwali lights');
+  assert.equal(lights.category, 'Other'); assert.equal(lights.payment_mode, 'UPI'); assert.match(lights.notes, /Decoration/);
+  const c1 = await api('POST', '/api/import/expenses/commit', { token: t, body: { content: csv } });
+  assert.equal(c1.json.created, 2);
+  const c2 = await api('POST', '/api/import/expenses/commit', { token: t, body: { content: csv } });
+  assert.equal(c2.json.created, 0); assert.equal(c2.json.skipped, 2);
+});
+
+test('bill PDF renders with the UPI block', async () => {
+  const t = await login('demo@businessos.app');
+  await api('PUT', '/api/business', { token: t, body: { upi_id: 'sharma@okaxis' } });
+  const bills = await api('GET', '/api/invoices', { token: t });
+  const list = bills.json.invoices || bills.json;
+  const inv = list.find((i) => i.kind !== 'opening') || list[0];
+  const r = await fetch(`${BASE}/api/invoices/${inv.id}/pdf`, { headers: { Authorization: `Bearer ${t}` } });
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('content-type'), 'application/pdf');
+  const buf = Buffer.from(await r.arrayBuffer());
+  assert.equal(buf.slice(0, 4).toString(), '%PDF');
+  assert.ok(buf.length > 5000);
+});
+
+test('a bill can be edited in place (items, paid, new due date)', async () => {
+  const t = await login('demo@businessos.app');
+  const prods = (await api('GET', '/api/billing-products', { token: t })).json.products;
+  const p = prods.find((x) => x.stock_qty >= 3);
+  const made = await api('POST', '/api/invoices', { token: t, body: { items: [{ product_id: p.id, qty: 1, sell_price: p.sell_price }], customer_id: 1, paid_amount: 0, due_date: '2026-12-01' } });
+  assert.equal(made.status, 201, made.text);
+  const id = made.json.invoice.id;
+  const ed = await api('PUT', `/api/invoices/${id}`, { token: t, body: { items: [{ product_id: p.id, qty: 2, sell_price: p.sell_price }], customer_id: 1, paid_amount: p.sell_price, payment_mode: 'UPI', due_date: '2026-12-15' } });
+  assert.equal(ed.status, 200, ed.text);
+  assert.equal(ed.json.invoice.total, Math.round(p.sell_price * 2 * 100) / 100);
+  assert.equal(ed.json.invoice.paid_amount, p.sell_price);
+  assert.equal(ed.json.invoice.due_date, '2026-12-15');
+  assert.equal(ed.json.invoice.bill_no, made.json.invoice.bill_no);
+});
+
+test('shop logo and photo are optional, validated, and the logo prints on the bill', async () => {
+  const t = await login('demo@businessos.app');
+  // 1x1 PNG
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const bad = await api('PUT', '/api/business', { token: t, body: { logo: 'data:text/html;base64,PHNjcmlwdD4=' } });
+  assert.equal(bad.status, 400); assert.equal(bad.json.error, 'invalid_logo_image');
+  const ok = await api('PUT', '/api/business', { token: t, body: { logo: png, shop_photo: png } });
+  assert.equal(ok.status, 200, ok.text);
+  assert.equal(ok.json.business.logo, png); assert.equal(ok.json.business.shop_photo, png);
+  const bills = (await api('GET', '/api/invoices', { token: t })).json;
+  const inv = (bills.invoices || bills)[0];
+  const r = await fetch(`${BASE}/api/invoices/${inv.id}/pdf`, { headers: { Authorization: `Bearer ${t}` } });
+  assert.equal(r.status, 200);
+  const cleared = await api('PUT', '/api/business', { token: t, body: { logo: '', shop_photo: null } });
+  assert.equal(cleared.json.business.logo, null); assert.equal(cleared.json.business.shop_photo, null);
+});

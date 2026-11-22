@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CalendarClock, ChevronRight, PackageX, Plus, ShoppingCart, Sparkles, Truck, Users } from 'lucide-react';
+import { AlertTriangle, CalendarClock, ChevronRight, HandCoins, MessageCircle, PackagePlus, PackageX, Plus, ReceiptText, ShoppingCart, Sparkles, TrendingUp, Truck, Upload, Users, Wallet } from 'lucide-react';
 import { get } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { dateLabel, daysFromToday, longToday, rupees, todayStr } from '../lib/format';
 import type { Invoice } from '../lib/types';
-import { Badge, BillStatusBadge, Button, Money, Skel } from '../components/ui';
+import { Badge, BillStatusBadge, Button, Money, Skel, useToast } from '../components/ui';
 import { PageHeader, usePageTitle } from '../components/shell/AppShell';
 
 // Home answers three questions, in this order:
@@ -14,7 +14,9 @@ import { PageHeader, usePageTitle } from '../components/shell/AppShell';
 //   2. What needs my attention?   → one prioritised list
 //   3. What happened recently?    → last 7 days + latest bills
 
-interface Summary { todays_sale: number; todays_bills: number; total_pending_collection: number; pending_customer_count: number; recent_bills: Invoice[] }
+interface Summary { todays_sale: number; todays_bills: number; total_pending_collection: number; pending_customer_count: number; recent_bills: Invoice[];
+  pending_customers?: { customer_id: number | null; customer_name: string; pending: number }[];
+  top_items?: { product_id: number; name: string; qty: number; amount: number }[] }
 interface Finance { todays_expense: number; todays_cogs: number; todays_gross_profit: number; todays_net_profit: number }
 interface DayEnd { collections: { cash: number; upi: number; other: number; total: number; count: number }; new_credit_given: number }
 interface DueGroup { customer_id?: number; customer_name?: string; supplier_id?: number; supplier_name?: string; amount: number; oldest_due_date: string; bill_count: number }
@@ -77,12 +79,23 @@ export function HomePage() {
       </section>
 
       <div className="home-grid">
-        {/* 2. Attention */}
-        <section className="panel">
-          <header className="panel-head"><h2>{t('Needs your attention', 'ध्यान दें', 'Dhyan do')}</h2></header>
-          <AttentionList alerts={alerts.data} loading={alerts.isLoading} canStock={can.stock} canMart={can.mart}
-            nextStep={nextStep ? { title: lang === 'en' ? nextStep.title_en : nextStep.title_hi, desc: lang === 'en' ? nextStep.desc_en : nextStep.desc_hi, target: nextStep.target } : undefined} />
-        </section>
+        <div className="stack" style={{ gap: 16 }}>
+          {/* 2. Attention */}
+          <section className="panel">
+            <header className="panel-head"><h2>{t('Needs your attention', 'ध्यान दें', 'Dhyan do')}</h2></header>
+            <AttentionList alerts={alerts.data} loading={alerts.isLoading} canStock={can.stock} canMart={can.mart}
+              nextStep={nextStep ? { title: lang === 'en' ? nextStep.title_en : nextStep.title_hi, desc: lang === 'en' ? nextStep.desc_en : nextStep.desc_hi, target: nextStep.target } : undefined} />
+          </section>
+
+          {/* 2b. Quick actions */}
+          <QuickActions />
+
+          {/* 2c. Who owes + what sells */}
+          <div className="home-pair">
+            {can.billing && <CollectPanel rows={s?.pending_customers} total={s?.total_pending_collection} loading={summary.isLoading} />}
+            <TopItemsPanel rows={s?.top_items} loading={summary.isLoading} />
+          </div>
+        </div>
 
         {/* 3. Recent */}
         <div className="stack" style={{ gap: 16 }}>
@@ -116,6 +129,91 @@ export function HomePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function QuickActions() {
+  const { t } = useI18n();
+  const { can } = useSession();
+  const items: { to: string; icon: React.ReactNode; label: string; tone?: string; show: boolean }[] = [
+    { to: '/pos', icon: <ReceiptText size={18} />, label: t('New bill', 'नया बिल', 'Naya bill'), show: can.billing },
+    { to: '/customers?filter=owes', icon: <HandCoins size={18} />, label: t('Record payment', 'भुगतान दर्ज करें', 'Payment likho'), show: can.billing },
+    { to: '/products?new=1', icon: <PackagePlus size={18} />, label: t('Add product', 'सामान जोड़ें', 'Saaman jodo'), show: can.stock },
+    { to: '/expenses', icon: <Wallet size={18} />, label: t('Add expense', 'खर्चा जोड़ें', 'Kharcha jodo'), show: can.finance },
+    { to: '/products?import=1', icon: <Upload size={18} />, label: t('Import data', 'डेटा import करें', 'Data import karo'), show: can.owner },
+    { to: '/mart', icon: <ShoppingCart size={18} />, label: t('Buy on Mart', 'Mart से खरीदें', 'Mart se khareedo'), tone: 'mart', show: can.mart }
+  ];
+  const shown = items.filter((i) => i.show);
+  if (!shown.length) return null;
+  return (
+    <section className="panel">
+      <header className="panel-head"><h2>{t('Quick actions', 'जल्दी के काम', 'Jaldi ke kaam')}</h2></header>
+      <div className="qa-grid">
+        {shown.map((i) => (
+          <Link key={i.to} to={i.to} className={`qa ${i.tone === 'mart' ? 'qa-mart' : ''}`}>
+            <span className="qa-ic">{i.icon}</span><span>{i.label}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CollectPanel({ rows, total, loading }: { rows?: Summary['pending_customers']; total?: number; loading: boolean }) {
+  const { t, err } = useI18n();
+  const toast = useToast();
+  const remind = async (id: number) => {
+    try { const r = await get<{ url: string }>(`/api/customers/${id}/reminder-link`); window.open(r.url, '_blank', 'noopener'); }
+    catch (e) { toast({ text: err(e), tone: 'error' }); }
+  };
+  const list = (rows || []).filter((r) => r.customer_id);
+  const max = Math.max(1, ...list.map((r) => r.pending));
+  return (
+    <section className="panel">
+      <header className="panel-head"><h2>{t('Udhaar to collect', 'वसूली बाकी', 'Vasooli baaki')}</h2>
+        {!!total && <span className="num" style={{ fontSize: 13, color: 'var(--owed)', fontWeight: 600 }}>{rupees(total)}</span>}</header>
+      {loading ? <div className="panel-body"><Skel h={140} /></div> : list.length ? (
+        <div className="list">
+          {list.map((r) => (
+            <div key={r.customer_id} className="list-row collect-row">
+              <Link to={`/customers/${r.customer_id}`} className="grow" style={{ minWidth: 0, color: 'inherit', textDecoration: 'none' }}>
+                <div className="title ellipsis">{r.customer_name}</div>
+                <span className="collect-bar"><i style={{ width: `${(r.pending / max) * 100}%` }} /></span>
+              </Link>
+              <Money value={r.pending} tone="owed" />
+              <button type="button" className="icon-btn icon-btn-sm collect-wa" title={t('Remind on WhatsApp', 'WhatsApp पर याद दिलाएं', 'WhatsApp pe yaad dilao')} aria-label={t('Remind on WhatsApp', 'WhatsApp पर याद दिलाएं', 'WhatsApp pe yaad dilao')} onClick={() => remind(r.customer_id as number)}><MessageCircle size={15} /></button>
+            </div>
+          ))}
+        </div>
+      ) : <p className="muted" style={{ padding: 16, margin: 0 }}>{t('Nobody owes you money right now.', 'अभी किसी का उधार बाकी नहीं।', 'Abhi kisi ka udhaar baaki nahi.')}</p>}
+      <div className="panel-foot"><Link to="/customers?filter=owes" className="btn btn-ghost btn-sm">{t('All customers', 'सभी ग्राहक', 'Sab customers')} <ChevronRight size={14} /></Link></div>
+    </section>
+  );
+}
+
+function TopItemsPanel({ rows, loading }: { rows?: Summary['top_items']; loading: boolean }) {
+  const { t } = useI18n();
+  const list = rows || [];
+  const max = Math.max(1, ...list.map((r) => r.amount));
+  return (
+    <section className="panel">
+      <header className="panel-head"><h2>{t('Selling well this week', 'इस हफ़्ते खूब बिका', 'Is hafte khoob bika')}</h2><TrendingUp size={16} className="muted" /></header>
+      {loading ? <div className="panel-body"><Skel h={140} /></div> : list.length ? (
+        <ol className="top-items">
+          {list.map((r, k) => (
+            <li key={`${r.product_id}-${r.name}`}>
+              <span className="top-rank">{k + 1}</span>
+              <span className="grow" style={{ minWidth: 0 }}>
+                <span className="title ellipsis">{r.name}</span>
+                <span className="top-bar"><i style={{ width: `${(r.amount / max) * 100}%` }} /></span>
+              </span>
+              <span className="top-fig"><b className="num">{rupees(r.amount)}</b><small>{t(`${r.qty} sold`, `${r.qty} बिके`, `${r.qty} bike`)}</small></span>
+            </li>
+          ))}
+        </ol>
+      ) : <p className="muted" style={{ padding: 16, margin: 0 }}>{t('Make a few bills and your best sellers show up here.', 'कुछ बिल बनाइए, सबसे ज़्यादा बिकने वाले सामान यहाँ दिखेंगे।', 'Kuch bill banao, sabse zyada bikne wale saaman yahan dikhenge.')}</p>}
+      <div className="panel-foot"><Link to="/products" className="btn btn-ghost btn-sm">{t('All products', 'सभी सामान', 'Sab saaman')} <ChevronRight size={14} /></Link></div>
+    </section>
   );
 }
 

@@ -11,6 +11,8 @@ import { resizeImage } from './mart/martApi';
 import { INDIAN_STATES, SHOP_CATEGORIES } from './Setup';
 import { Badge, Button, Drawer, Empty, Field, Input, Modal, Panel, Segmented, Select, SkelRows, Tabs, useToast } from '../components/ui';
 import { ExportMenu } from '../components/ExportMenu';
+import { ImportForm } from '../components/ImportData';
+import { ShopImagePick } from '../components/ShopImagePick';
 import { PageHeader, usePageTitle } from '../components/shell/AppShell';
 
 type Tab = 'shop' | 'staff' | 'plan' | 'data';
@@ -47,6 +49,8 @@ function ShopTab() {
   const b = me!.business!;
   const [f, setF] = useState({ name: b.name, owner_name: b.owner_name, phone: b.phone, city: b.city, category: b.category || 'kirana', address: b.address || '', landmark: b.landmark || '', pincode: b.pincode || '', state: b.state || '', gst_enabled: b.gst_enabled, gstin: b.gstin || '', upi_id: b.upi_id || '', upi_payee_name: b.upi_payee_name || '', language: b.language });
   const [qr, setQr] = useState<string | null>(b.payment_qr);
+  const [logo, setLogo] = useState<string | null>(b.logo);
+  const [shopPhoto, setShopPhoto] = useState<string | null>(b.shop_photo);
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   const patch = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
   const dis = !can.owner;
@@ -55,7 +59,7 @@ function ShopTab() {
     if (!f.name.trim()) { setError(t('Shop name is needed.', 'दुकान का नाम चाहिए।', 'Dukaan ka naam chahiye.')); return; }
     setBusy(true); setError('');
     try {
-      const r = await put<{ business: Business }>('/api/business', { ...f, payment_qr: qr || '' });
+      const r = await put<{ business: Business }>('/api/business', { ...f, payment_qr: qr || '', logo: logo || '', shop_photo: shopPhoto || '' });
       setBusiness(r.business); toast({ text: t('Settings saved', 'सेटिंग सेव हुई', 'Settings save hui') });
     } catch (e) { setError(err(e)); } finally { setBusy(false); }
   };
@@ -85,6 +89,12 @@ function ShopTab() {
           <Field label={t('Landmark', 'आस-पास की पहचान', 'Landmark')}>{(id) => <Input id={id} disabled={dis} value={f.landmark} onChange={(e) => patch({ landmark: e.target.value })} />}</Field>
           <Field label={t('PIN code', 'PIN code', 'PIN code')}>{(id) => <Input id={id} disabled={dis} inputMode="numeric" maxLength={6} value={f.pincode} onChange={(e) => patch({ pincode: e.target.value })} />}</Field>
           <Field label={t('Language for messages to customers', 'ग्राहकों को भेजे संदेश की भाषा', 'Customers ko bheje message ki bhasha')}>{() => <Segmented label="language" value={f.language} onChange={(v) => patch({ language: v })} options={[{ value: 'en', label: 'English' }, { value: 'hi', label: 'हिंदी' }, { value: 'hg', label: 'Hinglish' }]} />}</Field>
+        </div>
+      </Panel>
+      <Panel title={t('Logo and shop photo', 'लोगो और दुकान की फ़ोटो', 'Logo aur dukaan ki photo')}>
+        <div className="sip-row">
+          <ShopImagePick kind="logo" value={logo} onChange={setLogo} onError={setError} shopName={f.name} disabled={dis} />
+          <ShopImagePick kind="photo" value={shopPhoto} onChange={setShopPhoto} onError={setError} disabled={dis} />
         </div>
       </Panel>
       <Panel title="GST">
@@ -291,58 +301,11 @@ function DataTab() {
   );
 }
 
-interface Preview { total_rows: number; valid_count: number; duplicate_count: number; error_count: number; errors: { row: number; reason: string }[]; duplicates: { name: string }[]; sample: Record<string, unknown>[]; mapping: Record<string, string> }
 function ImportPanel() {
-  const { t, err } = useI18n();
-  const toast = useToast();
-  const qc = useQueryClient();
-  const [type, setType] = useState('products'); const [dup, setDup] = useState<'skip' | 'update'>('skip');
-  const [file, setFile] = useState<File | null>(null); const [prev, setPrev] = useState<Preview | null>(null);
-  const [payload, setPayload] = useState<Record<string, unknown> | null>(null); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [done, setDone] = useState('');
-  const reset = () => { setPrev(null); setPayload(null); setDone(''); setError(''); };
-  const toB64 = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => { const b = new Uint8Array(r.result as ArrayBuffer); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); res(btoa(s)); }; r.onerror = rej; r.readAsArrayBuffer(f); });
-  const check = async () => {
-    if (!file) { setError(t('Choose a CSV or Excel file first.', 'पहले CSV या Excel फ़ाइल चुनें।', 'Pehle CSV ya Excel file chuno.')); return; }
-    if (/\.xls$/i.test(file.name)) { setError(t('Old .xls files are not supported — save as .xlsx or CSV.', 'पुरानी .xls फ़ाइल नहीं चलेगी — .xlsx या CSV में सेव करें।', 'Purani .xls file nahi chalegi — .xlsx ya CSV me save karo.')); return; }
-    setBusy(true); reset();
-    try {
-      const xlsx = /\.xlsx$/i.test(file.name);
-      const p: Record<string, unknown> = { content: xlsx ? await toB64(file) : await file.text(), duplicate: dup, ...(xlsx ? { format: 'xlsx' } : {}) };
-      setPrev(await post<Preview>(`/api/import/${type}/preview`, p)); setPayload(p);
-    } catch (e) { setError(err(e)); } finally { setBusy(false); }
-  };
-  const commit = async () => {
-    if (!payload) return; setBusy(true);
-    try {
-      const r = await post<{ created: number; updated: number; skipped: number; error_count: number }>(`/api/import/${type}/commit`, { ...payload, duplicate: dup });
-      ['products', 'customers', 'suppliers', 'billing-products'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
-      setPrev(null); setPayload(null);
-      setDone(t(`Imported — ${r.created} new, ${r.updated} updated, ${r.skipped} skipped. A backup was saved first.`, `हो गया — ${r.created} नए, ${r.updated} अपडेट, ${r.skipped} छोड़े। पहले बैकअप बना लिया गया।`, `Ho gaya — ${r.created} naye, ${r.updated} update, ${r.skipped} chhode. Pehle backup bana liya gaya.`));
-      toast({ text: t('Import done', 'इम्पोर्ट हो गया', 'Import ho gaya') });
-    } catch (e) { setError(err(e)); } finally { setBusy(false); }
-  };
+  const { t } = useI18n();
   return (
-    <Panel title={t('Bring in your old list', 'पुरानी लिस्ट लाएं', 'Purani list lao')}>
-      <div className="stack" style={{ gap: 14 }}>
-        <p className="muted" style={{ margin: 0 }}>{t('Upload products, customers or suppliers from Excel or CSV. You see a preview first, and nothing changes until you confirm.', 'Excel या CSV से सामान, ग्राहक या सप्लायर डालें। पहले प्रिव्यू दिखेगा, पक्का करने तक कुछ नहीं बदलता।', 'Excel ya CSV se saaman, customer ya supplier daalo. Pehle preview dikhega, pakka karne tak kuch nahi badalta.')}</p>
-        <div className="form-3">
-          <Field label={t('What are you importing?', 'क्या डाल रहे हैं?', 'Kya daal rahe ho?')}>{(id) => <Select id={id} value={type} onChange={(e) => { setType(e.target.value); reset(); }}><option value="products">{t('Products', 'सामान', 'Saaman')}</option><option value="customers">{t('Customers', 'ग्राहक', 'Customers')}</option><option value="suppliers">{t('Suppliers', 'सप्लायर', 'Suppliers')}</option></Select>}</Field>
-          <Field label={t('If it already exists', 'अगर पहले से है', 'Agar pehle se hai')}>{() => <Segmented label="dup" value={dup} onChange={(v) => { setDup(v); reset(); }} options={[{ value: 'skip', label: t('Skip', 'छोड़ें', 'Chhodo') }, { value: 'update', label: t('Update', 'अपडेट', 'Update') }]} />}</Field>
-          <Field label={t('File', 'फ़ाइल', 'File')}>{(id) => <input id={id} className="input" type="file" accept=".csv,.tsv,.txt,.xlsx" onChange={(e) => { setFile(e.target.files?.[0] || null); reset(); }} />}</Field>
-        </div>
-        <div><Button loading={busy && !prev} onClick={check}>{t('Check the file', 'फ़ाइल जाँचें', 'File jaanch lo')}</Button></div>
-        {error && <div className="banner banner-owed" role="alert">{error}</div>}
-        {done && <div className="banner banner-info" role="status">{done}</div>}
-        {prev && (
-          <div className="stack" style={{ gap: 12 }}>
-            <div>{t('Rows', 'पंक्तियाँ', 'Rows')}: <b>{prev.total_rows}</b> · {t('Good', 'सही', 'Sahi')}: <b>{prev.valid_count}</b> · {t('Already there', 'पहले से हैं', 'Pehle se hain')}: <b>{prev.duplicate_count}</b> · {t('Problems', 'गलत', 'Galat')}: <b>{prev.error_count}</b></div>
-            {prev.errors.slice(0, 6).map((e) => <div key={e.row} className="meta amt-neg">{t('Row', 'पंक्ति', 'Row')} {e.row}: {e.reason}</div>)}
-            {!!prev.sample.length && (() => { const cols = Object.keys(prev.sample[0]).filter((k) => k !== 'row' && k !== 'duplicate'); return (
-              <div className="table-wrap"><table className="table table-dense"><thead><tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr></thead><tbody>{prev.sample.slice(0, 8).map((s, i) => <tr key={i}>{cols.map((c) => <td key={c}>{s[c] == null ? '' : String(s[c])}</td>)}</tr>)}</tbody></table></div>); })()}
-            <div><Button variant="primary" loading={busy} disabled={!prev.valid_count} onClick={commit}>{t(`Import ${prev.valid_count} rows`, `${prev.valid_count} पंक्तियाँ डालें`, `${prev.valid_count} rows daalo`)}</Button></div>
-          </div>
-        )}
-      </div>
+    <Panel title={t('Bring in your old data', 'पुराना डेटा लाएं', 'Purana data lao')}>
+      <ImportForm types={['products', 'customers', 'suppliers', 'expenses', 'catalog']} />
     </Panel>
   );
 }

@@ -8,6 +8,7 @@ import { initials, rupees } from '../lib/format';
 import type { Customer } from '../lib/types';
 import { Button, Drawer, Empty, Field, Input, Money, SkelRows, Tabs, useToast } from '../components/ui';
 import { ExportMenu } from '../components/ExportMenu';
+import { ImportButton } from '../components/ImportData';
 import { PageHeader, useIsMobile, usePageTitle } from '../components/shell/AppShell';
 
 type F = 'all' | 'owes';
@@ -39,6 +40,7 @@ export default function CustomersPage() {
         title={t('Customers & udhaar', 'ग्राहक और उधार', 'Customers aur udhaar')}
         sub={c.data ? <>{t('To collect', 'वसूली बाकी', 'Vasooli baaki')} <Money value={owed} tone={owed ? 'owed' : undefined} /> {t(`from ${owers} of ${all.length} customers`, `${all.length} में से ${owers} ग्राहकों से`, `${all.length} me se ${owers} customers se`)}</> : ' '}
         actions={<>
+          <ImportButton types={['customers']} />
           <ExportMenu path="/api/export/customers" name="customers" />
           <Button variant="primary" icon={<UserPlus size={16} />} onClick={() => setAdding(true)}>{t('Add customer', 'ग्राहक जोड़ें', 'Customer jodo')}</Button>
         </>}

@@ -1,0 +1,1 @@
+{"$schema":"https://openapi.vercel.sh/vercel.json","buildCommand":"true","outputDirectory":".","rewrites":[{"destination":"/landing/index.html","source":"/"},{"destination":"https://bizyour-i08s.onrender.com/$1","source":"/(.*)"}]}

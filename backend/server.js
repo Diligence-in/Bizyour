@@ -79,7 +79,7 @@ const fs = require('fs');
 const os = require('os');
 const { db, TABLES } = require('./db');
 const { sendMail, mailConfig, otpEmailHtml } = require('./mailer');
-const { qrSvg } = require('./qrcode');
+const { qrSvg, encodeQr } = require('./qrcode');
 const security = require('./security');
 
 const app = express();
@@ -165,12 +165,19 @@ app.use('/brand', express.static(path.join(CLASSIC_DIR, 'brand'), { setHeaders: 
 // own assets live under /landing/* and its CTAs link into the React auth
 // routes. Its script sends visitors who already hold a session straight to
 // /login, mirroring the classic boot().
+//
+// Update 23 Nov 2026: the redesigned React homepage (web/src/pages/Landing.tsx,
+// v2 with device mockups) now serves "/" by default. The classic landing
+// stays one click away at /home-classic for comparison, and setting
+// CLASSIC_HOME=1 puts it back on "/" without a code change.
 const LANDING_DIR = path.join(__dirname, '..', 'landing');
 if (fs.existsSync(path.join(LANDING_DIR, 'index.html'))) {
-  app.get('/', (req, res) => {
+  const sendClassicHome = (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(LANDING_DIR, 'index.html'));
-  });
+  };
+  app.get('/home-classic', sendClassicHome);
+  if (process.env.CLASSIC_HOME === '1' || !HAS_WEB) app.get('/', sendClassicHome);
   app.use('/landing', express.static(LANDING_DIR, { index: false, setHeaders: staticHeaders }));
 }
 if (HAS_WEB) {
@@ -244,6 +251,8 @@ function publicBusiness(b) {
     gst_enabled: !!b.gst_enabled, gstin: b.gstin,
     upi_id: b.upi_id || '', upi_payee_name: b.upi_payee_name || '',
     payment_qr: b.payment_qr || null,
+    logo: b.logo || null,
+    shop_photo: b.shop_photo || null,
     language: ['hi', 'hg'].includes(b.language) ? b.language : 'en',
     setup_complete: workspaceActive,
     updated_at: b.updated_at, sync_status: b.sync_status
@@ -1589,46 +1598,70 @@ const INDIAN_STATES = [
 // their legacy free-form handling there — activation is the strict
 // gate, Settings must never start rejecting a legacy shop's saves.
 // Returns { error } or { values }.
+// Optional shop images (23 Nov): logo (prints on bills in place of the
+// initial-letter tile) and a photo of the shop. Same rule as the payment
+// QR — a JPEG/PNG data URL resized in the browser, or ''/null to clear.
+// Returns { value } (undefined = not sent, leave as is) or { error }.
+const SHOP_IMAGE_LIMITS = { logo: 420000, shop_photo: 900000 };
+function shopImageField(body, key) {
+  if (body[key] === undefined) return { value: undefined };
+  const v = body[key];
+  if (v === null || v === '') return { value: null };
+  if (typeof v !== 'string' || !/^data:image\/(jpeg|jpg|png);base64,/.test(v)) return { error: `invalid_${key}_image` };
+  if (v.length > SHOP_IMAGE_LIMITS[key]) return { error: `${key}_image_too_large` };
+  return { value: v };
+}
+async function saveShopImages(bizId, body) {
+  for (const key of ['logo', 'shop_photo']) {
+    const r = shopImageField(body, key);
+    if (r.value !== undefined) await db.run(`UPDATE businesses SET ${key} = ?, updated_at = datetime('now'), sync_status = 'local' WHERE id = ?`, r.value, bizId);
+  }
+}
+function checkShopImages(body) {
+  for (const key of ['logo', 'shop_photo']) { const r = shopImageField(body, key); if (r.error) return r.error; }
+  return null;
+}
+
 function validateShopFields(body, partial) {
+  // 23 Nov (founder): only SHOP NAME and CITY are required to open the
+  // Workspace. Everything else is optional — but when a value IS given
+  // it must still be a real one (a 6-digit PIN, a real state, …).
   const has = (k) => body[k] !== undefined;
   const v = {};
   if (!partial) {
     v.name = String(body.name || '').trim();
     if (v.name.length < 3) return { error: 'shop_name_required' };
-    const mob = normalizeMobile(body.phone);
-    if (!mob) return { error: 'invalid_mobile' };
-    v.phone = mob;
     v.city = String(body.city || '').trim();
     if (v.city.length < 2) return { error: 'city_required' };
+    const rawPhone = String(body.phone || '').trim();
+    if (rawPhone) {
+      const mob = normalizeMobile(rawPhone);
+      if (!mob) return { error: 'invalid_mobile' };
+      v.phone = mob;
+    } else v.phone = '';
   }
   if (!partial || has('category')) {
     const cat = String(body.category || '').trim().toLowerCase();
-    if (!partial || cat) {
+    if (cat) {
       if (!SHOP_CATEGORIES.includes(cat)) return { error: 'invalid_category' };
       v.category = cat;
-    }
+    } else if (!partial) v.category = 'other';
   }
   if (!partial || has('address')) {
     const addr = String(body.address || '').trim();
-    if (!partial || addr) {
-      if (addr.length < 8) return { error: 'address_required' };
-      v.address = addr;
-    }
+    if (addr && addr.length < 4) return { error: 'address_required' };
+    if (addr || !partial) v.address = addr;
   }
   if (has('landmark')) v.landmark = String(body.landmark || '').trim();
   if (!partial || has('pincode')) {
     const pin = String(body.pincode || '').trim();
-    if (!partial || pin) {
-      if (!/^\d{6}$/.test(pin)) return { error: 'invalid_pincode' };
-      v.pincode = pin;
-    }
+    if (pin && !/^\d{6}$/.test(pin)) return { error: 'invalid_pincode' };
+    if (pin || !partial) v.pincode = pin;
   }
   if (!partial || has('state')) {
     const st = String(body.state || '').trim();
-    if (!partial || st) {
-      if (!INDIAN_STATES.includes(st)) return { error: 'invalid_state' };
-      v.state = st;
-    }
+    if (st && !INDIAN_STATES.includes(st)) return { error: 'invalid_state' };
+    if (st || !partial) v.state = st;
   }
   // GST: when billing is on, the GSTIN must be a real-format one.
   const gstOn = body.gst_enabled !== undefined ? !!body.gst_enabled : null;
@@ -1772,6 +1805,8 @@ app.put('/api/business', requireAuth, requireOwner, async (req, res) => {
   if (next.upi_id && !UPI_ID_RE.test(next.upi_id)) {
     return res.status(400).json({ error: 'invalid_upi_id' });
   }
+  const imgErr = checkShopImages(body);
+  if (imgErr) return res.status(400).json({ error: imgErr });
   // Payment QR (bill PDF): the shop's OWN uploaded UPI QR image, stored
   // as a JPEG/PNG data URL exactly like Mart listing photos (client-side
   // canvas resize, ~400KB cap). '' / null clears it; anything that is
@@ -1789,6 +1824,7 @@ app.put('/api/business', requireAuth, requireOwner, async (req, res) => {
     `UPDATE businesses SET name=?, owner_name=?, phone=?, city=?, category=?, address=?, landmark=?, pincode=?, state=?, gst_enabled=?, gstin=?, upi_id=?, upi_payee_name=?, language=?, payment_qr=?,
        updated_at=datetime('now'), sync_status='local' WHERE id=?`
   , next.name, next.owner_name, next.phone, next.city, next.category, next.address, next.landmark, next.pincode, next.state, next.gst_enabled, next.gstin, next.upi_id, next.upi_payee_name, next.language, paymentQr, req.user.business_id);
+  await saveShopImages(req.user.business_id, body);
   res.json({ business: publicBusiness(await getBusiness(req.user.business_id)) });
 });
 
@@ -1804,6 +1840,8 @@ app.post('/api/workspace/activate', requireAuth, requireOwner, async (req, res) 
   if (!cur) return res.status(404).json({ error: 'business not found' });
   const chk = validateShopFields(body, false);
   if (chk.error) return res.status(400).json({ error: chk.error });
+  const imgErr = checkShopImages(body);
+  if (imgErr) return res.status(400).json({ error: imgErr });
   const v = chk.values;
   const gstEnabled = body.gst_enabled ? 1 : 0;
   const ownerName = body.owner_name !== undefined ? String(body.owner_name).trim() : cur.owner_name;
@@ -1817,6 +1855,7 @@ app.post('/api/workspace/activate', requireAuth, requireOwner, async (req, res) 
   , v.name, ownerName, v.phone, v.city, v.category, v.address, v.landmark || '', v.pincode, v.state,
     gstEnabled, gstEnabled ? (v.gstin || '') : (body.gstin !== undefined ? String(body.gstin).trim().toUpperCase() : cur.gstin),
     language, fmtTs(new Date()), req.user.business_id);
+  await saveShopImages(req.user.business_id, body);
   await ensureSubscription(req.user.business_id); // 30-day trial starts NOW
   await auditLog(req, 'update', 'workspace', req.user.business_id, `Workspace activate hua: ${v.name} (${v.city}, ${v.state})`);
   res.json({
@@ -3176,6 +3215,8 @@ app.put('/api/invoices/:id', requireAuth, requireOwner, async (req, res) => {
     // Due date: fully paid → none; balance hai aur pehle set nahi tha →
     // bill date + 15 din (create wali rule); warna purani hi rehti hai.
     let dueDate = inv.due_date || null;
+    // 23 Nov: the new app's edit screen can send a new "pay by" date.
+    if (b.due_date !== undefined && b.due_date !== null && b.due_date !== '' && isDateStr(String(b.due_date))) dueDate = String(b.due_date);
     if (round2(total - newPaid) <= 0) dueDate = null;
     else if (!dueDate) dueDate = addDaysToDateStr(inv.date, 15);
     await tx.run(
@@ -3409,7 +3450,7 @@ async function sendBillPdf(req, res) {
   if (!inv) return res.status(404).json({ error: 'invoice not found' });
   const biz = await getBusiness(bizId);
   const items = await db.all(
-    `SELECT ii.*, p.unit AS p_unit
+    `SELECT ii.*, p.unit AS p_unit, p.hsn_code AS p_hsn
      FROM invoice_items ii
      LEFT JOIN products p ON p.id = ii.product_id AND p.business_id = ii.business_id
      WHERE ii.invoice_id = ? AND ii.business_id = ? ORDER BY ii.id ASC`
@@ -3421,12 +3462,28 @@ async function sendBillPdf(req, res) {
   const netTotal = round2(Number(inv.total) - returnsTotal);
   const balance = round2(netTotal - Number(inv.paid_amount));
   const customer = inv.customer_id ? await customerRow(bizId, inv.customer_id) : null;
+  // UPI on the bill (23 Nov): the shop's OWN uploaded QR when it has one;
+  // otherwise a QR made from its UPI ID — for the exact balance while
+  // money is due, or a plain "pay this shop" QR once the bill is settled.
+  let upi = null;
+  if (biz && biz.payment_qr) {
+    const m = /^data:image\/(jpeg|jpg|png);base64,(.+)$/.exec(String(biz.payment_qr));
+    if (m) { try { upi = { image: { buf: Buffer.from(m[2], 'base64'), fmt: m[1] } }; } catch { upi = null; } }
+  }
+  if (!upi && biz && biz.upi_id) {
+    const uri = balance > 0 && !inv.cancelled_at
+      ? buildUpiUri(biz, balance, inv.bill_no)
+      : `upi://pay?pa=${encodeURIComponent(biz.upi_id)}&pn=${encodeURIComponent(upiPayeeName(biz))}&cu=INR`;
+    const qr = uri ? encodeQr(uri) : null;
+    if (qr) upi = { modules: qr.modules };
+  }
   const buf = await exporter.billPdf({
+    upi,
     business: biz || {},
     invoice: inv,
     customer,
     customerName: inv.customer_name || (customer && customer.name) || '',
-    items: items.map((it) => ({ ...it, unit: it.p_unit || '' })),
+    items: items.map((it) => ({ ...it, unit: it.p_unit || '', hsn_code: it.p_hsn || '' })),
     returnsTotal,
     netTotal,
     balance
@@ -4805,7 +4862,16 @@ app.get('/api/dashboard-summary', requireAuth, async (req, res) => {
   const wMap = {};
   wRows.forEach((r) => { wMap[r.date] = round2(r.t); });
   wRetRows.forEach((r) => { wMap[r.date] = round2((wMap[r.date] || 0) - Number(r.t)); });
+  // Top-selling items, last 7 days (Home: "Selling well"). Quantity and
+  // sale value only — no cost or profit, so this stays safe for staff.
+  const topRows = await db.all(
+    `SELECT ii.product_id, ii.product_name, COALESCE(SUM(ii.qty),0) AS qty, COALESCE(SUM(ii.amount),0) AS amount
+     FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id AND i.business_id = ii.business_id
+     WHERE ii.business_id = ? AND i.date >= ? AND i.date <= ? AND i.kind = 'sale' AND i.cancelled_at IS NULL
+     GROUP BY ii.product_id, ii.product_name ORDER BY amount DESC LIMIT 5`
+  , bizId, weekDays[0], today);
   res.json({
+    top_items: topRows.map((r) => ({ product_id: r.product_id, name: r.product_name, qty: round2(r.qty), amount: round2(r.amount) })),
     date: today,
     todays_sale: round2(Number(t.sale) - Number(todayRet.s)), todays_bills: t.bills,
     total_pending_collection: totalPending,
@@ -5362,7 +5428,9 @@ app.get('/api/export/purchases', requireAuth, requireOwner, async (req, res) => 
 // NOTHING, takes NO snapshot) → commit (safety snapshot first, then ONE
 // transaction; any failure imports nothing).
 // =====================================================================
-const IMPORT_TYPES = ['products', 'customers', 'suppliers'];
+const IMPORT_TYPES = ['products', 'customers', 'suppliers', 'expenses', 'catalog'];
+// Lazy: mart.js is registered further down; its constants are plain data.
+const martConst = () => require('./mart');
 const IMPORT_MAX_ROWS = 5000;
 
 // Delimited-text parser: quoted fields ("" = literal quote), commas
@@ -5422,13 +5490,48 @@ const IMPORT_SYNONYMS = {
     phone: ['phone', 'mobile', 'contact', 'mobileno', 'phoneno', 'mobilenumber', 'phonenumber', 'contactno'],
     city: ['city', 'place'],
     opening: ['openingbalance', 'opening', 'payable', 'openingpayable', 'pending', 'balancedue', 'balance', 'amountdue', 'due', 'dena', 'bakaya', 'baaki']
+  },
+  // 23 Nov: old kharcha register from Excel / Vyapar / Tally.
+  expenses: {
+    name: ['title', 'name', 'expense', 'expensename', 'description', 'particulars', 'details', 'item', 'kharcha'],
+    amount: ['amount', 'amt', 'value', 'total', 'rs', 'rupees', 'expenseamount', 'paid'],
+    date: ['date', 'expensedate', 'day', 'billdate', 'paiddate'],
+    category: ['category', 'head', 'expensehead', 'type', 'group', 'expensecategory'],
+    payment_mode: ['mode', 'paymentmode', 'paidby', 'payment', 'paidvia', 'paymenttype'],
+    notes: ['notes', 'note', 'remarks', 'remark', 'comment']
+  },
+  // 23 Nov: a wholesaler's Business Mart catalogue (price list).
+  catalog: {
+    name: ['name', 'itemname', 'product', 'productname', 'item'],
+    price: ['wholesaleprice', 'price', 'rate', 'wholesalerate', 'sellprice', 'salesprice', 'priceperunit', 'bhaav'],
+    moq: ['moq', 'minorder', 'minimumorder', 'minimum', 'minqty', 'minimumqty', 'minimumquantity'],
+    unit: ['unit', 'uom', 'units'],
+    category: ['category', 'group', 'itemgroup']
   }
 };
 const IMPORT_FIELD_LABEL = {
   name: 'Name', sell_price: 'Sell Price', buy_price: 'Buy Price', stock: 'Stock',
   gst_rate: 'GST %', unit: 'Unit', category: 'Category', hsn_code: 'HSN',
-  phone: 'Phone', city: 'City', gstin: 'GSTIN', opening: 'Opening Balance'
+  phone: 'Phone', city: 'City', gstin: 'GSTIN', opening: 'Opening Balance',
+  amount: 'Amount', date: 'Date', payment_mode: 'Payment mode', notes: 'Notes',
+  price: 'Wholesale price', moq: 'Minimum order'
 };
+
+// Import dates: YYYY-MM-DD (Excel cells arrive like this), DD-MM-YYYY,
+// DD/MM/YYYY, DD.MM.YYYY and 2-digit years. Empty → today. Returns
+// 'YYYY-MM-DD' or null when it cannot be read.
+function parseImportDate(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return new Date().toISOString().slice(0, 10);
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  let y, mo, d;
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else if ((m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/))) { d = +m[1]; mo = +m[2]; y = +m[3]; if (y < 100) y += 2000; }
+  else return null;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return dt.toISOString().slice(0, 10);
+}
 
 // Indian-format tolerant number parse: "1,200", "₹500", "18%" all read.
 // Returns { empty:true } | { error:true } | { value }.
@@ -5455,6 +5558,41 @@ function parseImportRow(type, get) {
     if (!p.empty && p.value < 0) return { error: `${IMPORT_FIELD_LABEL[f]} negative nahi ho sakta: "${raw}"` };
     return p.empty ? null : round2(p.value);
   };
+  if (type === 'catalog') {
+    const { MART_CATEGORIES, MART_UNITS, guessCategory } = martConst();
+    const price = numField('price');
+    if (price && price.error) return price;
+    if (!price) return { error: `Wholesale price khali ya zero hai — "${name}"` };
+    data.price = price;
+    const moq = numField('moq');
+    if (moq && moq.error) return moq;
+    data.moq = moq || 1;
+    const unitRaw = String(get('unit') || '').trim().toLowerCase();
+    const unitAlias = { kgs: 'kg', kilo: 'kg', pcs: 'piece', pc: 'piece', nos: 'piece', ltr: 'litre', liter: 'litre', l: 'litre', gm: 'gram', g: 'gram', pkt: 'pack', packet: 'pack', doz: 'dozen', ctn: 'carton', qtl: 'quintal' };
+    const unit = unitAlias[unitRaw] || unitRaw;
+    data.unit = MART_UNITS.includes(unit) ? unit : 'piece';
+    const catRaw = String(get('category') || '').trim();
+    data.category = MART_CATEGORIES.find((c) => c.toLowerCase() === catRaw.toLowerCase()) || guessCategory(name, catRaw);
+    return { data };
+  }
+  if (type === 'expenses') {
+    const amt = numField('amount');
+    if (amt && amt.error) return amt;
+    if (!amt) return { error: `Amount khali ya zero hai — "${name}"` };
+    data.amount = amt;
+    const date = parseImportDate(get('date'));
+    if (!date) return { error: `Date samajh nahi aayi: "${get('date')}" (DD-MM-YYYY ya YYYY-MM-DD likho)` };
+    data.date = date;
+    const catRaw = String(get('category') || '').trim();
+    const cat = EXPENSE_CATEGORIES.find((c) => c.toLowerCase() === catRaw.toLowerCase());
+    data.category = cat || 'Other';
+    const modeRaw = String(get('payment_mode') || '').trim().toLowerCase();
+    data.payment_mode = /upi|gpay|phonepe|paytm/.test(modeRaw) ? 'UPI' : /bank|neft|rtgs|imps|cheque|check|card/.test(modeRaw) ? 'Bank' : 'Cash';
+    const notes = String(get('notes') || '').trim();
+    // A category we do not know is kept in the note, not lost.
+    data.notes = [notes, catRaw && !cat ? `Category: ${catRaw}` : ''].filter(Boolean).join(' · ');
+    return { data };
+  }
   if (type === 'products') {
     for (const f of ['sell_price', 'buy_price', 'stock', 'gst_rate']) {
       const v = numField(f);
@@ -5490,6 +5628,9 @@ function parseImportRow(type, get) {
 // Duplicate identity: products by name; parties by phone when a phone
 // exists, else by name — always within the caller's own business.
 function importDupKey(type, data) {
+  if (type === 'expenses') {
+    return 'e:' + [data.date, String(data.title || data.name || '').trim().toLowerCase(), round2(Number(data.amount))].join('|');
+  }
   if (type !== 'products' && data.phone) {
     const digits = String(data.phone).replace(/\D/g, '');
     if (digits) return 'p:' + digits;
@@ -5498,6 +5639,16 @@ function importDupKey(type, data) {
 }
 async function loadImportKeys(bizId, type) {
   const set = new Set();
+  if (type === 'catalog') {
+    const rows = await db.all('SELECT name FROM mart_listings WHERE business_id = ?', bizId);
+    rows.forEach((r) => set.add('n:' + String(r.name).trim().toLowerCase()));
+    return set;
+  }
+  if (type === 'expenses') {
+    const rows = await db.all('SELECT title, amount, date FROM expenses WHERE business_id = ?', bizId);
+    rows.forEach((r) => set.add(importDupKey('expenses', r)));
+    return set;
+  }
   if (type === 'products') {
     const rows = await db.all('SELECT name FROM products WHERE business_id = ?', bizId);
     rows.forEach((r) => set.add('n:' + String(r.name).trim().toLowerCase()));
@@ -5643,6 +5794,11 @@ app.post('/api/import/:type/commit', requireAuth, requireOwner, async (req, res)
     return res.status(400).json({ error: 'no_valid_rows', errors: a.errors.slice(0, 100) });
   }
 
+  // Catalogue rows only make sense for a shop that sells on the Mart.
+  if (type === 'catalog') {
+    const prof = await db.get('SELECT is_seller FROM mart_profiles WHERE business_id = ?', bizId);
+    if (!prof || !prof.is_seller) return res.status(403).json({ error: 'not_seller' });
+  }
   // Safety first: a restorable snapshot of the CURRENT data, taken
   // before a single row changes (kind 'manual' — the snapshot schema's
   // CHECK allows only auto/manual/pre-restore).
@@ -5652,7 +5808,39 @@ app.post('/api/import/:type/commit', requireAuth, requireOwner, async (req, res)
 
   const tx = await db.begin();
   try {
-    if (type === 'products') {
+    if (type === 'catalog') {
+      const byKey = new Map();
+      (await tx.all('SELECT * FROM mart_listings WHERE business_id = ?', bizId))
+        .forEach((l) => byKey.set('n:' + String(l.name).trim().toLowerCase(), l));
+      for (const v of a.valid) {
+        const d = v.data;
+        const cur = byKey.get(v.key);
+        if (cur) {
+          if (strategy === 'skip') { skipped++; continue; }
+          await tx.run(`UPDATE mart_listings SET category=?, unit=?, price=?, moq=?, updated_at=datetime('now') WHERE id=? AND business_id=?`
+          , d.category, d.unit, d.price, d.moq, cur.id, bizId);
+          updated++;
+          continue;
+        }
+        const prod = await tx.get('SELECT id FROM products WHERE business_id = ? AND lower(trim(name)) = ?', bizId, String(d.name).trim().toLowerCase());
+        const r = await tx.run(
+          `INSERT INTO mart_listings (business_id, product_id, name, category, unit, price, moq, photo, active) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 1)`
+        , bizId, prod ? prod.id : null, String(d.name).slice(0, 120), d.category, d.unit, d.price, d.moq);
+        byKey.set(v.key, { id: r.lastInsertRowid });
+        created++;
+      }
+    } else if (type === 'expenses') {
+      // An expense has no natural identity to "update", so a row already
+      // in the books (same date, title and amount) is always skipped.
+      for (const v of a.valid) {
+        if (v.duplicate) { skipped++; continue; }
+        const d = v.data;
+        await tx.run(
+          `INSERT INTO expenses (business_id, title, category, amount, date, payment_mode, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`
+        , bizId, d.name, d.category, d.amount, d.date, d.payment_mode, d.notes || '');
+        created++;
+      }
+    } else if (type === 'products') {
       const byKey = new Map();
       (await tx.all('SELECT * FROM products WHERE business_id = ?', bizId))
         .forEach((p) => byKey.set('n:' + String(p.name).trim().toLowerCase(), p));

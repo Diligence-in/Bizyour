@@ -10,6 +10,7 @@ export interface Business {
   category: string; address: string; landmark: string; pincode: string; state: string;
   workspace_active: boolean; workspace_activated_at: string | null;
   gst_enabled: boolean; gstin: string; upi_id: string; upi_payee_name: string; payment_qr: string | null;
+  logo: string | null; shop_photo: string | null;
   language: Lang; setup_complete: boolean;
 }
 export interface Me { user: User; business: Business | null }

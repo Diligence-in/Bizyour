@@ -7,6 +7,7 @@ import { dateLabel, rupees, todayStr } from '../lib/format';
 import { EXPENSE_CATS, ymNow, ymRange } from '../lib/months';
 import { Badge, Button, Drawer, Empty, Field, Input, Modal, Panel, Segmented, Select, SkelRows, useToast } from '../components/ui';
 import { ExportMenu } from '../components/ExportMenu';
+import { ImportButton } from '../components/ImportData';
 import { Bars, MonthNav } from '../components/MonthNav';
 import { PageHeader, useIsMobile, usePageTitle } from '../components/shell/AppShell';
 
@@ -40,6 +41,7 @@ export default function ExpensesPage() {
       <PageHeader title={t('Expenses', 'खर्चा', 'Kharcha')}
         sub={t('Rent, salary, electricity — what the shop spends to run. Stock you buy is under Purchases.', 'किराया, तनख़्वाह, बिजली — दुकान चलाने का खर्चा। माल की खरीद Purchases में है।', 'Kiraya, tankhwah, bijli — dukaan chalane ka kharcha. Maal ki khareed Purchases me hai.')}
         actions={<>
+          <ImportButton types={['expenses']} />
           <ExportMenu path="/api/export/expenses" name="expenses" />
           <Button variant="primary" icon={<Plus size={16} />} onClick={() => setEdit('new')}>{t('Add expense', 'खर्चा जोड़ें', 'Kharcha jodo')}</Button>
         </>} />

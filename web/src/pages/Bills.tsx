@@ -9,6 +9,7 @@ import { dateLabel, daysFromToday, rupees } from '../lib/format';
 import type { Invoice } from '../lib/types';
 import { BillStatusBadge, Empty, Money, SkelRows, Tabs } from '../components/ui';
 import { ExportMenu } from '../components/ExportMenu';
+import { ImportButton } from '../components/ImportData';
 import { PageHeader, useIsMobile, usePageTitle } from '../components/shell/AppShell';
 
 type Filter = 'all' | 'unpaid' | 'today' | 'returns';
@@ -47,6 +48,7 @@ export default function BillsPage() {
         title={t('Bills', 'बिल', 'Bills')}
         sub={inv.data ? t(`${rows.length} bills · ${rupees(totals.total)} · ${rupees(totals.pending)} unpaid`, `${rows.length} बिल · ${rupees(totals.total)} · ${rupees(totals.pending)} बाकी`, `${rows.length} bill · ${rupees(totals.total)} · ${rupees(totals.pending)} baaki`) : ' '}
         actions={<>
+          <ImportButton types={['customers', 'products']} label={t('Import old udhaar', 'पुराना उधार इम्पोर्ट करें', 'Purana udhaar import karo')} />
           {can.finance && <ExportMenu path="/api/export/sales" name="sales" />}
           <Link to="/pos" className="btn btn-primary"><Plus size={16} /> {t('New bill', 'नया बिल', 'Naya bill')}</Link>
         </>}

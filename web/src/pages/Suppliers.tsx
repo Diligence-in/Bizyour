@@ -9,6 +9,7 @@ import { initials, rupees } from '../lib/format';
 import type { Supplier } from '../lib/types';
 import { Button, Drawer, Empty, Field, Input, Money, SkelRows, useToast } from '../components/ui';
 import { ExportMenu } from '../components/ExportMenu';
+import { ImportButton } from '../components/ImportData';
 import { PageHeader, useIsMobile, usePageTitle } from '../components/shell/AppShell';
 
 export default function SuppliersPage() {
@@ -33,6 +34,7 @@ export default function SuppliersPage() {
         sub={s.data ? <>{t('You owe', 'देना है', 'Dena hai')} <Money value={owe} tone={owe ? 'warn' : undefined} /> · {t(`${all.length} suppliers`, `${all.length} सप्लायर`, `${all.length} supplier`)}</> : ' '}
         actions={<>
           {can.mart && <Link className="btn btn-secondary hide-mobile" to="/mart/browse?tab=sellers"><ShoppingCart size={16} /> {t('Find new suppliers', 'नए सप्लायर खोजें', 'Naye supplier khojo')}</Link>}
+          <ImportButton types={['suppliers']} />
           <ExportMenu path="/api/export/suppliers" name="suppliers" />
           <Button variant="primary" icon={<Plus size={16} />} onClick={() => setEdit('new')}>{t('Add supplier', 'सप्लायर जोड़ें', 'Supplier jodo')}</Button>
         </>}

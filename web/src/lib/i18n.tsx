@@ -40,7 +40,21 @@ const ERRORS: Record<string, [string, string, string]> = {
   owner_only: ['Only the owner can do this.', 'यह सिर्फ़ मालिक कर सकते हैं।', 'Ye sirf owner kar sakta hai.'],
   billing_access_only: ['Your staff access doesn’t include billing.', 'आपके access में billing नहीं है।', 'Aapke access me billing nahi hai.'],
   stock_access_only: ['Your staff access doesn’t include stock.', 'आपके access में stock नहीं है।', 'Aapke access me stock nahi hai.'],
-  password_too_short: ['Use at least 8 characters for the password.', 'Password कम से कम 8 अक्षर का रखें।', 'Password kam se kam 8 character ka rakho.']
+  password_too_short: ['Use at least 8 characters for the password.', 'Password कम से कम 8 अक्षर का रखें।', 'Password kam se kam 8 character ka rakho.'],
+  // import
+  name_column_not_found: ['We could not find a Name column. Add a header row with “Name” (download the sample file to see the format).', 'Name वाला कॉलम नहीं मिला। सबसे ऊपर “Name” वाली header पंक्ति रखें (नमूना फ़ाइल देखें)।', 'Name wala column nahi mila. Sabse upar “Name” wali header row rakho (sample file dekho).'],
+  too_many_rows: ['That file has too many rows. Split it into files of up to 5,000 rows.', 'फ़ाइल में बहुत पंक्तियाँ हैं। 5,000 तक की फ़ाइलों में बाँटें।', 'File me bahut rows hain. 5,000 tak ki files me baanto.'],
+  empty_file: ['That file is empty.', 'फ़ाइल खाली है।', 'File khaali hai.'],
+  invalid_xlsx: ['That Excel file could not be read. Save it again as .xlsx or CSV.', 'Excel फ़ाइल नहीं खुली। .xlsx या CSV में दोबारा सेव करें।', 'Excel file nahi khuli. .xlsx ya CSV me dobara save karo.'],
+  xlsx_not_available: ['Excel files are not available right now. Save as CSV and try again.', 'अभी Excel नहीं चल रहा। CSV में सेव करके डालें।', 'Abhi Excel nahi chal raha. CSV me save karke daalo.'],
+  no_valid_rows: ['No row in the file could be imported. Check the problems listed.', 'फ़ाइल की कोई पंक्ति नहीं चढ़ी। गलतियाँ देखें।', 'File ki koi row nahi chadhi. Galtiyan dekho.'],
+  unknown_import_type: ['That kind of import is not supported.', 'यह import नहीं होता।', 'Ye import nahi hota.'],
+  import_failed: ['The import failed and nothing was changed. Please try again.', 'Import नहीं हुआ, कुछ नहीं बदला। फिर कोशिश करें।', 'Import nahi hua, kuch nahi badla. Phir koshish karo.'],
+  not_seller: ['Set up your seller profile on Business Mart first.', 'पहले Business Mart पर seller profile बनाएं।', 'Pehle Business Mart pe seller profile banao.'],
+  invalid_logo_image: ['That logo is not a JPG or PNG image.', 'लोगो JPG या PNG तस्वीर नहीं है।', 'Logo JPG ya PNG tasveer nahi hai.'],
+  logo_image_too_large: ['That logo is too large. Try a smaller image.', 'लोगो बहुत बड़ा है। छोटी तस्वीर डालें।', 'Logo bahut bada hai. Chhoti tasveer daalo.'],
+  invalid_shop_photo_image: ['That shop photo is not a JPG or PNG image.', 'दुकान की फ़ोटो JPG या PNG नहीं है।', 'Dukaan ki photo JPG ya PNG nahi hai.'],
+  shop_photo_image_too_large: ['That shop photo is too large. Try a smaller photo.', 'दुकान की फ़ोटो बहुत बड़ी है। छोटी फ़ोटो डालें।', 'Dukaan ki photo bahut badi hai. Chhoti photo daalo.']
 };
 
 export function I18nProvider({ children, initial }: { children: ReactNode; initial?: Lang }) {

@@ -42,6 +42,19 @@ export async function fetchBillPdf(invoiceId: number | string): Promise<Blob> {
   return fetchBlob(`/api/invoices/${invoiceId}/pdf`);
 }
 
+/** Open the bill PDF (same file that goes on WhatsApp) in a new tab, where
+    the browser can print or save it. The tab is opened before the fetch so
+    pop-up blockers allow it; if it was blocked, the PDF downloads instead. */
+export async function openBillPdf(invoiceId: number | string, billNo?: number | string): Promise<void> {
+  const w = window.open('', '_blank');
+  try {
+    const blob = await fetchBillPdf(invoiceId);
+    const url = URL.createObjectURL(blob);
+    if (w && !w.closed) { w.location.href = url; setTimeout(() => URL.revokeObjectURL(url), 60_000); }
+    else downloadBlob(blob, `bill-${billNo ?? invoiceId}.pdf`);
+  } catch (e) { if (w && !w.closed) w.close(); throw e; }
+}
+
 export function downloadBlob(blob: Blob, name: string) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

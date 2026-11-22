@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Ban, FileJson, IndianRupee, MessageCircle, PencilLine, Printer, Undo2 } from 'lucide-react';
 import { download, get, post } from '../lib/api';
-import { billShareMessage, downloadBlob, fetchBillPdf, hasPhone, openWa, tryShareFile } from '../lib/shareBill';
+import { billShareMessage, downloadBlob, fetchBillPdf, hasPhone, openBillPdf, openWa, tryShareFile } from '../lib/shareBill';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { dateLabel, qty as fmtQty, rupees, todayStr } from '../lib/format';
@@ -23,10 +23,10 @@ interface Detail {
   returns_total: number; net_total: number; net_pending: number;
 }
 
-const maskGstin = (g: string) => (g.length > 3 ? g.slice(0, -3) + '###' : g);
+const maskGstin = (g: string) => g; // full GSTIN, same as the bill PDF
 export default function BillDetailPage() {
   const { id } = useParams();
-  const [sp] = useSearchParams();
+  const [sp, setSp] = useSearchParams();
   const { t, err } = useI18n();
   const { can } = useSession();
   const toast = useToast();
@@ -39,9 +39,11 @@ export default function BillDetailPage() {
   const d = q.data;
   usePageTitle(d ? `${t('Bill', 'बिल', 'Bill')} #${d.invoice.bill_no}` : t('Bill', 'बिल', 'Bill'));
 
+  const printPdf = () => { if (d) openBillPdf(d.invoice.id, d.invoice.bill_no).catch((e) => toast({ text: err(e), tone: 'error' })); };
   useEffect(() => {
-    if (d && sp.get('print') === '1') setTimeout(() => window.print(), 300);
-  }, [d, sp]);
+    // ?print=1 (from the counter): open the same PDF the customer gets.
+    if (d && sp.get('print') === '1') { sp.delete('print'); setSp(sp, { replace: true }); printPdf(); }
+  }, [d]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['invoice', id] });
@@ -177,9 +179,11 @@ export default function BillDetailPage() {
                 <Button variant="primary" block onClick={sendToNumber}>{t('Open WhatsApp', 'WhatsApp खोलें', 'WhatsApp kholo')}</Button>
               </div>
             )}
-            <Button block icon={<Printer size={16} />} onClick={() => window.print()}>{t('Print or save PDF', 'प्रिंट या PDF', 'Print ya PDF')}</Button>
+            <Button block icon={<Printer size={16} />} onClick={printPdf}>{t('Print or save PDF', 'प्रिंट या PDF', 'Print ya PDF')}</Button>
             {canReturn && <Button block icon={<Undo2 size={16} />} onClick={() => setRet(true)}>{t('Return items', 'सामान वापसी', 'Saaman wapsi')}</Button>}
-            {!inv.cancelled && <a className="btn btn-ghost btn-block" href={`/classic/#go=billing`}><PencilLine size={16} /> {t('Edit in classic screen', 'पुरानी स्क्रीन में बदलें', 'Purani screen me badlo')}</a>}
+            {!inv.cancelled && can.owner && inv.kind === 'sale' && (d.returns.length
+              ? <p className="muted" style={{ fontSize: 12.5, margin: 0, textAlign: 'center' }}>{t('Bills with returned items can’t be edited.', 'वापसी वाले बिल नहीं बदलते।', 'Wapsi wale bill nahi badalte.')}</p>
+              : <Link className="btn btn-secondary btn-block" to={`/pos?edit=${inv.id}`}><PencilLine size={16} /> {t('Edit bill', 'बिल बदलें', 'Bill badlo')}</Link>)}
             {!inv.cancelled && <Button variant="danger" block icon={<Ban size={16} />} onClick={() => setCancel(true)}>{t('Cancel bill', 'बिल रद्द करें', 'Bill cancel karo')}</Button>}
           </section>
 

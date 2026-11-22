@@ -9,6 +9,7 @@ import { dateLabel, qty as fmtQty, round2, rupees } from '../../lib/format';
 import type { Product } from '../../lib/types';
 import { Badge, Button, Drawer, Empty, Field, Input, Select, SkelRows, Tabs, useToast } from '../../components/ui';
 import { PageHeader, useIsMobile, usePageTitle } from '../../components/shell/AppShell';
+import { ImportButton } from '../../components/ImportData';
 import {
   resizeImage, termsText, useMartProfile, useMartRefresh, useMartSummary, useMeta,
   type Lead, type Listing, type MartProfile, type SellerInquiryDetail, type SentQuote
@@ -245,7 +246,10 @@ function Catalog() {
     <div className="panel-body">
       <div className="row-between" style={{ marginBottom: 16 }}>
         <p className="muted" style={{ fontSize: 13 }}>{t('Buyers browsing Mart see these with your wholesale price and minimum order.', 'Mart देखने वाले buyers को ये आपके थोक भाव और minimum के साथ दिखते हैं।', 'Mart dekhne wale buyers ko ye aapke thok bhaav aur minimum ke saath dikhte hain.')}</p>
-        <Button variant="primary" icon={<Plus size={16} />} onClick={() => setEdit('new')}>{t('Add product', 'सामान जोड़ें', 'Saaman jodo')}</Button>
+        <div className="row" style={{ gap: 8 }}>
+          <ImportButton types={['catalog']} label={t('Import price list', 'भाव लिस्ट इम्पोर्ट करें', 'Bhaav list import karo')} className="" />
+          <Button variant="primary" icon={<Plus size={16} />} onClick={() => setEdit('new')}>{t('Add product', 'सामान जोड़ें', 'Saaman jodo')}</Button>
+        </div>
       </div>
       {q.isLoading ? <SkelRows /> : !rows.length ? <Empty icon={<Tag size={28} />} title={t('Your catalog is empty', 'catalog खाली है', 'Catalog khaali hai')} /> : (
         <div className="listing-grid">{rows.map((l) => (

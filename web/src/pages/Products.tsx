@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Package, Plus, Search, ShoppingCart, Trash2, Upload } from 'lucide-react';
+import { Package, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react';
 import { del, get, post, put } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
@@ -9,6 +9,7 @@ import { qty as fmtQty, rupees } from '../lib/format';
 import type { Product } from '../lib/types';
 import { Button, Drawer, Empty, Field, Input, Select, SkelRows, StockBadge, Tabs, useToast } from '../components/ui';
 import { ExportMenu } from '../components/ExportMenu';
+import { ImportButton } from '../components/ImportData';
 import { PageHeader, useIsMobile, usePageTitle } from '../components/shell/AppShell';
 
 type F = 'all' | 'low' | 'out';
@@ -54,7 +55,7 @@ export default function ProductsPage() {
         title={t('Products', 'सामान', 'Saaman')}
         sub={p.data ? t(`${all.length} products · stock worth ${rupees(stockValue)} at cost`, `${all.length} सामान · stock की कीमत ${rupees(stockValue)} (खरीद भाव)`, `${all.length} saaman · stock ki keemat ${rupees(stockValue)} (khareed bhaav)`) : ' '}
         actions={<>
-          {can.owner && <Link className="btn btn-secondary hide-mobile" to="/settings?tab=data"><Upload size={16} /> {t('Import', 'इम्पोर्ट', 'Import')}</Link>}
+          <ImportButton types={['products']} />
           <ExportMenu path="/api/export/products" name="products" />
           <Button variant="primary" icon={<Plus size={16} />} onClick={() => setEditing('new')}>{t('Add product', 'सामान जोड़ें', 'Saaman jodo')}</Button>
         </>}

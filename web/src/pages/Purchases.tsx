@@ -9,6 +9,7 @@ import { dateLabel, qty as fmtQty, round2, rupees, todayStr } from '../lib/forma
 import type { Product, Purchase, PurchaseItem, Supplier } from '../lib/types';
 import { BillStatusBadge, Button, Drawer, Empty, Field, Input, Money, Segmented, Select, SkelRows, useToast } from '../components/ui';
 import { ExportMenu } from '../components/ExportMenu';
+import { ImportButton } from '../components/ImportData';
 import { PageHeader, useIsMobile, usePageTitle } from '../components/shell/AppShell';
 import { PaymentDrawer } from './BillDetail';
 
@@ -35,6 +36,7 @@ export default function PurchasesPage() {
         title={t('Purchases', 'खरीद', 'Khareed')}
         sub={list.data ? <>{t(`${rows.length} purchases · you owe suppliers`, `${rows.length} खरीद · सप्लायर को देना`, `${rows.length} khareed · supplier ko dena`)} <Money value={owed} tone={owed ? 'warn' : undefined} /></> : ' '}
         actions={<>
+          <ImportButton types={['suppliers', 'products']} label={t('Import old dues', 'पुराना बकाया इम्पोर्ट करें', 'Purana baaki import karo')} />
           {can.finance && <ExportMenu path="/api/export/purchases" name="purchases" />}
           <Button variant="primary" icon={<Plus size={16} />} onClick={() => setCreating(true)}>{t('Record purchase', 'खरीद दर्ज करें', 'Khareed likho')}</Button>
         </>}

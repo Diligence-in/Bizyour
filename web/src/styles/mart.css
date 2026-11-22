@@ -111,24 +111,34 @@
 .notif.is-unread .notif-dot { background: var(--mart-solid); }
 .notif.is-unread .title { font-weight: 600; }
 .restock-row { flex-wrap: wrap; }
-/* ===== UI FUSION demo: naye app ka dhancha + classic BizYour ki jaan ===== */
-.sidebar { background: linear-gradient(180deg,#26336B 0%,#2F448F 100%); border-right: 0; color: #C3CDEE; }
-.sidebar .biz-name { color: #fff; }
-.sidebar .biz-meta { color: #93A3D4; }
-.sidebar .search-trigger { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); color: #A9B8E6; }
-.sidebar .search-trigger:hover { color: #fff; border-color: rgba(255,255,255,.35); }
-.sidebar .mode-switch { background: rgba(255,255,255,.08); }
-.sidebar .mode-switch button { color: #A9B8E6; }
-.sidebar .mode-switch button:hover { color: #fff; }
-.sidebar .mode-switch button.on { background: #fff; color: #1E2A6B; }
-.sidebar .nav-group-label { color: #9DB0E4; }
-.sidebar .nav-group-mart .nav-group-label { color: #F5A524; }
-.sidebar .nav-link { color: #C3CDEE; }
-.sidebar .nav-link:hover { background: rgba(255,255,255,.08); color: #fff; }
-.sidebar .nav-link.active { background: #2563EB; color: #fff; box-shadow: 0 6px 16px -6px rgba(37,99,235,.55); }
+/* ===== Sidebar: light (23 Nov — founder: the dark navy felt heavy) =====
+   White sheet with a faint blue wash, navy ink, and one solid blue pill for
+   the active page so the brand colour still leads. */
+.sidebar { background: linear-gradient(180deg, #FFFFFF 0%, #F6F9FF 100%); border-right: 1px solid #DCE4F2; color: var(--ink-2); box-shadow: 1px 0 0 rgba(255,255,255,.6), 4px 0 24px -18px rgba(20,33,58,.25); }
+.sidebar .biz-name { color: var(--ink); }
+.sidebar .biz-meta { color: var(--ink-3); }
+.sidebar .search-trigger { background: #F3F6FC; border-color: #E1E7F1; color: var(--ink-3); }
+.sidebar .search-trigger:hover { background: #fff; color: var(--ink-2); border-color: var(--line-strong); }
+.sidebar .mode-switch { background: #EEF2FA; }
+.sidebar .mode-switch button { color: var(--ink-2); }
+.sidebar .mode-switch button:hover { color: var(--ink); }
+.sidebar .mode-switch button.on { background: #fff; color: var(--accent-ink); box-shadow: 0 1px 3px rgba(20,33,58,.14); }
+.sidebar .mode-switch button.mode-mart.on { color: var(--mart); }
+.sidebar .nav-group-label { color: #8494AB; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.sidebar .nav-group-mart .nav-group-label { color: var(--mart); }
+.sidebar .nav-link { color: var(--ink-2); }
+.sidebar .nav-link svg:first-child { color: #6B7C96; }
+.sidebar .nav-link:hover { background: var(--accent-tint); color: var(--accent-ink); }
+.sidebar .nav-link:hover svg:first-child { color: var(--accent); }
+.sidebar .nav-link.active { background: var(--accent); color: #fff; box-shadow: 0 6px 14px -6px rgba(37,99,235,.55); }
 .sidebar .nav-link.active svg:first-child { color: #fff; }
-.sidebar .me-row { border-top-color: rgba(255,255,255,.14); }
-.sidebar .sub-note { background: rgba(255,255,255,.10); color: #DCE5FF; }
+.sidebar .nav-group-mart .nav-link svg:first-child { color: var(--mart-solid); }
+.sidebar .nav-group-mart .nav-link.active { background: var(--mart-solid); color: #2B1B00; box-shadow: 0 6px 14px -6px rgba(245,165,36,.6); }
+.sidebar .nav-group-mart .nav-link.active svg:first-child { color: #2B1B00; }
+.sidebar .me-row { border-top-color: var(--line); }
+.sidebar .sub-note { background: var(--accent-tint); color: var(--accent-ink); }
+.sidebar .sub-note-mart { background: var(--mart-tint); color: var(--mart); }
+.sidebar .sub-note-owed { background: var(--owed-tint); color: var(--owed); }
 .panel, .ledger-strip { box-shadow: 0 12px 32px -18px rgba(16,30,56,.28), 0 2px 6px rgba(16,30,56,.05); }
 .btn-primary { background: linear-gradient(135deg,#2F6BFF,#2B3A8F); }
 .btn-primary:hover:not(:disabled) { background: linear-gradient(135deg,#2563EB,#24337F); }

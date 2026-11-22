@@ -36,10 +36,10 @@ function AuthLayout({ children }: { children: ReactNode }) {
     <div className="login">
       <div className="login-side" aria-hidden>
         <div className="login-ledger">
-          <div className="ll-row"><span>Atta 10kg × 2</span><span className="num">₹970</span></div>
-          <div className="ll-row"><span>Cheeni 1kg × 3</span><span className="num">₹135</span></div>
-          <div className="ll-row"><span>Sarso Tel 1L</span><span className="num">₹175</span></div>
-          <div className="ll-total"><span>Kul</span><span className="num">₹1,280</span></div>
+          <div className="ll-row"><span>Wheat Flour 10kg × 2</span><span className="num">₹970</span></div>
+          <div className="ll-row"><span>Sugar 1kg × 3</span><span className="num">₹135</span></div>
+          <div className="ll-row"><span>Mustard Oil 1L</span><span className="num">₹175</span></div>
+          <div className="ll-total"><span>Total</span><span className="num">₹1,280</span></div>
         </div>
         <p className="login-quote">{t('The shop counter and the wholesale market, in one app.', 'दुकान का काउंटर और थोक बाज़ार — एक ही app में।', 'Dukaan ka counter aur thok bazaar — ek hi app me.')}</p>
       </div>
