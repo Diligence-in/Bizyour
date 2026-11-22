@@ -811,7 +811,24 @@ export default function Landing() {
           </div>
         </section>
       </main>
-
+ {/* contact us */}
+        <section className="lp-contact" aria-labelledby="contact-h">
+          <div className="lp-contact-box">
+            <h2 id="contact-h">{t('Contact us', 'संपर्क करें', 'Sampark karein')}</h2>
+            <p>{t('Questions about BizYour? Talk to a real person from Team DILIGENCE.', 'BizYour के बारे में कोई सवाल? Team DILIGENCE से सीधे बात करें।', 'BizYour ke baare me koi sawaal? Team DILIGENCE se seedha baat karein.')}</p>
+            <div className="lp-contact-cards">
+              <a className="lp-contact-card" href={`tel:${CONTACT_PHONE_LINK}`}>
+                <span>{t('Call us', 'कॉल करें', 'Call karein')}</span>
+                <b>{CONTACT_PHONE_DISPLAY}</b>
+              </a>
+              <a className="lp-contact-card" href={`mailto:${CONTACT_EMAIL}`}>
+                <span>{t('Email us', 'ईमेल करें', 'Email karein')}</span>
+                <b>{CONTACT_EMAIL}</b>
+              </a>
+            </div>
+          </div>
+        </section>
+      
       <footer className="lp-foot">
         <div className="lp-foot-grid">
           <div className="lp-foot-about">
