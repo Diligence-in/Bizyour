@@ -623,6 +623,13 @@ span.mk-chip{ cursor:default; background:#F4F6FA; }
 .lp-hero h1{ font-size:46px; letter-spacing:-1px; line-height:1.12; }
 .lp-sub{ font-size:17.5px; color:#3D5173; max-width:640px; margin:16px auto 0; line-height:1.55; }
 .lp-cta-row{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:26px; }
+.lp-band{ background:linear-gradient(135deg,#141C3A,#2B3A8F); text-align:center; padding:56px 20px 50px; }
+.lp-band-eyebrow{ letter-spacing:3px; font-size:12.5px; font-weight:700; color:#C9A24B; margin-bottom:14px; }
+.lp-band-title{ font-size:52px; font-weight:800; color:#fff; line-height:1.12; }
+.lp-band-grad{ background:linear-gradient(90deg,#3DDAB4,#4D7CFE); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.lp-band-sub{ font-size:18px; color:#C6CFF2; max-width:660px; margin:16px auto 0; line-height:1.55; }
+.lp-band-sub b{ color:#fff; }
+@media (max-width:820px){ .lp-band{ padding:40px 16px 36px; } .lp-band-title{ font-size:33px; } .lp-band-sub{ font-size:16px; } }
 .lp-shot{ max-width:920px; margin:42px auto 0; background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:0 30px 60px -30px rgba(20,33,58,.35); overflow:hidden; text-align:left; }
 .lp-shot-bar{ display:flex; align-items:center; gap:7px; padding:11px 14px; border-bottom:1px solid var(--line); background:#F8FAFE; }
 .lp-shot-bar span{ width:11px; height:11px; border-radius:50%; background:#CBD5E4; display:block; }
