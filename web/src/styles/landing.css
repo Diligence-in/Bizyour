@@ -523,3 +523,14 @@
   .merge-app, .merge-one, .lp-side, .lp-side-art, .chip-float, .pbill-paid, .mac-screen img { transition: none; }
   .ps-swap, .tour-list, .pop, .wa-msg { animation: none; }
 }
+/* ---------- contact us ---------- */
+.lp-contact { padding: 8px 20px 64px; }
+.lp-contact-box { max-width: 1080px; margin: 0 auto; background: #fff; border: 1px solid #E1E9F8; border-radius: 18px; padding: 40px 44px; box-shadow: 0 24px 50px -30px rgba(20,33,58,.25); text-align: center; }
+.lp-contact-box h2 { font-size: 34px; letter-spacing: -.02em; color: #14213A; margin: 0 0 10px; }
+.lp-contact-box p { color: #5A6B8C; font-size: 17px; margin: 0 auto 28px; max-width: 52ch; }
+.lp-contact-cards { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.lp-contact-card { flex: 1 1 280px; max-width: 420px; text-decoration: none; border: 1px solid #E1E9F8; border-radius: 14px; padding: 22px 24px; background: #F7FAFF; transition: transform .15s ease, box-shadow .15s ease; }
+.lp-contact-card:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -18px rgba(20,33,58,.35); }
+.lp-contact-card span { display: block; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #2563EB; margin-bottom: 8px; }
+.lp-contact-card b { font-size: 22px; color: #14213A; word-break: break-all; }
+@media (max-width: 640px) { .lp-contact-box { padding: 30px 22px; } .lp-contact-box h2 { font-size: 27px; } }
