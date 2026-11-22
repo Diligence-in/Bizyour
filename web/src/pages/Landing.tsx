@@ -84,6 +84,10 @@ function useNavTone() {
 
 /* ---------- logo intro: once per browser session ---------- */
 const INTRO_KEY = 'bos_intro_seen';
+/* ---------- contact us: apna number aur email yahan bharo ---------- */
+const CONTACT_PHONE_DISPLAY = '+91 8506059604';
+const CONTACT_PHONE_LINK = '+918506059604';
+const CONTACT_EMAIL = 'diligence.in@zohomail.in';
 function Intro({ onDone }: { onDone: () => void }) {
   const [leaving, setLeaving] = useState(false);
   useEffect(() => {
