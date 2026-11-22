@@ -221,7 +221,7 @@ function applyNavLocks() {
 // the app's data-en/data-hi system. The choice is saved in localStorage
 // 'bos_lang' and also drives applyLang() so the auth screens follow.
 function landingDefaultLang() {
-  try { const s = localStorage.getItem('bos_lang'); return s ? normLang(s) : 'hg'; } catch (e) { return 'hg'; }
+  try { const s = localStorage.getItem('bos_lang'); return s ? normLang(s) : 'en'; } catch (e) { return 'en'; }
 }
 function applyLandingLang(lang) {
   lang = normLang(lang);
@@ -241,11 +241,9 @@ function showLanding() {
 function maybeIntro() {
   const ov = $('bzIntro');
   if (!ov) return;
-  let seen = false;
-  try { seen = !!sessionStorage.getItem('bizyour_intro_seen'); } catch (e) {}
-  if (seen) return;
+  // Founder's call (22 Nov 2026): the logo intro plays on EVERY landing
+  // load/refresh — no once-per-session gate. Click or Esc still skips it.
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  try { sessionStorage.setItem('bizyour_intro_seen', '1'); } catch (e) {}
   ov.classList.remove('hidden');
   document.body.classList.add('bz-intro-on');
   let done = false;
@@ -1089,7 +1087,7 @@ function admToast(msg, ok = true) {
 // Promise-based confirm dialog. typeName (a shop's name) turns it into
 // the type-to-confirm variant used for permanent deletes.
 function admConfirm(opts) {
-  const { title, body, okText = 'Confirm', typeName = null } = opts || {};
+  const { title, body, okText = 'Confirm', typeName = null, typeKind = 'name' } = opts || {};
   return new Promise((resolve) => {
     const wrap = $('admModal');
     if (!wrap) { resolve(window.confirm(title + '\n' + body)); return; }
@@ -1105,7 +1103,9 @@ function admConfirm(opts) {
     const typeInput = $('admModalTypeInput');
     if (typeName) {
       typeWrap.classList.remove('hidden');
-      $('admModalTypeLabel').textContent = `Pakka karne ke liye dukaan ka naam likho: ${typeName}`;
+      $('admModalTypeLabel').textContent = typeKind === 'id'
+        ? `Pakka karne ke liye dukaan ka number likho: ${typeName}`
+        : `Pakka karne ke liye dukaan ka naam likho: ${typeName}`;
       typeInput.value = '';
       okBtn.disabled = true;
     } else {
@@ -1627,9 +1627,12 @@ function renderAdmBiz() {
       const shopName = b.name || '';
       const yes = await admConfirm({
         title: 'Delete this shop forever?',
-        body: `"${shopName || '(no name set)'}" aur uska SARA data — users, products, bills, stock, sab kuch — hamesha ke liye delete ho jayega. Ye wapas nahi aayega.`,
+        body: shopName
+          ? `"${shopName}" aur uska SARA data — users, products, bills, stock, sab kuch — hamesha ke liye delete ho jayega. Ye wapas nahi aayega.`
+          : `Shop #${b.id} (naam set nahi hai${b.owner_email ? `, owner: ${b.owner_email}` : ''}) aur uska SARA data — users, products, bills, stock, sab kuch — hamesha ke liye delete ho jayega. Ye wapas nahi aayega.`,
         okText: 'Delete forever',
-        typeName: shopName || String(b.id)
+        typeName: shopName || String(b.id),
+        typeKind: shopName ? 'name' : 'id'
       });
       if (!yes) return;
       if (admDetailFor === b.id) closeAdmDetail();
