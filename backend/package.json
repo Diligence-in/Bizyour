@@ -1,12 +1,13 @@
 {
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "exceljs": "^4.4.0",
     "express": "^4.19.2",
-    "nodemailer": "^6.10.1",
-    "pg": "^8.13.1",
-    "xlsx": "^0.18.5"
+    "nodemailer": "^10.6.1",
+    "pdfkit": "^0.21.0",
+    "pg": "^8.13.1"
   },
-  "description": "BizYour by DILIGENCE backend (Workspace + Business Mart) \u2014 Business OS v3 \u2014 Express + dual-engine data layer (SQLite local / PostgreSQL cloud via DATABASE_URL) + bcrypt auth + multi-business isolation",
+  "description": "BizYour by DILIGENCE backend (Workspace + Business Mart) — Business OS v3 — Express + dual-engine data layer (SQLite local / PostgreSQL cloud via DATABASE_URL) + bcrypt auth + multi-business isolation",
   "engines": {
     "node": ">=22"
   },
@@ -14,7 +15,11 @@
   "name": "business-os-v3-backend",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js"
   },
-  "version": "3.0.0-stageA"
+  "version": "3.0.0-stageA",
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
 }

@@ -36,8 +36,8 @@ async function main() {
   try {
     async function makeBiz(b) {
       const r = await tx.run(
-        `INSERT INTO businesses (name, owner_name, phone, city, gst_enabled, gstin, language, created_at) VALUES (?, ?, ?, ?, ?, ?, 'en', ?)`
-      , b.name, b.owner, b.phone, b.city, b.gstin ? 1 : 0, b.gstin || '', b.since + '-04-01 10:00:00');
+        `INSERT INTO businesses (name, owner_name, phone, city, gst_enabled, gstin, language, created_at, workspace_activated_at) VALUES (?, ?, ?, ?, ?, ?, 'en', ?, ?)`
+      , b.name, b.owner, b.phone, b.city, b.gstin ? 1 : 0, b.gstin || '', b.since + '-04-01 10:00:00', b.since + '-04-01 10:00:00');
       const id = r.lastInsertRowid;
       await tx.run(`INSERT INTO users (business_id, name, email, password_hash, role, access) VALUES (?, ?, ?, ?, 'owner', 'all')`, id, b.owner, b.email, hash);
       await tx.run(`INSERT INTO subscriptions (business_id, trial_ends_at, grace_days) VALUES (?, ?, 7)`, id, trialEnd);

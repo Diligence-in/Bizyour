@@ -7,12 +7,24 @@ services:
   - type: web
     name: bizyour
     env: node
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: node server.js
+    # v4: builds the new web app (web/ → web/dist) and installs the API.
+    # Express serves web/dist at "/" and the classic app at "/classic/".
+    buildCommand: cd web && npm ci && npm run build && cd ../backend && npm ci --omit=dev
+    startCommand: node backend/server.js
     healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         sync: false
       - key: NODE_ENV
         value: production
+      # Frontend origin(s) allowed to call this API from a browser, comma-
+      # separated, e.g. https://bizyour.in,https://www.bizyour.in
+      # Without it any website can call the API (a warning is logged).
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # Login sessions expire after this many days (default 30).
+      - key: SESSION_TTL_DAYS
+        value: "30"
+      # 1 = Render only. Set 2 if the frontend is on Vercel and rewrites to here.
+      - key: TRUST_PROXY_HOPS
+        value: "1"

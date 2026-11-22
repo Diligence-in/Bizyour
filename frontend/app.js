@@ -58,7 +58,9 @@ function friendly(err) {
     'invalid_mobile': ['That mobile number does not look right — enter a 10-digit number starting with 6, 7, 8 or 9.', 'मोबाइल नंबर सही नहीं लग रहा — 6, 7, 8 या 9 से शुरू होने वाला 10 अंकों का नंबर डालो।', 'Mobile number sahi nahi lag raha — 6, 7, 8 ya 9 se shuru hone wala 10 digit ka number daalo.'],
     'mobile_taken': ['This mobile number is already registered with another account.', 'ये मोबाइल नंबर पहले से किसी और खाते पर registered है।', 'Ye mobile number pehle se kisi aur account par registered hai.'],
     'email already registered': ['This email is already registered. Log in instead.', 'ये ईमेल पहले से registered है। लॉगिन करो।', 'Ye email pehle se registered hai. Login karo.'],
-    'password must be at least 6 characters': ['Password must be at least 6 characters.', 'पासवर्ड कम से कम 6 अक्षरों का हो।', 'Password kam se kam 6 character ka ho.'],
+    'password must be at least 8 characters': ['Password must be at least 8 characters.', 'पासवर्ड कम से कम 8 अक्षरों का हो।', 'Password kam se kam 8 character ka ho.'],
+    'too_many_requests': ['Too many attempts. Please wait a few minutes and try again.', 'बहुत ज़्यादा कोशिशें। कुछ मिनट रुककर फिर कोशिश करें।', 'Bahut zyada koshish. Kuch minute ruk kar phir try karo.'],
+    'session_expired': ['Your session has expired. Please log in again.', 'आपका session खत्म हो गया। फिर से login करें।', 'Session khatam ho gaya. Phir se login karo.'],
     'owner_only': ['Only the owner can do this.', 'ये सिर्फ़ owner कर सकता है।', 'Ye sirf owner kar sakta hai.'],
     'email_not_verified': ['Email not verified yet. Enter the 6-digit code sent to your email.', 'ईमेल अभी verify नहीं हुआ — ईमेल पर भेजा 6 अंकों का code डालो।', 'Email abhi verify nahi hua — email par bheja 6 digit ka code daalo.'],
     'email_pending_verification': ['This email is waiting for verification. Enter the code sent to it, or resend it.', 'ये ईमेल verification का इंतज़ार कर रहा है — भेजा हुआ code डालो, या फिर से भेजो।', 'Ye email verification ke intezaar me hai — bheja hua code daalo, ya phir bhejo.'],
@@ -189,6 +191,32 @@ async function enterApp() {
   loadOnboarding(); // Updates Stage D: staff bhi apni dukaan ki checklist dekh sakte hain
   loadAlerts(); // Feature 5: Due & Alerts hamesha dashboard ke upar
   loadDayEndDash(); // Feature 3: Day-End card (owner-only, function khud chhupata hai)
+  classicBridge();
+}
+
+// BizYour v4: this classic app now lives at /classic/ next to the new app.
+// The new app deep-links here with #go=<screen> (or #go=mart/<view>) for
+// screens it has not rebuilt yet, and this bar links back.
+function classicBridge() {
+  if (!window.__v4hash) { window.__v4hash = true; window.addEventListener('hashchange', classicBridge); }
+  try {
+    if (!/^\/classic/.test(location.pathname)) return;
+    if (!document.getElementById('v4Back')) {
+      const a = document.createElement('a');
+      a.id = 'v4Back'; a.href = '/';
+      a.textContent = tr('← Back to the new BizYour', '← नए BizYour पर वापस');
+      a.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:9999;background:#0B6E4F;color:#fff;padding:8px 14px;border-radius:8px;font:600 13px system-ui,sans-serif;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.18)';
+      document.body.appendChild(a);
+    }
+    const m = /go=([a-z-]+)(?:\/([a-z-]+))?/.exec(location.hash || '');
+    if (!m) return;
+    if (m[1] === 'mart') {
+      const mm = document.getElementById('modMart'); if (mm) mm.click();
+      if (m[2]) setTimeout(() => { const b = document.querySelector('#martNav [data-v="' + m[2] + '"]'); if (b) b.click(); }, 500);
+    } else {
+      const b = document.querySelector('#nav .nav-item[data-screen="' + m[1] + '"]'); if (b) b.click();
+    }
+  } catch (e) { /* deep link is best-effort */ }
 }
 
 // Stage 4 finance screens are owner-only (founder's rule: staff never see
@@ -4026,7 +4054,7 @@ boot();
 
 // ---------- PWA: register the service worker (progressive enhancement) ----------
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 }
 
 // =====================================================================

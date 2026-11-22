@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BizYour — Poora Business, Ek Hi App | by DILIGENCE</title>
+<meta name="description" content="BizYour by DILIGENCE — dukaan aur business ke liye ek hi app: GST billing, stock, udhaar, reports aur Business Mart. 30 din free trial, koi card nahi.">
+<link rel="icon" href="landing/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="landing/assets/apple-touch-icon.png">
+<link rel="manifest" href="landing/manifest.webmanifest">
+<meta name="theme-color" content="#2B3A8F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="BizYour">
+<link rel="stylesheet" href="landing/landing.css">
+</head>
+<body>
+
+<!-- BizYour logo intro: plays once per session before the homepage (app.js maybeIntro) -->
+<div id="bzIntro" class="bz-intro hidden" aria-hidden="true">
+  <div class="bz-intro-lock">
+    <img class="bz-intro-mark" src="landing/assets/bizyour-mark-512.png" alt="">
+    <div class="bz-intro-word">Biz<span>Your</span></div>
+    <div class="bz-intro-line"></div>
+    <div class="bz-intro-by">BY DILIGENCE</div>
+  </div>
+</div>
+
+<div id="view-landing">
+  <header class="lp-header">
+    <div class="lp-wrap lp-header-in">
+      <div class="lp-brand">
+        <img class="logo-mark" src="landing/assets/bizyour-mark-512.png" alt="BizYour logo">
+        <div class="lp-brand-txt"><b class="wordmark">Biz<span class="os">Your</span></b><span>by DILIGENCE</span></div>
+      </div>
+      <nav class="lp-nav">
+        <a href="#lp-features" data-lp-en="Features" data-lp-hi="फीचर्स" data-lp-hg="Features">Features</a>
+        <a href="#lp-mart" data-lp-en="Business Mart" data-lp-hi="बिज़नेस मार्ट" data-lp-hg="Business Mart">Business Mart</a>
+        <a href="#lp-how" data-lp-en="How it works" data-lp-hi="यह कैसे काम करता है" data-lp-hg="Kaise kaam karta hai">Kaise kaam karta hai</a>
+        <a href="#lp-faq" data-lp-en="FAQ" data-lp-hi="सामान्य सवाल" data-lp-hg="FAQ">FAQ</a>
+      </nav>
+      <div class="lp-lang" role="group" aria-label="Language">
+        <button type="button" id="lpLangEn">EN</button>
+        <button type="button" id="lpLangHi">हिंदी</button>
+        <button type="button" id="lpLangHg">Hinglish</button>
+      </div>
+      <div class="lp-head-btns">
+        <button class="btn btn-ghost" id="lpLoginBtn" type="button" data-lp-en="Login" data-lp-hi="लॉगिन" data-lp-hg="Login">Login</button>
+        <button class="btn btn-blue" id="lpTrialBtn" type="button" data-lp-en="Free Trial" data-lp-hi="फ्री ट्रायल" data-lp-hg="Free Trial">Free Trial</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="lp-hero">
+    <div class="lp-wrap">
+      <h1><span data-lp-en="Your whole business." data-lp-hi="आपका पूरा बिज़नेस।" data-lp-hg="Poora business.">Poora business.</span> <span class="lp-accent" data-lp-en="One single app." data-lp-hi="सिर्फ़ एक ऐप में।" data-lp-hg="Ek hi app.">Ek hi app.</span></h1>
+      <p class="lp-sub" data-lp-en="Billing, stock, credit, GST and reports — everything in one place. One login, one subscription, one data." data-lp-hi="बिलिंग, स्टॉक, उधार, GST और रिपोर्ट — सब कुछ एक ही जगह। एक लॉगिन, एक सब्सक्रिप्शन, एक डेटा।" data-lp-hg="Billing, stock, udhaar, GST aur reports — sab kuch ek jagah. Ek login, ek subscription, ek data.">Billing, stock, udhaar, GST aur reports — sab kuch ek jagah. Ek login, ek subscription, ek data.</p>
+      <div class="lp-cta-row">
+        <button class="btn btn-blue lp-big" id="lpTrialBtn2" type="button" data-lp-en="Try FREE for 30 days — no card needed" data-lp-hi="30 दिन बिल्कुल FREE — कोई कार्ड नहीं चाहिए" data-lp-hg="30 din FREE try karo — koi card nahi">30 din FREE try karo — koi card nahi</button>
+        <button class="btn btn-ghost lp-big" id="lpLoginBtn2" type="button" data-lp-en="Log in" data-lp-hi="लॉगिन करो" data-lp-hg="Login karo">Login karo</button>
+      </div>
+      <div class="lp-shot">
+        <div class="lp-shot-bar"><span></span><span></span><span></span><em data-lp-en="BizYour app — the real screen" data-lp-hi="BizYour ऐप — असली स्क्रीन" data-lp-hg="BizYour app — asal screen">BizYour app — asal screen</em></div>
+        <img src="landing/assets/shot-products.jpg" alt="BizYour app ki asal screen — Products aur Stock">
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec" id="lp-eco">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="Other apps sell you " data-lp-hi="बाकी ऐप्स " data-lp-hg="Baaki apps ">Baaki apps </span><span class="lp-accent" data-lp-en="one system" data-lp-hi="एक-एक सिस्टम" data-lp-hg="ek-ek system">ek-ek system</span><span data-lp-en=" at a time" data-lp-hi=" बेचते हैं" data-lp-hg=" bechte hain"> bechte hain</span></h2>
+      <p class="lp-sec-sub" data-lp-en="One app for billing, another for credit, a third for accounting. Separate data, separate payments, separate headaches." data-lp-hi="बिलिंग के लिए एक ऐप, उधार के लिए दूसरा, अकाउंटिंग के लिए तीसरा। डेटा भी अलग-अलग, पैसा भी अलग-अलग।" data-lp-hg="Billing ke liye ek app, udhaar ke liye dusra, accounting ke liye teesra. Data bhi alag-alag, paisa bhi alag-alag.">Billing ke liye ek app, udhaar ke liye dusra, accounting ke liye teesra. Data bhi alag-alag, paisa bhi alag-alag.</p>
+      <div class="lp-eco-grid">
+        <div class="lp-eco-card">
+          <div class="lp-eco-ic">🧾</div>
+          <b data-lp-en="Billing-only app" data-lp-hi="सिर्फ़ बिलिंग वाला ऐप" data-lp-hg="Sirf Billing wala app">Sirf Billing wala app</b>
+          <p data-lp-en="The bill gets made — but stock and credit accounts live somewhere else." data-lp-hi="बिल तो बन गया — पर स्टॉक और उधार का हिसाब कहीं और।" data-lp-hg="Bill to ban gaya — par stock aur udhaar ka hisaab kahin aur.">Bill to ban gaya — par stock aur udhaar ka hisaab kahin aur.</p>
+        </div>
+        <div class="lp-eco-card">
+          <div class="lp-eco-ic">📒</div>
+          <b data-lp-en="Credit-only app" data-lp-hi="सिर्फ़ उधार वाला ऐप" data-lp-hg="Sirf Udhaar wala app">Sirf Udhaar wala app</b>
+          <p data-lp-en="Credit is written down — but billing, stock and GST are somewhere else." data-lp-hi="उधार लिख लिया — पर बिलिंग, स्टॉक और GST कहीं और।" data-lp-hg="Udhaar likh liya — par billing, stock aur GST kahin aur.">Udhaar likh liya — par billing, stock aur GST kahin aur.</p>
+        </div>
+        <div class="lp-eco-card">
+          <div class="lp-eco-ic">🧮</div>
+          <b data-lp-en="Accounting-only software" data-lp-hi="सिर्फ़ अकाउंटिंग वाला सॉफ़्टवेयर" data-lp-hg="Sirf Accounting wala software">Sirf Accounting wala software</b>
+          <p data-lp-en="Accounts are managed — but the shop's daily work is somewhere else." data-lp-hi="अकाउंट्स संभल गए — पर दुकान का रोज़ का काम कहीं और।" data-lp-hg="Accounts sambhal liye — par dukaan ka roz ka kaam kahin aur.">Accounts sambhal liye — par dukaan ka roz ka kaam kahin aur.</p>
+        </div>
+      </div>
+      <p class="lp-eco-result"><span data-lp-en="That means " data-lp-hi="मतलब " data-lp-hg="Matlab ">Matlab </span><b data-lp-en="2–4 separate apps" data-lp-hi="2–4 अलग ऐप्स" data-lp-hg="2–4 alag apps">2–4 alag apps</b><span data-lp-en=", separate data, separate hassle." data-lp-hi=", अलग-अलग डेटा, अलग-अलग झंझट।" data-lp-hg=", alag-alag data, alag-alag jhanjhat.">, alag-alag data, alag-alag jhanjhat.</span></p>
+      <div class="lp-eco-hero">
+        <img class="logo-mark" src="landing/assets/bizyour-mark-512.png" alt="">
+        <div>
+          <b data-lp-en="BizYour — everything in one app" data-lp-hi="BizYour — सब कुछ एक ऐप में" data-lp-hg="BizYour — sab kuch ek app me">BizYour — sab kuch ek app me</b>
+          <p data-lp-en="Billing + Stock + Credit + GST + Reports + Business Mart. One login, one subscription, one data." data-lp-hi="बिलिंग + स्टॉक + उधार + GST + रिपोर्ट + बिज़नेस मार्ट। एक लॉगिन, एक सब्सक्रिप्शन, एक डेटा।" data-lp-hg="Billing + Stock + Udhaar + GST + Reports + Business Mart. Ek login, ek subscription, ek data.">Billing + Stock + Udhaar + GST + Reports + Business Mart. Ek login, ek subscription, ek data.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-alt" id="lp-features">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="Your shop's " data-lp-hi="दुकान का " data-lp-hg="Dukaan ka ">Dukaan ka </span><span class="lp-accent" data-lp-en="every job" data-lp-hi="हर काम" data-lp-hg="har kaam">har kaam</span><span data-lp-en=", in one place" data-lp-hi=", एक जगह" data-lp-hg=", ek jagah">, ek jagah</span></h2>
+      <p class="lp-sec-sub" data-lp-en="Whatever you need daily is right here — no extra burden." data-lp-hi="जो रोज़ चाहिए, वही है — फ़ालतू का बोझ नहीं।" data-lp-hg="Jo roz chahiye, wahi hai — faltu ka bojh nahi.">Jo roz chahiye, wahi hai — faltu ka bojh nahi.</p>
+      <div class="lp-feat-grid">
+        <div class="lp-feat"><div class="lp-feat-ic">🧾</div><b data-lp-en="GST Billing" data-lp-hi="GST बिलिंग" data-lp-hg="GST Billing">GST Billing</b><p data-lp-en="UPI QR code on the bill, and the bill goes straight to the customer's WhatsApp as a PDF." data-lp-hi="बिल पर UPI QR कोड, और बिल सीधा ग्राहक के WhatsApp पर PDF में।" data-lp-hg="Bill par UPI QR code, aur bill seedha customer ke WhatsApp par PDF me.">Bill par UPI QR code, aur bill seedha customer ke WhatsApp par PDF me.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">📦</div><b data-lp-en="Stock / Inventory" data-lp-hi="स्टॉक / इन्वेंटरी" data-lp-hg="Stock / Inventory">Stock / Inventory</b><p data-lp-en="Stock updates itself with every bill — low-stock alert before it runs out." data-lp-hi="हर बिल के साथ स्टॉक अपने आप अपडेट — ख़त्म होने से पहले low-stock अलर्ट।" data-lp-hg="Har bill ke saath stock apne aap update — khatam hone se pehle low-stock alert.">Har bill ke saath stock apne aap update — khatam hone se pehle low-stock alert.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">📒</div><b data-lp-en="Udhaar / Credit Book" data-lp-hi="उधार खाता" data-lp-hg="Udhaar Khata">Udhaar Khata</b><p data-lp-en="Customer–supplier credit, due-date alerts, and a no-login Hisab link for the customer." data-lp-hi="ग्राहक–सप्लायर उधार, due-date अलर्ट, और ग्राहक के लिए बिना-लॉगिन हिसाब लिंक।" data-lp-hg="Customer–Supplier udhaar, due-date alerts, aur customer ke liye bina-login Hisab link.">Customer–Supplier udhaar, due-date alerts, aur customer ke liye bina-login Hisab link.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">📝</div><b data-lp-en="Estimate → Bill" data-lp-hi="एस्टीमेट → बिल" data-lp-hg="Estimate → Bill">Estimate → Bill</b><p data-lp-en="Give an estimate first — if they agree, it becomes a proper bill in one click." data-lp-hi="पहले एस्टीमेट दो — पसंद आए तो एक क्लिक में पक्का बिल।" data-lp-hg="Pehle estimate do — pasand aaye to ek click me pakka bill.">Pehle estimate do — pasand aaye to ek click me pakka bill.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">↩️</div><b data-lp-en="Sales Return" data-lp-hi="सेल्स रिटर्न" data-lp-hg="Sales Return">Sales Return</b><p data-lp-en="Credit Note on returned goods — accounts always stay clean." data-lp-hi="माल वापसी पर Credit Note — हिसाब हमेशा साफ़-सुथरा।" data-lp-hg="Maal wapsi par Credit Note — hisaab hamesha saaf-suthra.">Maal wapsi par Credit Note — hisaab hamesha saaf-suthra.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">📊</div><b data-lp-en="Profit Reports" data-lp-hi="मुनाफ़ा रिपोर्ट" data-lp-hg="Profit Reports">Profit Reports</b><p data-lp-en="Expenses and profit — a clear month-by-month report, without running to a CA." data-lp-hi="खर्चा और मुनाफ़ा — महीने-दर साफ़ रिपोर्ट, बिना CA के चक्कर के।" data-lp-hg="Kharcha aur munafa — mahine-dar saaf report, bina CA ke chakkar ke.">Kharcha aur munafa — mahine-dar saaf report, bina CA ke chakkar ke.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">🏛️</div><b data-lp-en="GSTR-1 Ready File" data-lp-hi="GSTR-1 तैयार फ़ाइल" data-lp-hg="GSTR-1 Ready File">GSTR-1 Ready File</b><p data-lp-en="Month ends — the ready file for GSTR-1 in one click." data-lp-hi="महीना ख़त्म — GSTR-1 के लिए तैयार फ़ाइल एक क्लिक में।" data-lp-hg="Mahina khatam — GSTR-1 ke liye ready file ek click me.">Mahina khatam — GSTR-1 ke liye ready file ek click me.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">🌙</div><b data-lp-en="Day-End Report" data-lp-hi="दिन के अंत की रिपोर्ट" data-lp-hg="Day-End Report">Day-End Report</b><p data-lp-en="The whole day's sales, credit and expenses — in one glance." data-lp-hi="दिन भर की कमाई, उधार और खर्चा — एक नज़र में।" data-lp-hg="Din bhar ki kamai, udhaar aur kharcha — ek nazar me.">Din bhar ki kamai, udhaar aur kharcha — ek nazar me.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">📥</div><b data-lp-en="Data Import" data-lp-hi="डेटा इम्पोर्ट" data-lp-hg="Data Import">Data Import</b><p data-lp-en="CSV import from Vyapar / Tally — bring your old data along, easily." data-lp-hi="Vyapar / Tally से CSV इम्पोर्ट — पुराना डेटा आराम से साथ ले आओ।" data-lp-hg="Vyapar / Tally se CSV import — purana data aaram se saath le aao.">Vyapar / Tally se CSV import — purana data aaram se saath le aao.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">📴</div><b data-lp-en="Offline Billing" data-lp-hi="ऑफ़लाइन बिलिंग" data-lp-hg="Offline Billing">Offline Billing</b><p data-lp-en="Bills keep getting made even if the net is down — the shop never stops." data-lp-hi="नेट बंद हो तो भी बिल बनता रहे — दुकान कभी नहीं रुकती।" data-lp-hg="Net band ho to bhi bill banta rahe — dukaan kabhi nahi rukti.">Net band ho to bhi bill banta rahe — dukaan kabhi nahi rukti.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">🌐</div><b data-lp-en="Three Languages" data-lp-hi="तीन भाषाएँ" data-lp-hg="Teen Bhaasha">Teen Bhaasha</b><p data-lp-en="English / Hindi / Hinglish — run it in whichever language feels comfortable." data-lp-hi="English / हिंदी / Hinglish — जिस भाषा में आराम, उसी में चलाओ।" data-lp-hg="English / हिंदी / Hinglish — jis bhaasha me aaram, usi me chalao.">English / हिंदी / Hinglish — jis bhaasha me aaram, usi me chalao.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">👥</div><b data-lp-en="Staff Login" data-lp-hi="स्टाफ़ लॉगिन" data-lp-hg="Staff Login">Staff Login</b><p data-lp-en="Separate login for staff, with role limits — staff never see profit." data-lp-hi="स्टाफ़ के लिए अलग लॉगिन, role की limit के साथ — profit स्टाफ़ को कभी नहीं दिखता।" data-lp-hg="Staff ke liye alag login, role ki limit ke saath — profit staff ko kabhi nahi dikhta.">Staff ke liye alag login, role ki limit ke saath — profit staff ko kabhi nahi dikhta.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-tint" id="lp-showcase">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="Take a look " data-lp-hi="ऐप के अंदर " data-lp-hg="App ke andar ">App ke andar </span><span class="lp-accent" data-lp-en="inside the app" data-lp-hi="झाँको" data-lp-hg="jhanko">jhanko</span></h2>
+      <p class="lp-sec-sub" data-lp-en="These are real screens of the app — the same thing you will use daily." data-lp-hi="ये ऐप की असली स्क्रीन हैं — वही, जो आप रोज़ इस्तेमाल करेंगे।" data-lp-hg="Ye app ki asal screens hain — wahi, jo tum roz use karoge.">Ye app ki asal screens hain — wahi, jo tum roz use karoge.</p>
+      <div class="lp-shots">
+        <div class="lp-shot-card">
+          <div class="lp-shot-bar"><span></span><span></span><span></span><em data-lp-en="Dashboard" data-lp-hi="डैशबोर्ड" data-lp-hg="Dashboard">Dashboard</em></div>
+          <img src="landing/assets/shot-home.jpg" alt="BizYour Dashboard — asal screen" loading="lazy">
+          <div class="lp-shot-cap"><b data-lp-en="Dashboard — the whole day in one glance" data-lp-hi="डैशबोर्ड — पूरे दिन का हाल एक नज़र में" data-lp-hg="Dashboard — poora din ek nazar me">Dashboard — poora din ek nazar me</b><p data-lp-en="Today's sale, credit to collect, low-stock alerts and the day-end summary." data-lp-hi="आज की बिक्री, वसूलने वाला उधार, low-stock अलर्ट और दिन का सारांश।" data-lp-hg="Aaj ki sale, vasoolne wala udhaar, low-stock alerts aur day-end summary.">Aaj ki sale, vasoolne wala udhaar, low-stock alerts aur day-end summary.</p></div>
+        </div>
+        <div class="lp-shot-card">
+          <div class="lp-shot-bar"><span></span><span></span><span></span><em data-lp-en="New Bill" data-lp-hi="नया बिल" data-lp-hg="New Bill">New Bill</em></div>
+          <img src="landing/assets/shot-pos.jpg" alt="BizYour New Bill — asal screen" loading="lazy">
+          <div class="lp-shot-cap"><b data-lp-en="New Bill — a bill in seconds" data-lp-hi="नया बिल — सेकंडों में बिल" data-lp-hg="New Bill — seconds me bill">New Bill — seconds me bill</b><p data-lp-en="Add items, GST applies itself, UPI QR on the bill." data-lp-hi="आइटम जोड़ो, GST अपने आप लगेगा, बिल पर UPI QR।" data-lp-hg="Item jodo, GST khud lagega, bill par UPI QR.">Item jodo, GST khud lagega, bill par UPI QR.</p></div>
+        </div>
+        <div class="lp-shot-card">
+          <div class="lp-shot-bar"><span></span><span></span><span></span><em data-lp-en="Business Mart" data-lp-hi="बिज़नेस मार्ट" data-lp-hg="Business Mart">Business Mart</em></div>
+          <img src="landing/assets/shot-mart.jpg" alt="BizYour Business Mart — asal screen" loading="lazy">
+          <div class="lp-shot-cap"><b data-lp-en="Business Mart — buying from wholesalers" data-lp-hi="बिज़नेस मार्ट — थोक व्यापारियों से खरीद" data-lp-hg="Business Mart — wholesalers se kharid">Business Mart — wholesalers se kharid</b><p data-lp-en="Post an inquiry, compare quotes, and the goods land straight in your stock." data-lp-hi="Inquiry डालो, quotes compare करो, और माल सीधा तुम्हारे stock में।" data-lp-hg="Inquiry dalo, quotes compare karo, maal seedha tumhare stock me.">Inquiry dalo, quotes compare karo, maal seedha tumhare stock me.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec" id="lp-mart">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="Business Mart — " data-lp-hi="बिज़नेस मार्ट — " data-lp-hg="Business Mart — ">Business Mart — </span><span class="lp-accent" data-lp-en="the shops' own B2B bazaar" data-lp-hi="दुकानों का अपना B2B बाज़ार" data-lp-hg="dukaanon ka apna B2B bazaar">dukaanon ka apna B2B bazaar</span></h2>
+      <p class="lp-sec-sub" data-lp-en="A bazaar inside BizYour itself, where shops connect directly with wholesalers — no middleman, no running around." data-lp-hi="BizYour के अंदर ही एक बाज़ार, जहाँ दुकानें सीधा wholesalers से जुड़ती हैं — बिना दलाल, बिना घुमाव।" data-lp-hg="BizYour ke andar hi ek bazaar, jahan dukaanen seedha wholesalers se judti hain — bina dalaal, bina ghumav.">BizYour ke andar hi ek bazaar, jahan dukaanen seedha wholesalers se judti hain — bina dalaal, bina ghumav.</p>
+      <div class="lp-flow">
+        <div class="lp-flow-step"><span class="lp-flow-n">1</span><b data-lp-en="Post an inquiry" data-lp-hi="Inquiry डालो" data-lp-hg="Inquiry dalo">Inquiry dalo</b><p data-lp-en="Tell us what goods you need." data-lp-hi="जो सामान चाहिए, वो बताओ।" data-lp-hg="Jo samaan chahiye, wo batao.">Jo samaan chahiye, wo batao.</p></div>
+        <div class="lp-flow-arrow">→</div>
+        <div class="lp-flow-step"><span class="lp-flow-n">2</span><b data-lp-en="Quotes will come" data-lp-hi="Quotes आएँगे" data-lp-hg="Quotes aayenge">Quotes aayenge</b><p data-lp-en="Compare wholesalers' rates." data-lp-hi="Wholesalers के rate compare करो।" data-lp-hg="Wholesalers ke rate compare karo.">Wholesalers ke rate compare karo.</p></div>
+        <div class="lp-flow-arrow">→</div>
+        <div class="lp-flow-step"><span class="lp-flow-n">3</span><b data-lp-en="Confirm the order" data-lp-hi="Order confirm करो" data-lp-hg="Order confirm">Order confirm</b><p data-lp-en="Place the order at the best rate." data-lp-hi="सबसे सही rate पर order लगाओ।" data-lp-hg="Sabse sahi rate par order lagao.">Sabse sahi rate par order lagao.</p></div>
+        <div class="lp-flow-arrow">→</div>
+        <div class="lp-flow-step"><span class="lp-flow-n">4</span><b data-lp-en="Auto-entry into stock" data-lp-hi="Stock में auto-entry" data-lp-hg="Stock me auto-entry">Stock me auto-entry</b><p data-lp-en="As soon as goods arrive, stock adds itself." data-lp-hi="माल आते ही stock खुद जुड़ जाएगा।" data-lp-hg="Maal aate hi stock khud jud jayega.">Maal aate hi stock khud jud jayega.</p></div>
+      </div>
+      <p class="lp-mart-note"><span data-lp-en="Workspace and Business Mart — " data-lp-hi="Workspace और बिज़नेस मार्ट — " data-lp-hg="Workspace aur Business Mart — ">Workspace aur Business Mart — </span><b data-lp-en="one login, one app." data-lp-hi="एक ही लॉगिन, एक ही ऐप।" data-lp-hg="ek hi login, ek hi app.">ek hi login, ek hi app.</b></p>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-alt" id="lp-compare">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="One app, " data-lp-hi="एक ऐप, " data-lp-hg="Ek app, ">Ek app, </span><span class="lp-accent" data-lp-en="better than many" data-lp-hi="कई ऐप्स से बेहतर" data-lp-hg="kai apps se behtar">kai apps se behtar</span></h2>
+      <p class="lp-sec-sub" data-lp-en="Every job needs its own separate app — or everything in BizYour. See for yourself." data-lp-hi="हर काम के लिए अलग ऐप — या सब कुछ BizYour में। ख़ुद देख लो।" data-lp-hg="Har kaam ke liye alag app — ya sab kuch BizYour me. Khud dekh lo.">Har kaam ke liye alag app — ya sab kuch BizYour me. Khud dekh lo.</p>
+      <div class="lp-table-wrap">
+        <table class="lp-table">
+          <thead><tr>
+            <th data-lp-en="Job" data-lp-hi="काम" data-lp-hg="Kaam">Kaam</th>
+            <th data-lp-en="Separate apps" data-lp-hi="अलग-अलग ऐप्स" data-lp-hg="Alag-alag apps">Alag-alag apps</th>
+            <th>BizYour</th>
+          </tr></thead>
+          <tbody>
+            <tr><td><b data-lp-en="Billing + GST" data-lp-hi="बिलिंग + GST" data-lp-hg="Billing + GST">Billing + GST</b></td><td><span class="lp-no">✗</span> <span data-lp-en="A separate billing app, its own charge" data-lp-hi="अलग बिलिंग ऐप, उसका अलग ख़र्चा" data-lp-hg="Alag billing app, uska alag kharcha">Alag billing app, uska alag kharcha</span></td><td><span class="lp-yes">✓</span> <span data-lp-en="In this very app" data-lp-hi="इसी ऐप में" data-lp-hg="Yahi app me">Yahi app me</span></td></tr>
+            <tr><td><b data-lp-en="Stock / Inventory" data-lp-hi="स्टॉक / इन्वेंटरी" data-lp-hg="Stock / Inventory">Stock / Inventory</b></td><td><span class="lp-no">✗</span> <span data-lp-en="Separate stock app or a paper register" data-lp-hi="अलग स्टॉक ऐप या काग़ज़ का रजिस्टर" data-lp-hg="Alag stock app ya kagaz ka register">Alag stock app ya kagaz ka register</span></td><td><span class="lp-yes">✓</span> <span data-lp-en="In this very app" data-lp-hi="इसी ऐप में" data-lp-hg="Yahi app me">Yahi app me</span></td></tr>
+            <tr><td><b data-lp-en="Credit / Ledger" data-lp-hi="उधार / खाता" data-lp-hg="Udhaar / Khata">Udhaar / Khata</b></td><td><span class="lp-no">✗</span> <span data-lp-en="A separate khata app, its own charge" data-lp-hi="अलग खाता ऐप, उसका अलग ख़र्चा" data-lp-hg="Alag khata app, uska alag kharcha">Alag khata app, uska alag kharcha</span></td><td><span class="lp-yes">✓</span> <span data-lp-en="In this very app" data-lp-hi="इसी ऐप में" data-lp-hg="Yahi app me">Yahi app me</span></td></tr>
+            <tr><td><b data-lp-en="GST report / GSTR-1" data-lp-hi="GST रिपोर्ट / GSTR-1" data-lp-hg="GST report / GSTR-1">GST report / GSTR-1</b></td><td><span class="lp-no">✗</span> <span data-lp-en="CA or separate accounting software" data-lp-hi="CA या अलग अकाउंटिंग सॉफ़्टवेयर" data-lp-hg="CA ya alag accounting software">CA ya alag accounting software</span></td><td><span class="lp-yes">✓</span> <span data-lp-en="In this very app" data-lp-hi="इसी ऐप में" data-lp-hg="Yahi app me">Yahi app me</span></td></tr>
+            <tr><td><b data-lp-en="B2B buying (Business Mart)" data-lp-hi="B2B खरीद (बिज़नेस मार्ट)" data-lp-hg="B2B kharid (Business Mart)">B2B kharid (Business Mart)</b></td><td><span class="lp-no">✗</span> <span data-lp-en="Phone calls, market rounds, middlemen" data-lp-hi="फ़ोन, बाज़ार के चक्कर, दलाल" data-lp-hg="Phone, bazaar ke chakkar, dalaal">Phone, bazaar ke chakkar, dalaal</span></td><td><span class="lp-yes">✓</span> <span data-lp-en="Inside the app itself" data-lp-hi="ऐप के अंदर ही" data-lp-hg="App ke andar hi">App ke andar hi</span></td></tr>
+            <tr><td><b data-lp-en="Day-end report" data-lp-hi="दिन के अंत की रिपोर्ट" data-lp-hg="Day-end report">Day-end report</b></td><td><span class="lp-no">✗</span> <span data-lp-en="Add up the day's figures by hand" data-lp-hi="हाथ से दिन का हिसाब जोड़ो" data-lp-hg="Haath se din ka hisaab jodo">Haath se din ka hisaab jodo</span></td><td><span class="lp-yes">✓</span> <span data-lp-en="In this very app" data-lp-hi="इसी ऐप में" data-lp-hg="Yahi app me">Yahi app me</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="lp-eco-result"><span data-lp-en="The point is simple: separate apps mean separate subscriptions and separate data. BizYour keeps everything in one place." data-lp-hi="बात सीधी है: अलग ऐप्स मतलब अलग सब्सक्रिप्शन और अलग डेटा। BizYour सब कुछ एक जगह रखता है।" data-lp-hg="Baat seedhi hai: alag apps matlab alag subscription aur alag data. BizYour sab kuch ek jagah rakhta hai.">Baat seedhi hai: alag apps matlab alag subscription aur alag data. BizYour sab kuch ek jagah rakhta hai.</span></p>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-tint" id="lp-how">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="How to " data-lp-hi="कैसे " data-lp-hg="Kaise ">Kaise </span><span class="lp-accent" data-lp-en="start" data-lp-hi="शुरू" data-lp-hg="shuru">shuru</span><span data-lp-en="" data-lp-hi=" करें" data-lp-hg=" karein"> karein</span></h2>
+      <p class="lp-sec-sub" data-lp-en="Three steps. Two minutes. Done." data-lp-hi="तीन step। दो मिनट। ख़त्म।" data-lp-hg="Teen step. Do minute. Khatam.">Teen step. Do minute. Khatam.</p>
+      <div class="lp-steps">
+        <div class="lp-step"><span class="lp-step-n">1</span><b data-lp-en="Sign up with email (OTP)" data-lp-hi="Email से signup (OTP)" data-lp-hg="Email se signup (OTP)">Email se signup (OTP)</b><p data-lp-en="Enter your email, verify the OTP — that's it, your account is ready." data-lp-hi="Email डालो, OTP verify करो — बस, खाता तैयार।" data-lp-hg="Email dalo, OTP verify karo — bas, khata taiyaar.">Email dalo, OTP verify karo — bas, khata taiyaar.</p></div>
+        <div class="lp-step"><span class="lp-step-n">2</span><b data-lp-en="30-day free trial" data-lp-hi="30 दिन free trial" data-lp-hg="30 din free trial">30 din free trial</b><p data-lp-en="All features open — no card, no restrictions." data-lp-hi="सारे features खुले हुए — कोई card नहीं, कोई रोक-टोक नहीं।" data-lp-hg="Saare features khule hue — koi card nahi, koi rok-tok nahi.">Saare features khule hue — koi card nahi, koi rok-tok nahi.</p></div>
+        <div class="lp-step"><span class="lp-step-n">3</span><b data-lp-en="Like it? Take a plan" data-lp-hi="पसंद आए तो plan लो" data-lp-hg="Pasand aaye to plan lo">Pasand aaye to plan lo</b><p data-lp-en="All your data stays right there — nothing to fill again." data-lp-hi="तुम्हारा सारा डेटा वही रहेगा — कुछ दोबारा नहीं भरना।" data-lp-hg="Tumhara saara data wahi rahega — kuch dobara nahi bharna.">Tumhara saara data wahi rahega — kuch dobara nahi bharna.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec" id="lp-who">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="Who is it " data-lp-hi="यह " data-lp-hg="Ye ">Ye </span><span class="lp-accent" data-lp-en="for?" data-lp-hi="किसके लिए है?" data-lp-hg="kis ke liye hai?">kis ke liye hai?</span></h2>
+      <p class="lp-sec-sub" data-lp-en="If you make bills, keep stock and give credit — BizYour is for you." data-lp-hi="अगर आप बिल बनाते हैं, स्टॉक रखते हैं और उधार देते हैं — BizYour आपके लिए है।" data-lp-hg="Agar tum bill banate ho, stock rakhte ho aur udhaar dete ho — BizYour tumhare liye hai.">Agar tum bill banate ho, stock rakhte ho aur udhaar dete ho — BizYour tumhare liye hai.</p>
+      <div class="lp-feat-grid">
+        <div class="lp-feat"><div class="lp-feat-ic">🏪</div><b data-lp-en="Kirana / General Store" data-lp-hi="किराना / जनरल स्टोर" data-lp-hg="Kirana / General Store">Kirana / General Store</b><p data-lp-en="Daily billing, stock and customer credit — all together." data-lp-hi="रोज़ की बिलिंग, स्टॉक और ग्राहक उधार — सब साथ।" data-lp-hg="Roz ki billing, stock aur customer udhaar — sab saath.">Roz ki billing, stock aur customer udhaar — sab saath.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">👕</div><b data-lp-en="Garments / Clothing" data-lp-hi="गारमेंट्स / कपड़े" data-lp-hg="Garments / Kapde">Garments / Kapde</b><p data-lp-en="Sizes and stock in one place, bills in seconds." data-lp-hi="साइज़ और स्टॉक एक जगह, बिल सेकंडों में।" data-lp-hg="Size aur stock ek jagah, bill seconds me.">Size aur stock ek jagah, bill seconds me.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">📱</div><b data-lp-en="Electronics / Mobile Shop" data-lp-hi="इलेक्ट्रॉनिक्स / मोबाइल शॉप" data-lp-hg="Electronics / Mobile Shop">Electronics / Mobile Shop</b><p data-lp-en="Costly stock, instalment-style credit and service — clean accounts." data-lp-hi="महँगा स्टॉक, किश्त-जैसा उधार और सर्विस — साफ़ हिसाब।" data-lp-hg="Mehenga stock, kisht-jaisa udhaar aur service — saaf hisaab.">Mehenga stock, kisht-jaisa udhaar aur service — saaf hisaab.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">🔧</div><b data-lp-en="Hardware / Sanitary" data-lp-hi="हार्डवेयर / सैनिटरी" data-lp-hg="Hardware / Sanitary">Hardware / Sanitary</b><p data-lp-en="Thousands of small items — stock and rates always at hand." data-lp-hi="हज़ारों छोटे आइटम — स्टॉक और rate हमेशा हाथ में।" data-lp-hg="Hazaaron chhote item — stock aur rate hamesha haath me.">Hazaaron chhote item — stock aur rate hamesha haath me.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">🏭</div><b data-lp-en="Wholesale / Distributor" data-lp-hi="थोक / डिस्ट्रीब्यूटर" data-lp-hg="Wholesale / Distributor">Wholesale / Distributor</b><p data-lp-en="Sell to shops on Business Mart, and keep your own billing here too." data-lp-hi="Business Mart पर दुकानों को बेचो, अपनी बिलिंग भी यहीं।" data-lp-hg="Business Mart par dukaanon ko becho, apni billing bhi yahin.">Business Mart par dukaanon ko becho, apni billing bhi yahin.</p></div>
+        <div class="lp-feat"><div class="lp-feat-ic">🧺</div><b data-lp-en="Any product business" data-lp-hi="कोई भी सामान वाला बिज़नेस" data-lp-hg="Koi bhi samaan wala business">Koi bhi samaan wala business</b><p data-lp-en="If you sell goods and keep accounts, BizYour fits." data-lp-hi="अगर आप सामान बेचते हैं और हिसाब रखते हैं, BizYour fit है।" data-lp-hg="Agar tum samaan bechte ho aur hisaab rakhte ho, BizYour fit hai.">Agar tum samaan bechte ho aur hisaab rakhte ho, BizYour fit hai.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-alt" id="lp-faq">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="Questions in " data-lp-hi="अक्सर पूछे जाने वाले " data-lp-hg="Aksar puche jaane wale ">Aksar puche jaane wale </span><span class="lp-accent" data-lp-en="your mind" data-lp-hi="सवाल" data-lp-hg="sawaal">sawaal</span><span data-lp-en="?" data-lp-hi="" data-lp-hg="?">?</span></h2>
+      <p class="lp-sec-sub" data-lp-en="Straight answers, no fine print." data-lp-hi="सीधे जवाब, कोई छोटा अक्षर नहीं।" data-lp-hg="Seedhe jawaab, koi chhota akshar nahi.">Seedhe jawaab, koi chhota akshar nahi.</p>
+      <div class="lp-faq">
+        <details class="lp-faq-item" open><summary data-lp-en="How much does it cost?" data-lp-hi="इसकी कीमत कितनी है?" data-lp-hg="Iska price kitna hai?">Iska price kitna hai?</summary><p data-lp-en="The first 30 days are completely free — no card needed. After the trial you choose a plan; all your data and work stay exactly as they are." data-lp-hi="पहले 30 दिन बिल्कुल मुफ़्त हैं — कोई कार्ड नहीं चाहिए। Trial के बाद आप plan चुनते हैं; आपका सारा डेटा और काम वैसे का वैसा रहता है।" data-lp-hg="Pehle 30 din bilkul free hain — koi card nahi chahiye. Trial ke baad tum plan chunte ho; tumhara saara data aur kaam waise ka waisa rehta hai.">Pehle 30 din bilkul free hain — koi card nahi chahiye. Trial ke baad tum plan chunte ho; tumhara saara data aur kaam waise ka waisa rehta hai.</p></details>
+        <details class="lp-faq-item"><summary data-lp-en="Is internet necessary?" data-lp-hi="क्या internet ज़रूरी है?" data-lp-hg="Kya internet zaroori hai?">Kya internet zaroori hai?</summary><p data-lp-en="No. Billing also works offline — bills keep getting made, and the data syncs when the internet comes back." data-lp-hi="नहीं। बिलिंग offline भी होती है — बिल बनते रहते हैं, और internet आते ही data sync हो जाता है।" data-lp-hg="Nahi. Billing offline bhi hoti hai — bill bante rehte hain, aur net aate hi data sync ho jata hai.">Nahi. Billing offline bhi hoti hai — bill bante rehte hain, aur net aate hi data sync ho jata hai.</p></details>
+        <details class="lp-faq-item"><summary data-lp-en="Does it handle GST?" data-lp-hi="क्या GST का काम होता है?" data-lp-hg="Kya GST ka kaam hota hai?">Kya GST ka kaam hota hai?</summary><p data-lp-en="Yes. GST bills, a full GST report, and a ready GSTR-1 file for your CA — all from the same data." data-lp-hi="हाँ। GST बिल, पूरी GST रिपोर्ट, और CA के लिए तैयार GSTR-1 फ़ाइल — सब उसी डेटा से।" data-lp-hg="Haan. GST bill, poori GST report, aur CA ke liye taiyaar GSTR-1 file — sab usi data se.">Haan. GST bill, poori GST report, aur CA ke liye taiyaar GSTR-1 file — sab usi data se.</p></details>
+        <details class="lp-faq-item"><summary data-lp-en="Can my staff use it too?" data-lp-hi="क्या मेरा staff भी इस्तेमाल कर सकता है?" data-lp-hg="Kya mera staff bhi use kar sakta hai?">Kya mera staff bhi use kar sakta hai?</summary><p data-lp-en="Yes — staff get their own login with role limits. They can do billing and stock work, but profit is visible only to the owner." data-lp-hi="हाँ — staff को role-limit के साथ अपना लॉगिन मिलता है। वे बिलिंग और स्टॉक का काम कर सकते हैं, पर मुनाफ़ा सिर्फ़ owner को दिखता है।" data-lp-hg="Haan — staff ko role-limit ke saath apna login milta hai. Wo billing aur stock ka kaam kar sakte hain, par munafa sirf owner ko dikhta hai.">Haan — staff ko role-limit ke saath apna login milta hai. Wo billing aur stock ka kaam kar sakte hain, par munafa sirf owner ko dikhta hai.</p></details>
+        <details class="lp-faq-item"><summary data-lp-en="Is my data safe?" data-lp-hi="क्या मेरा डेटा सुरक्षित है?" data-lp-hg="Kya mera data safe hai?">Kya mera data safe hai?</summary><p data-lp-en="Your data stays yours. Take a backup anytime and export your data whenever you want — no lock-in." data-lp-hi="आपका डेटा आपका ही रहता है। कभी भी backup लो और जब चाहो अपना डेटा export करो — कोई lock-in नहीं।" data-lp-hg="Tumhara data tumhara hi rehta hai. Kabhi bhi backup lo aur jab chaaho apna data export karo — koi lock-in nahi.">Tumhara data tumhara hi rehta hai. Kabhi bhi backup lo aur jab chaaho apna data export karo — koi lock-in nahi.</p></details>
+        <details class="lp-faq-item"><summary data-lp-en="Which languages does it work in?" data-lp-hi="यह किन भाषाओं में चलता है?" data-lp-hg="Ye kin bhaashaon me chalta hai?">Ye kin bhaashaon me chalta hai?</summary><p data-lp-en="English, Hindi and Hinglish — switch anytime, whichever feels easy." data-lp-hi="English, हिंदी और Hinglish — कभी भी बदलो, जो आसान लगे।" data-lp-hg="English, Hindi aur Hinglish — kabhi bhi badlo, jo aasan lage.">English, Hindi aur Hinglish — kabhi bhi badlo, jo aasan lage.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-tint" id="lp-day">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="One day, " data-lp-hi="एक दिन, " data-lp-hg="Ek din, ">Ek din, </span><span class="lp-accent" data-lp-en="with BizYour" data-lp-hi="BizYour के साथ" data-lp-hg="BizYour ke saath">BizYour ke saath</span></h2>
+      <p class="lp-sec-sub" data-lp-en="From the moment the shop opens till it closes — BizYour stays with you at every hour." data-lp-hi="दुकान खुलने से लेकर बंद होने तक — हर पहर BizYour साथ रहता है।" data-lp-hg="Dukaan khulne se lekar band hone tak — har pehar BizYour saath rehta hai.">Dukaan khulne se lekar band hone tak — har pehar BizYour saath rehta hai.</p>
+      <div class="lp-flow">
+        <div class="lp-flow-step">
+          <span class="lp-day-chip" data-lp-en="Morning" data-lp-hi="सुबह" data-lp-hg="Subah">Subah</span>
+          <b data-lp-en="As the shop opens" data-lp-hi="दुकान खुलते ही" data-lp-hg="Dukaan khulte hi">Dukaan khulte hi</b>
+          <p data-lp-en="Yesterday's day-end report and today's due alerts — everything in front of you before the day begins." data-lp-hi="कल की day-end रिपोर्ट और आज के due alerts — दिन शुरू होने से पहले सब सामने।" data-lp-hg="Kal ka day-end report aur aaj ke due alerts — din shuru hone se pehle sab saamne.">Kal ka day-end report aur aaj ke due alerts — din shuru hone se pehle sab saamne.</p>
+        </div>
+        <div class="lp-flow-arrow">→</div>
+        <div class="lp-flow-step">
+          <span class="lp-day-chip" data-lp-en="All day" data-lp-hi="दिन भर" data-lp-hg="Din bhar">Din bhar</span>
+          <b data-lp-en="Billing + stock, together" data-lp-hi="बिलिंग + स्टॉक, साथ-साथ" data-lp-hg="Billing + stock, saath-saath">Billing + stock, saath-saath</b>
+          <p data-lp-en="With every bill the stock updates itself, and the bill carries a UPI QR — the customer pays directly." data-lp-hi="हर बिल के साथ स्टॉक खुद update होता है, और बिल पर UPI QR — ग्राहक सीधा pay करता है।" data-lp-hg="Har bill ke saath stock khud update hota hai, aur bill par UPI QR — customer seedha pay karta hai.">Har bill ke saath stock khud update hota hai, aur bill par UPI QR — customer seedha pay karta hai.</p>
+        </div>
+        <div class="lp-flow-arrow">→</div>
+        <div class="lp-flow-step">
+          <span class="lp-day-chip" data-lp-en="Evening" data-lp-hi="शाम" data-lp-hg="Shaam">Shaam</span>
+          <b data-lp-en="Easy credit recovery" data-lp-hi="उधार वसूली आसान" data-lp-hg="Udhaar vasuli aasan">Udhaar vasuli aasan</b>
+          <p data-lp-en="Whoever's payment is due gets a WhatsApp reminder and their own account link — clear accounts, no awkwardness." data-lp-hi="जिसका पैसा due है, उसे WhatsApp पर reminder और अपना हिसाब link — बिना झिझक, साफ़ हिसाब।" data-lp-hg="Jiska paisa due hai, use WhatsApp par reminder aur apna hisaab link — bina jhijhak, saaf hisaab.">Jiska paisa due hai, use WhatsApp par reminder aur apna hisaab link — bina jhijhak, saaf hisaab.</p>
+        </div>
+        <div class="lp-flow-arrow">→</div>
+        <div class="lp-flow-step">
+          <span class="lp-day-chip" data-lp-en="Night" data-lp-hi="रात" data-lp-hg="Raat">Raat</span>
+          <b data-lp-en="Day-end report" data-lp-hi="Day-end रिपोर्ट" data-lp-hg="Day-end report">Day-end report</b>
+          <p data-lp-en="How much sold today, how much went on credit, how much money came in — the whole day's accounts at a glance." data-lp-hi="आज कितना बिका, कितना उधार गया, कितना पैसा आया — पूरे दिन का हिसाब एक नज़र में।" data-lp-hg="Aaj kitna bika, kitna udhaar gaya, kitna paisa aaya — poore din ka hisaab ek nazar me.">Aaj kitna bika, kitna udhaar gaya, kitna paisa aaya — poore din ka hisaab ek nazar me.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec" id="lp-bigshot">
+    <div class="lp-wrap">
+      <h2><span data-lp-en="Your whole shop, " data-lp-hi="पूरी दुकान, " data-lp-hg="Poori dukaan, ">Poori dukaan, </span><span class="lp-accent" data-lp-en="on one screen" data-lp-hi="एक स्क्रीन पर" data-lp-hg="ek screen par">ek screen par</span></h2>
+      <p class="lp-sec-sub" data-lp-en="This is the same dashboard that opens every morning — today's sale, credit still to collect, low-stock alerts and the day-end summary, all at a glance." data-lp-hi="यह वही dashboard है जो हर सुबह खुलता है — आज की sale, वसूली वाला उधार, low-stock alerts और day-end summary, सब एक नज़र में।" data-lp-hg="Ye wahi dashboard hai jo har subah khulta hai — aaj ki sale, vasuli wala udhaar, low-stock alerts aur day-end summary, sab ek nazar me.">Ye wahi dashboard hai jo har subah khulta hai — aaj ki sale, vasuli wala udhaar, low-stock alerts aur day-end summary, sab ek nazar me.</p>
+      <div class="lp-shot lp-shot-wide">
+        <div class="lp-shot-bar"><span></span><span></span><span></span><em data-lp-en="Dashboard — the real screen" data-lp-hi="Dashboard — असली स्क्रीन" data-lp-hg="Dashboard — asal screen">Dashboard — asal screen</em></div>
+        <img src="landing/assets/shot-home.jpg" alt="BizYour dashboard — asal screen">
+      </div>
+      <div class="lp-facts">
+        <span class="lp-fact" data-lp-en="Set up in 5 minutes" data-lp-hi="5 मिनट में setup" data-lp-hg="5 minute me setup">5 minute me setup</span>
+        <span class="lp-fact" data-lp-en="30-day free trial — no card needed" data-lp-hi="30 दिन free trial — कोई कार्ड नहीं चाहिए" data-lp-hg="30 din free trial — koi card nahi">30 din free trial — koi card nahi</span>
+        <span class="lp-fact" data-lp-en="English · Hindi · Hinglish" data-lp-hi="English · हिंदी · Hinglish" data-lp-hg="English · Hindi · Hinglish">English · Hindi · Hinglish</span>
+        <span class="lp-fact" data-lp-en="Export your data anytime" data-lp-hi="अपना डेटा कभी भी export करो" data-lp-hg="Apna data kabhi bhi export karo">Apna data kabhi bhi export karo</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-price">
+    <div class="lp-wrap">
+      <h2 data-lp-en="The first 30 days are completely free." data-lp-hi="पहले 30 दिन बिल्कुल मुफ़्त।" data-lp-hg="Pehle 30 din bilkul free.">Pehle 30 din bilkul free.</h2>
+      <p data-lp-en="No card needed. Run your shop first, decide later." data-lp-hi="कोई कार्ड नहीं चाहिए। पहले दुकान चलाओ, फ़ैसला बाद में।" data-lp-hg="Koi card nahi chahiye. Pehle dukaan chalao, faisla baad me.">Koi card nahi chahiye. Pehle dukaan chalao, faisla baad me.</p>
+      <button class="btn lp-btn-white lp-big" id="lpTrialBtn3" type="button" data-lp-en="Start the free trial" data-lp-hi="Free trial शुरू करो" data-lp-hg="Free trial shuru karo">Free trial shuru karo</button>
+    </div>
+  </section>
+
+  <!-- Brand band — fixed English in every site language (founder's call). -->
+  <section class="lp-band">
+    <div class="lp-band-eyebrow">TEAM DILIGENCE</div>
+    <div class="lp-band-title">Proudly Built by <span class="lp-band-grad">IITians</span></div>
+    <p class="lp-band-sub">BizYour is not a faceless corporate product. It is built, line by line, by Team <b>DILIGENCE</b> — IITians who understand how India's shops actually run.</p>
+  </section>
+
+  <footer class="lp-footer">
+    <div class="lp-wrap">
+      <div class="lp-foot-grid">
+        <div class="lp-foot-col lp-foot-about">
+          <div class="lp-foot-brand">
+            <img class="logo-mark" src="landing/assets/bizyour-mark-512.png" alt="BizYour logo">
+            <div><b class="wordmark">Biz<span class="os">Your</span></b><span>by DILIGENCE</span></div>
+          </div>
+          <p class="lp-foot-line" data-lp-en="Made for shopkeepers — from billing to the bazaar." data-lp-hi="दुकानदारों के लिए बनाया गया — बिलिंग से लेकर बाज़ार तक।" data-lp-hg="Dukandaaron ke liye banaya gaya — billing se lekar bazaar tak.">Dukandaaron ke liye banaya gaya — billing se lekar bazaar tak.</p>
+        </div>
+        <div class="lp-foot-col">
+          <h4 data-lp-en="Product" data-lp-hi="प्रोडक्ट" data-lp-hg="Product">Product</h4>
+          <a href="#lp-features" data-lp-en="Features" data-lp-hi="फीचर्स" data-lp-hg="Features">Features</a>
+          <a href="#lp-mart" data-lp-en="Business Mart" data-lp-hi="बिज़नेस मार्ट" data-lp-hg="Business Mart">Business Mart</a>
+          <a href="#lp-faq" data-lp-en="FAQ" data-lp-hi="सामान्य सवाल" data-lp-hg="FAQ">FAQ</a>
+          <a id="lpFootTrial" data-lp-en="Free Trial" data-lp-hi="फ्री ट्रायल" data-lp-hg="Free Trial">Free Trial</a>
+        </div>
+        <div class="lp-foot-col">
+          <h4 data-lp-en="Company" data-lp-hi="कंपनी" data-lp-hg="Company">Company</h4>
+          <a href="https://thediligence.in" target="_blank" rel="noopener">DILIGENCE ↗</a>
+          <p data-lp-en="Business Automation &amp; Custom Systems, Delhi" data-lp-hi="Business Automation &amp; Custom Systems, Delhi" data-lp-hg="Business Automation &amp; Custom Systems, Delhi">Business Automation &amp; Custom Systems, Delhi</p>
+        </div>
+        <div class="lp-foot-col">
+          <h4 data-lp-en="Help" data-lp-hi="मदद" data-lp-hg="Madad">Madad</h4>
+          <p data-lp-en="Help inside the app — a full guide in Hindi" data-lp-hi="App के अंदर Help — हिंदी में पूरी guide" data-lp-hg="App ke andar Help — Hindi me poori guide">App ke andar Help — Hindi me poori guide</p>
+          <a id="lpFootLogin" data-lp-en="Login" data-lp-hi="लॉगिन" data-lp-hg="Login">Login</a>
+          <a id="lpFootSignup" data-lp-en="Create an account" data-lp-hi="खाता बनाओ" data-lp-hg="Account banao">Account banao</a>
+        </div>
+      </div>
+      <p class="lp-parent"><span data-lp-en="BizYour is a product of DILIGENCE — Business Automation &amp; Custom Systems, Delhi." data-lp-hi="BizYour, DILIGENCE का product है — Business Automation &amp; Custom Systems, Delhi।" data-lp-hg="BizYour, DILIGENCE ka product hai — Business Automation &amp; Custom Systems, Delhi.">BizYour, DILIGENCE ka product hai — Business Automation &amp; Custom Systems, Delhi.</span> <a class="lp-parent-link" href="https://thediligence.in" target="_blank" rel="noopener">thediligence.in ↗</a></p>
+      <p class="lp-copy">© 2026 BizYour by DILIGENCE</p>
+    </div>
+  </footer>
+</div>
+
+<!-- ================= LOGIN ================= -->
+<script src="landing/landing.js"></script>
+</body>
+</html>

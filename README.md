@@ -1,3 +1,20 @@
+# BizYour v4 — kya naya hai (Nov 2026)
+
+**Visitor ka safar:** `bizyour.in` → logo animation (ek baar per visit) → **naya public home page** → *Create free account* → email code → dukaan ka setup → **Workspace | Business Mart do darwaze, side by side** → app. App me sidebar ke upar (phone par screen ke upar) **Workspace | Business Mart switch** hai — har side ka apna menu aur phone par apna bottom bar.
+
+**Pricing ka niyam:** **Business Mart hamesha free.** 30-din free trial (bina card) aur baad me monthly/yearly plan **sirf Workspace** ke liye. Trial khatam ho to Workspace read-only hota hai, Mart poora chalta rehta hai — ye server me bhi laagu hai (`/api/mart/*` subscription lock se bahar), test ke saath.
+
+**Naya app (`web/`) ab `/` par khulta hai.** Naye design me: home page, Home, **New bill counter**, Bills, Customers & udhaar, Products, Purchases, Suppliers, **signup + email code + password reset**, aur **poora Business Mart**. Baaki (Reports, Expenses, Settings, Estimates, History, Help) abhi **`/classic/`** par purane app me hai: same login, menu me ↗ link. Koi feature hataya nahi gaya.
+
+- Chalana: pehle jaisa hi. `start-bizyour.command` / `start-business-os.bat` → http://localhost:4000 (home page; login: http://localhost:4000/login). Purana app: http://localhost:4000/classic/
+- Developer: `npm run setup`, `npm run build`, `npm start`, `npm test` (API), `npm run test:e2e` (browser)
+- Counter ke shortcuts: **N** naya bill · type karke **Enter** saaman jodo · **C** customer · **F2–F5** Cash/UPI/Bank/Udhaar · **Ctrl+Enter** save · **Ctrl+K** kuch bhi dhoondo
+- Security: login/OTP par limit, session 30 din me expire, naye password kam se kam 8 character, security headers. `npm audit` me 0 issues hain.
+- Docs: `docs/01-AUDIT.md` → `06-PROGRESS.md` (research, design system, architecture, test report, aage ka plan). Screenshots `docs/screenshots/` me hain.
+- Deploy me kya badla: `DEPLOY-GUIDE.md` ka pehla section dekho.
+
+---
+
 # BizYour — by DILIGENCE
 
 **Ek app, do hisse:**
@@ -8,15 +25,15 @@ Sidebar me upar **🗂️ Workspace | 🛒 Business Mart** switch se dono ke bee
 
 ## Logo / brand (Final) — bizyour.in
 
-Logo ki saari files `frontend/brand/` me hain — **final logo:** kaale rounded tile par mint→blue gradient infinity-ribbon, neeche wordmark "BizYour by DILIGENCE".
+Logo ki saari files `frontend/brand/` me hain — **final logo (22 Nov, "B2 — Two sides, one ribbon"):** kaale rounded tile par ek hi ribbon ka "8" (hourglass shape, crossing par saaf gap): **upar ka loop bahi-green = Workspace, neeche ka loop amber = Business Mart**. Neeche wordmark "BizYour by DILIGENCE" (IBM Plex Sans, outline). SVG bhi hain: `bizyour-mark.svg`, `bizyour-logo-stacked(.dark).svg`, `bizyour-logo-horizontal(.dark).svg`.
 
 | File | Kahan use karo |
 |---|---|
 | `bizyour-mark-512.png` | Sirf icon (app icon, social profile picture, Play Store/App Store) — app me pehle se laga hai |
 | `bizyour-logo.png` | Poora logo (icon + wordmark), light background (website, letterhead, invoices) |
-| `favicon-32.png` · `apple-touch-icon.png` | Browser tab / phone home-screen icon (app me pehle se laga hai) |
+| `favicon-32.png` · `apple-touch-icon.png` · `icon-maskable-512.png` | Browser tab / phone home-screen / installed-app icon (app me pehle se laga hai) |
 
-Rang: ribbon **mint→blue gradient**, tile **black**, wordmark ink `#14213A` · app ka primary blue `#2563EB` · **Mart Amber `#F5A524`** (sirf chhota dot / accent). Naam hamesha **BizYour** likho (B aur Y dono capital). Website: **bizyour.in**.
+Rang: Workspace green `#22B07F` (UI me bahi green `#0B6E4F`), Mart amber `#F5A524`, tile ink `#18201B`, wordmark ink `#18201B`. Naam hamesha **BizYour** likho (B aur Y dono capital). Website: **bizyour.in**.
 
 ## Chalana — 2 minute me preview
 
@@ -54,7 +71,7 @@ Band karna ho to Terminal window band karo (ya Ctrl+C). Data `backend/data/busin
 
 **Notifications** — har lead, quote, counter, message, order step ka in-app inbox; sidebar badges har 30 second me update.
 
-**Permissions** — owner aur "All work" / "Stock only" staff Mart use kar sakte hain; "Billing only" staff ko Mart band hai. Mart profile sirf owner badal sakta hai. Subscription expire (read-only) ho to Mart me bhi naya post/quote/order nahi hota, dekhna chalta hai.
+**Permissions** — owner aur "All work" / "Stock only" staff Mart use kar sakte hain; "Billing only" staff ko Mart band hai. Mart profile sirf owner badal sakta hai. **Business Mart hamesha free hai** — Workspace ka trial/plan khatam (read-only) hone par bhi Mart me post, quote, order sab chalta hai (`/api/mart/*` subscription guard se bahar hai).
 
 ### Demo (dono taraf)
 `load-demo.bat` ab Sharma General Store ke saath ek chhota bazaar bhi load karta hai:
@@ -204,7 +221,7 @@ Ek hi app, do mode — chunav sirf ek setting (`DATABASE_URL`) ka hai:
 - **SaaS Stage 1 (Kaam wala hisa)** — GST report (`GET /api/reports/gst?month=YYYY-MM`, owner-only), monthly reports (`GET /api/reports/monthly?month=YYYY-MM`, owner-only, pichhle 6 mahine ke saath), global search (`GET /api/search?q=`, role-wise sections, sirf apni dukaan), bill par ek-click **PDF Download** button + print bill par CGST/SGST, aur billing ke product picker me search-as-you-type. Koi nayi table nahi — saara hisaab maujooda data aur maujooda GST/profit formula se hi banta hai, isliye demo ke canonical numbers (aaj ki sale ₹1,128 · lena ₹1,620 · dena ₹2,300 · stock ₹22,051 · aaj ka profit +₹30) bilkul nahi badle.
 - **SaaS Stage 2 (SaaS wala hisa)** — Bechne ka system:
   - **Email OTP signup** — signup par account PENDING banta hai; 6-digit email OTP (10 min expiry, max 5 attempts, 60-sec resend cooldown, code hashed) verify hue bina login nahi hota aur trial shuru nahi hota (`POST /api/auth/signup` → `/api/auth/verify-otp` → `/api/auth/resend-otp`). **Forgot password** bhi isi OTP se (`/api/auth/forgot-password` → `/api/auth/reset-password`, purane sessions band). Mail `MAIL_*` env (SMTP) se — config bina dev mode (code sirf server log me, API response me sirf `mail_configured:false` flag, OTP kabhi response me nahi).
-  - **Trial + subscription** — verify hote hi **30-din free trial** (bina card). Plans: monthly/yearly (`plans` table) — **price admin-configurable hai, seed price 0 = "set nahi"; founder ne pricing abhi tay nahi ki, kuch hard-code nahi**. State: trial → active → grace (7 din, plan se) → expired par **read-only** (GET sab chalega, naya data POST/PUT/DELETE par `403 subscription_expired`). Purani dukaanon (demo samet) ko migration par trial usi din se mila — koi lockout nahi.
+  - **Trial + subscription** — verify hote hi **30-din free trial** (bina card). Plans: monthly/yearly (`plans` table) — **price admin-configurable hai, seed price 0 = "set nahi"; founder ne pricing abhi tay nahi ki, kuch hard-code nahi**. Trial aur plan **sirf Workspace** ke liye hain; Business Mart free hai. State: trial → active → grace (7 din, plan se) → expired par Workspace **read-only** (GET sab chalega, Mart poora chalega, naya data POST/PUT/DELETE par `403 subscription_expired`). Purani dukaanon (demo samet) ko migration par trial usi din se mila — koi lockout nahi.
   - **Payment** — UPI/manual claim (owner reference deta hai → DILIGENCE admin approve → period badhta hai + `SUB-YYYY-NNNN` invoice, printable) + **Razorpay-ready** order/verify endpoints (HMAC signature check samet) jo keys bina `501 gateway_not_configured` dete hain — nakli success kahin nahi.
   - **DILIGENCE Super Admin** — `SUPER_ADMIN_EMAIL/PASSWORD` env se seeded alag admin (business users se alag `platform_admins` table; login page se hi login), admin panel: saari dukaanon ki list + status/plan/expiry, kul subscription revenue, pending claims approve/reject, dukaan extend/block, plan prices, support WhatsApp number (Stage 3 ke liye setting). Admin ko dukaanon ka operational data (bill/product/graahak) NAHI dikhta — sirf metadata.
   - **5-minute onboarding** — naye owner ke dashboard par 3-step checklist (dukaan details → pehla product → pehla bill; steps asli data se bante hain, dismiss ho sakta hai). Purani/demo dukaanon ko checklist nahi satata.

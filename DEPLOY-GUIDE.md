@@ -1,3 +1,23 @@
+# v4 (Nov 2026): naya app + purana app — deploy kaise badla
+
+**Kya badla:** naya app (`web/`, React) ab `/` par khulta hai aur purana app poora ka poora `/classic/` par chalta rehta hai (same login). Backend ka koi API ya database nahi badla, aur koi migration nahi hai.
+
+**22 Nov update:** `bizyour.in` par ab naya public home page (logo animation ke saath) khulta hai, login `/login` par hai, aur signup ke baad Workspace | Business Mart chooser aata hai. Server me ek chhota badlav: **Business Mart ab subscription lock se bahar hai** (Mart hamesha free). Isliye **backend (Render) bhi redeploy karna zaroori hai**, sirf frontend nahi. Database me koi badlav nahi.
+
+**Sabse aasaan (recommended): ek hi Render service.** `render.yaml` ab khud naya app build karta hai:
+- Build: `cd web && npm ci && npm run build && cd ../backend && npm ci --omit=dev`
+- Start: `node backend/server.js`
+- Agar Render par service haath se banayi thi: **Root Directory khali karo** (pehle `backend` tha) aur upar wale Build/Start commands daalo.
+- Env me **`ALLOWED_ORIGINS`** zaroor daalo (jaise `https://bizyour.in`). Naya optional env: `SESSION_TTL_DAYS` (default 30).
+
+**Agar frontend Vercel par hi rakhna hai:** Vercel project ka **Root Directory `web`** karo. `web/vercel.json` pehle se hai: woh build karta hai aur `/api`, `/classic`, `/hisab` ko Render backend par bhej deta hai, isliye sab ek hi domain par chalta hai aur login dono apps me same rehta hai. Backend URL badle to `web/vercel.json` me `bizyour-i08s.onrender.com` badal do. **Is setup me Render par `TRUST_PROXY_HOPS=2` zaroor daalo.** Warna saare users ek hi (Vercel ke) IP se dikhenge aur login limit sab par ek saath lag jayegi.
+
+**Wapas purane par jana ho (rollback):** pichhla git commit deploy kar do. Data par koi asar nahi, kyunki schema nahi badla. Sirf naya app band karna ho to `web/dist` folder hata do: server apne aap purana app `/` par dikhane lagega.
+
+**Backup:** deploy se pehle Neon dashboard → Branches → "Create branch" (snapshot) le lo, ya app ke Settings → Data Backup se JSON download kar lo.
+
+---
+
 # BizYour — Cloud Deploy Guide (Render + Neon, free tier)
 
 > **Business Mart ke liye cloud zaruri hai.** Local mode me Mart sirf usi computer ke

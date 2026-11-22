@@ -28,7 +28,9 @@ const DATABASE_URL = process.env.DATABASE_URL || '';
 const ENGINE = DATABASE_URL ? 'postgres' : 'sqlite';
 const MODE = ENGINE === 'postgres' ? 'cloud' : 'local';
 
-const DATA_DIR = path.join(__dirname, 'data');
+// BOS_DATA_DIR lets tests (and unusual installs) point the SQLite file
+// elsewhere; default is unchanged: backend/data/.
+const DATA_DIR = process.env.BOS_DATA_DIR ? path.resolve(process.env.BOS_DATA_DIR) : path.join(__dirname, 'data');
 const DB_PATH = ENGINE === 'sqlite' ? path.join(DATA_DIR, 'business-os.db') : null;
 
 // All app tables, in FK-safe order (parents before children) — used by the
@@ -58,6 +60,12 @@ const SCHEMA_SQL = `
     owner_name TEXT NOT NULL DEFAULT '',
     phone TEXT NOT NULL DEFAULT '',
     city TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT '',
+    address TEXT NOT NULL DEFAULT '',
+    landmark TEXT NOT NULL DEFAULT '',
+    pincode TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL DEFAULT '',
+    workspace_activated_at TEXT,
     gst_enabled INTEGER NOT NULL DEFAULT 0,
     gstin TEXT NOT NULL DEFAULT '',
     upi_id TEXT NOT NULL DEFAULT '',
@@ -415,6 +423,24 @@ const SCHEMA_SQL = `
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  -- ===== Login-lockout + workspace workflow (2026-11-22) =====
+  -- login_attempts: per-identifier / per-IP failed-login counters with a
+  -- lockout stamp (platform table — no business_id, never in backups).
+  -- app_migrations: one-time data migrations are recorded here so they
+  -- run exactly once per database (e.g. the workspace_activated_at
+  -- backfill for pre-existing named shops).
+  CREATE TABLE IF NOT EXISTS login_attempts (
+    key TEXT PRIMARY KEY,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until TEXT,
+    last_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS app_migrations (
+    name TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS plans (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     code TEXT NOT NULL UNIQUE,
@@ -745,7 +771,7 @@ const PG_SCHEMA_SQL = SCHEMA_SQL
   .replace(/\s+REFERENCES\s+\w+\(id\)/g, '');
 
 // ---------- SQL translation for Postgres ----------
-const NO_ID_TABLES = new Set(['sessions']); // tables whose PK is not `id`
+const NO_ID_TABLES = new Set(['sessions', 'login_attempts', 'app_migrations']); // tables whose PK is not `id`
 function translatePg(sql) {
   let out = '';
   let n = 0;
@@ -971,6 +997,26 @@ async function init() {
     if (!miCols.includes('group_id')) sdb.exec("ALTER TABLE mart_inquiries ADD COLUMN group_id TEXT");
     const mlCols = sdb.prepare('PRAGMA table_info(mart_listings)').all().map((c) => c.name);
     if (!mlCols.includes('photo')) sdb.exec("ALTER TABLE mart_listings ADD COLUMN photo TEXT");
+    // Workspace-workflow migration (same idempotent pattern): businesses
+    // gain the shop-setup fields (category / full address / PIN / state)
+    // and the workspace_activated_at stamp. All empty/NULL on old rows —
+    // the one-time backfill below stamps the shops that already exist.
+    if (!bizCols.includes('category')) sdb.exec("ALTER TABLE businesses ADD COLUMN category TEXT NOT NULL DEFAULT ''");
+    if (!bizCols.includes('address')) sdb.exec("ALTER TABLE businesses ADD COLUMN address TEXT NOT NULL DEFAULT ''");
+    if (!bizCols.includes('landmark')) sdb.exec("ALTER TABLE businesses ADD COLUMN landmark TEXT NOT NULL DEFAULT ''");
+    if (!bizCols.includes('pincode')) sdb.exec("ALTER TABLE businesses ADD COLUMN pincode TEXT NOT NULL DEFAULT ''");
+    if (!bizCols.includes('state')) sdb.exec("ALTER TABLE businesses ADD COLUMN state TEXT NOT NULL DEFAULT ''");
+    if (!bizCols.includes('workspace_activated_at')) sdb.exec("ALTER TABLE businesses ADD COLUMN workspace_activated_at TEXT");
+    // ONE-TIME backfill (app_migrations marker): every pre-existing shop
+    // that already has a name was set up under the old flow — stamp its
+    // workspace as activated from its creation date so nothing about its
+    // access changes. Account-only businesses (name still '') stay
+    // un-activated, exactly as the two-stage workflow intends.
+    const wsMark = sdb.prepare("SELECT name FROM app_migrations WHERE name = 'ws_backfill_v1'").get();
+    if (!wsMark) {
+      sdb.exec("UPDATE businesses SET workspace_activated_at = created_at WHERE name <> '' AND workspace_activated_at IS NULL");
+      sdb.exec("INSERT INTO app_migrations (name) VALUES ('ws_backfill_v1')");
+    }
     layer = sqliteLayer();
   } else {
     const { Pool, types } = require('pg');
@@ -1038,6 +1084,19 @@ async function init() {
       await client.query("ALTER TABLE mart_orders ADD COLUMN IF NOT EXISTS transporter_name TEXT NOT NULL DEFAULT ''");
       await client.query("ALTER TABLE mart_inquiries ADD COLUMN IF NOT EXISTS group_id TEXT");
       await client.query("ALTER TABLE mart_listings ADD COLUMN IF NOT EXISTS photo TEXT");
+      // Workspace-workflow migration (same as the SQLite branch).
+      await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT ''");
+      await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS address TEXT NOT NULL DEFAULT ''");
+      await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS landmark TEXT NOT NULL DEFAULT ''");
+      await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pincode TEXT NOT NULL DEFAULT ''");
+      await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT ''");
+      await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS workspace_activated_at TEXT");
+      // ONE-TIME backfill (app_migrations marker) — see the SQLite branch.
+      const wsMark = await client.query("SELECT name FROM app_migrations WHERE name = 'ws_backfill_v1'");
+      if (!wsMark.rows.length) {
+        await client.query("UPDATE businesses SET workspace_activated_at = created_at WHERE name <> '' AND workspace_activated_at IS NULL");
+        await client.query("INSERT INTO app_migrations (name) VALUES ('ws_backfill_v1')");
+      }
     } finally { client.release(); }
     layer = pgLayer();
   }

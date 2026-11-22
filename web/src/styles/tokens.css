@@ -1,0 +1,77 @@
+/* BizYour v4 design tokens — "Ledger".
+   A cool, ruled-ledger paper canvas, navy ink, one blue accent, and amber reserved for Business Mart.
+   Money colours are semantic only: green = money in, red = owed to you /
+   overdue, amber = needs attention. */
+:root {
+  /* surfaces */
+  --paper: #EAF0FB;
+  --surface: #FFFFFF;
+  --sunken: #E9EEF6;
+  --line: #E1E7F1;
+  --line-strong: #C5D0E2;
+  --rule: rgba(37, 99, 235, 0.07); /* ledger ruling on bill sheets */
+
+  /* ink */
+  --ink: #14213A;
+  --ink-2: #3E4E68;
+  --ink-3: #66788F;
+  --ink-inverse: #FFFFFF;
+
+  /* accent: blue */
+  --accent: #2563EB;
+  --accent-hover: #1D4FD0;
+  --accent-press: #173FAE;
+  --accent-tint: #EAF1FE;
+  --accent-ink: #1A47B8;
+
+  /* Business Mart */
+  --mart: #9A6205;
+  --mart-solid: #F5A524;
+  --mart-tint: #FBF0DA;
+
+  /* money + status */
+  --in: #137A3A;
+  --in-tint: #E3F3E8;
+  --owed: #B4321F;
+  --owed-tint: #FBE9E5;
+  --warn: #8F5600;
+  --warn-tint: #FFF1D6;
+  --info: #2D5B8A;
+  --info-tint: #E6EEF7;
+
+  /* type */
+  --font: 'IBM Plex Sans', 'IBM Plex Sans Devanagari', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-16: 16px;
+  --fs-20: 20px; --fs-24: 24px; --fs-32: 32px; --fs-48: 48px;
+  --lh-tight: 1.2; --lh: 1.5;
+
+  /* space (4-pt) */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
+  --s6: 24px; --s8: 32px; --s10: 40px; --s14: 56px;
+
+  /* shape — radius grows with the size of the thing */
+  --r-control: 6px;
+  --r-panel: 10px;
+  --r-sheet: 16px;
+  --r-pill: 999px;
+
+  /* elevation — structure comes from lines; shadow is only for overlays */
+  --shadow-overlay: 0 18px 48px -12px rgba(20, 33, 58, 0.28), 0 2px 6px rgba(20, 33, 58, 0.08);
+  --shadow-lift: 0 1px 2px rgba(20, 33, 58, 0.06);
+  --focus: 0 0 0 3px rgba(37, 99, 235, 0.28);
+
+  /* motion */
+  --t-fast: 120ms;
+  --t-med: 180ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* layout */
+  --sidebar-w: 236px;
+  --topbar-h: 56px;
+  --bottombar-h: 64px;
+  --content-max: 1240px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-fast: 0ms; --t-med: 0ms; }
+}

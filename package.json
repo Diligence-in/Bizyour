@@ -1,0 +1,15 @@
+{
+  "name": "bizyour",
+  "private": true,
+  "description": "BizYour by DILIGENCE — Workspace + Business Mart. Backend in backend/, new web app in web/, classic app in frontend/.",
+  "scripts": {
+    "setup": "cd backend && npm install && cd ../web && npm install",
+    "build": "cd web && npm run build",
+    "start": "node backend/server.js",
+    "dev:api": "cd backend && node server.js",
+    "dev:web": "cd web && npm run dev",
+    "test": "cd backend && npm test",
+    "test:e2e": "bash web/e2e/run.sh"
+  },
+  "engines": { "node": ">=22" }
+}

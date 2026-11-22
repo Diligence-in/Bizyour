@@ -6,8 +6,8 @@
    that did not send the new mobile field), so code files must never be
    served stale when the network is up. Images/fonts stay
    stale-while-revalidate. */
-const CACHE = 'bizyour-pwa-v2';
-const SHELL = ['/', '/index.html'];
+const CACHE = 'bizyour-classic-v3';
+const SHELL = ['./', './index.html'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -44,10 +44,10 @@ self.addEventListener('fetch', (event) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put('/index.html', copy)).catch(() => {});
+          caches.open(CACHE).then((cache) => cache.put('./index.html', copy)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match('/index.html', { ignoreSearch: true })
+        .catch(() => caches.match('./index.html', { ignoreSearch: true })
           .then((hit) => hit || caches.match('/', { ignoreSearch: true })))
     );
     return;

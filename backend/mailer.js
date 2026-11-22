@@ -77,7 +77,7 @@ function otpEmailHtml(code, purpose, ttlMin) {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#FFFFFF;border:1px solid #E3E6F0;border-radius:16px;overflow:hidden;">
 <tr><td style="padding:24px 32px 18px 32px;">
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-<td style="vertical-align:middle;"><img src="https://www.bizyour.in/brand/bizyour-mark-512.png" width="46" height="46" alt="BizYour" style="display:block;border-radius:11px;"></td>
+<td style="vertical-align:middle;"><img src="https://www.bizyour.in/brand/bizyour-mark-512.png?v=c" width="46" height="46" alt="BizYour" style="display:block;border-radius:11px;"></td>
 <td style="vertical-align:middle;padding-left:13px;"><span style="font-family:Arial,Helvetica,sans-serif;font-size:25px;font-weight:bold;color:#2B3A8F;letter-spacing:-0.3px;">BizYour</span><br><span style="font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:#8A8FA3;letter-spacing:2.2px;">BY DILIGENCE</span></td>
 </tr></table>
 </td></tr>
