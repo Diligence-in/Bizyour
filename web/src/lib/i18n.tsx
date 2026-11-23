@@ -41,6 +41,7 @@ const ERRORS: Record<string, [string, string, string]> = {
   billing_access_only: ['Your staff access doesn’t include billing.', 'आपके access में billing नहीं है।', 'Aapke access me billing nahi hai.'],
   stock_access_only: ['Your staff access doesn’t include stock.', 'आपके access में stock नहीं है।', 'Aapke access me stock nahi hai.'],
   password_too_short: ['Use at least 8 characters for the password.', 'Password कम से कम 8 अक्षर का रखें।', 'Password kam se kam 8 character ka rakho.'],
+  wrong_password: ['That password is not correct.', 'यह password सही नहीं है।', 'Ye password sahi nahi hai.'],
   // import
   name_column_not_found: ['We could not find a Name column. Add a header row with “Name” (download the sample file to see the format).', 'Name वाला कॉलम नहीं मिला। सबसे ऊपर “Name” वाली header पंक्ति रखें (नमूना फ़ाइल देखें)।', 'Name wala column nahi mila. Sabse upar “Name” wali header row rakho (sample file dekho).'],
   too_many_rows: ['That file has too many rows. Split it into files of up to 5,000 rows.', 'फ़ाइल में बहुत पंक्तियाँ हैं। 5,000 तक की फ़ाइलों में बाँटें।', 'File me bahut rows hain. 5,000 tak ki files me baanto.'],

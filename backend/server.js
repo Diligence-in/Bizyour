@@ -1339,6 +1339,55 @@ app.delete('/api/admin/businesses/:id', requireAuth, requireSuperAdmin, async (r
   res.json({ ok: true });
 });
 
+// Self-service account deletion (owner only, password confirmed): the
+// user deletes their own account and ALL their data from their own side
+// — Workspace tables, Business Mart rows on both sides of a deal,
+// sessions, OTP rows and the account itself — in one transaction.
+// Registered before the subscription guard on purpose: even a locked
+// (trial/plan expired) account must be deletable by its owner.
+app.post('/api/account/delete', requireAuth, requireOwner, async (req, res) => {
+  const password = String((req.body || {}).password || '');
+  const me = await db.get('SELECT password_hash FROM users WHERE id = ?', req.user.id);
+  if (!me || !(await bcrypt.compare(password, me.password_hash))) {
+    return res.status(403).json({ error: 'wrong_password' });
+  }
+  const bizId = req.user.business_id;
+  const shopUsers = await db.all('SELECT id, email FROM users WHERE business_id = ?', bizId);
+  const userIds = shopUsers.map((u) => u.id);
+  const tx = await db.begin();
+  try {
+    await tx.run('DELETE FROM mart_messages WHERE sender_business_id = ? OR quote_id IN (SELECT id FROM mart_quotes WHERE seller_business_id = ? OR inquiry_id IN (SELECT id FROM mart_inquiries WHERE business_id = ? OR target_business_id = ?))', bizId, bizId, bizId, bizId);
+    await tx.run('DELETE FROM mart_views WHERE business_id = ? OR inquiry_id IN (SELECT id FROM mart_inquiries WHERE business_id = ? OR target_business_id = ?)', bizId, bizId, bizId);
+    await tx.run('DELETE FROM mart_orders WHERE buyer_business_id = ? OR seller_business_id = ?', bizId, bizId);
+    await tx.run('DELETE FROM mart_quotes WHERE seller_business_id = ?', bizId);
+    await tx.run('DELETE FROM mart_favourites WHERE business_id = ? OR seller_business_id = ?', bizId, bizId);
+    await tx.run('DELETE FROM mart_inquiries WHERE business_id = ? OR target_business_id = ?', bizId, bizId);
+    await tx.run('DELETE FROM mart_listings WHERE business_id = ?', bizId);
+    await tx.run('DELETE FROM mart_notifications WHERE business_id = ?', bizId);
+    await tx.run('DELETE FROM mart_profiles WHERE business_id = ?', bizId);
+    for (const t of SHOP_DATA_TABLES) {
+      await tx.run(`DELETE FROM ${t} WHERE business_id = ?`, bizId);
+    }
+    if (userIds.length) {
+      const ph = userIds.map(() => '?').join(',');
+      await tx.run(`DELETE FROM sessions WHERE user_id IN (${ph})`, ...userIds);
+      await tx.run(`DELETE FROM pending_signups WHERE user_id IN (${ph})`, ...userIds);
+      const emails = shopUsers.map((u) => u.email).filter(Boolean);
+      if (emails.length) {
+        const eph = emails.map(() => '?').join(',');
+        await tx.run(`DELETE FROM email_otps WHERE email IN (${eph})`, ...emails);
+      }
+    }
+    await tx.run('DELETE FROM users WHERE business_id = ?', bizId);
+    await tx.run('DELETE FROM businesses WHERE id = ?', bizId);
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
+  res.json({ ok: true });
+});
+
 // Assign / change a shop's plan NOW: a fresh period of the plan's
 // duration starts today (status active) and any block is lifted. The
 // 'trial' plan code instead restarts the trial clock (trial end set,

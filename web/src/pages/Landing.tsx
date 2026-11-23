@@ -230,7 +230,7 @@ function MergeDemo() {
   const apps: [ReactNode, string, string][] = [
     [<Receipt key="r" size={20} strokeWidth={1.6} />, t('Billing-only app', 'सिर्फ़ बिलिंग वाला ऐप', 'Sirf billing wala app'), t('The bill gets made, but stock and credit accounts live somewhere else.', 'बिल तो बन गया, पर स्टॉक और उधार का हिसाब कहीं और।', 'Bill to ban gaya, par stock aur udhaar ka hisaab kahin aur.')],
     [<BookOpenText key="b" size={20} strokeWidth={1.6} />, t('Credit-only app', 'सिर्फ़ उधार वाला ऐप', 'Sirf udhaar wala app'), t('Credit is written down, but billing, stock and GST are somewhere else.', 'उधार लिख लिया, पर बिलिंग, स्टॉक और GST कहीं और।', 'Udhaar likh liya, par billing, stock aur GST kahin aur.')],
-    [<Calculator key="c" size={20} strokeWidth={1.6} />, t('Accounting-only software', 'सिर्फ़ अकाउंटिंग वाला सॉफ़्टवेयर', 'Sirf accounting wala software'), t('Accounts are managed, but the shop’s daily work is somewhere else.', 'अकाउंट संभाल लिए, पर दुकान का रोज़ का काम कहीं और।', 'Accounts sambhal liye, par dukaan ka roz ka kaam kahin aur.')]
+    [<Calculator key="c" size={20} strokeWidth={1.6} />, t('Accounting-only software', 'सिर्फ़ अकाउंटिंग वाला सॉफ़्टवेयर', 'Sirf accounting wala software'), t('Accounts are managed, but the business’s daily work is somewhere else.', 'अकाउंट संभाल लिए, पर बिज़नेस का रोज़ का काम कहीं और।', 'Accounts sambhal liye, par business ka roz ka kaam kahin aur.')]
   ];
   const mods = [t('Billing', 'बिलिंग', 'Billing'), t('Stock', 'स्टॉक', 'Stock'), t('Udhaar', 'उधार', 'Udhaar'), 'GST', t('Reports', 'रिपोर्ट', 'Reports'), 'Business Mart'];
 
@@ -283,7 +283,7 @@ function WorkspaceTour() {
         [t('GST billing', 'GST बिलिंग', 'GST billing'), t('A bill in seconds. GST works itself out, UPI QR prints on the bill, and the bill goes to the customer’s WhatsApp as a PDF.', 'सेकंडों में बिल। GST अपने आप, बिल पर UPI QR, और बिल सीधा ग्राहक के WhatsApp पर PDF में।', 'Seconds me bill. GST apne aap, bill pe UPI QR, aur bill seedha customer ke WhatsApp pe PDF me.')],
         [t('Estimate to bill', 'एस्टीमेट से बिल', 'Estimate se bill'), t('Give an estimate first. If they agree, it becomes a proper bill in one click.', 'पहले एस्टीमेट दें, हाँ हो तो एक click में पक्का बिल।', 'Pehle estimate do, haan ho to ek click me pakka bill.')],
         [t('Returns', 'वापसी', 'Return'), t('Credit notes for returned goods, so the books always stay clean.', 'लौटे माल पर credit note — हिसाब हमेशा साफ़।', 'Maal wapsi pe credit note — hisaab hamesha saaf.')],
-        [t('Offline billing', 'ऑफ़लाइन बिलिंग', 'Offline billing'), t('Bills keep getting made even if the net is down. The shop never stops.', 'नेट बंद हो तो भी बिल बनता रहे — दुकान कभी नहीं रुकती।', 'Net band ho to bhi bill banta rahe — dukaan kabhi nahi rukti.')]
+        [t('Offline billing', 'ऑफ़लाइन बिलिंग', 'Offline billing'), t('Bills keep getting made even if the net is down. The business never stops.', 'नेट बंद हो तो भी बिल बनता रहे — बिज़नेस कभी नहीं रुकता।', 'Net band ho to bhi bill banta rahe — business kabhi nahi rukta.')]
       ]
     },
     {
@@ -298,7 +298,7 @@ function WorkspaceTour() {
     {
       key: 'day', label: t('Day and stock', 'दिन और स्टॉक', 'Din aur stock'), img: '/landing/home.webp?v=c',
       alt: t('The Workspace home screen', 'Workspace होम स्क्रीन', 'Workspace home screen'),
-      cap: t('Your whole shop on one screen: today’s sale, credit still to collect, low-stock alerts and the day-end summary.', 'पूरी दुकान एक स्क्रीन पर: आज की बिक्री, बाकी उधार, कम स्टॉक alert और दिन का हिसाब।', 'Poori dukaan ek screen pe: aaj ki sale, baaki udhaar, low-stock alert aur day-end summary.'),
+      cap: t('Your whole business on one screen: today’s sale, credit still to collect, low-stock alerts and the day-end summary.', 'पूरा बिज़नेस एक स्क्रीन पर: आज की बिक्री, बाकी उधार, कम स्टॉक alert और दिन का हिसाब।', 'Poora business ek screen pe: aaj ki sale, baaki udhaar, low-stock alert aur day-end summary.'),
       items: [
         [t('Stock', 'स्टॉक', 'Stock'), t('Every bill and purchase moves stock. Low-stock alerts before you run out.', 'हर बिल और खरीद से स्टॉक बदलता है। खत्म होने से पहले alert।', 'Har bill aur khareed se stock badalta hai. Khatam hone se pehle alert.')],
         [t('Profit and day-end', 'मुनाफ़ा और दिन-अंत', 'Profit aur day-end'), t('The whole day’s sale, credit and expenses at a glance. A clear monthly profit report without a CA.', 'दिन भर की बिक्री, उधार और खर्चा एक नज़र में। CA के बिना महीने का मुनाफ़ा।', 'Din bhar ki bikri, udhaar aur kharcha ek nazar me. CA ke bina mahine ka profit.')],
@@ -389,7 +389,7 @@ function DayWithBizYour() {
   const [ref, inView] = useInView<HTMLDivElement>(0.3);
   const { i, pick } = useAutoStep(4, 4500, inView);
   const day: [ReactNode, string, string, string][] = [
-    [<Sunrise key="1" size={16} />, t('Morning', 'सुबह', 'Subah'), t('As the shop opens', 'दुकान खुलते ही', 'Dukaan khulte hi'), t('Yesterday’s day-end report and today’s due alerts, in front of you before the day begins.', 'कल का हिसाब और आज के बकाया, दिन शुरू होने से पहले सामने।', 'Kal ka day-end report aur aaj ke due alerts, din shuru hone se pehle saamne.')],
+    [<Sunrise key="1" size={16} />, t('Morning', 'सुबह', 'Subah'), t('As the business opens', 'बिज़नेस खुलते ही', 'Business khulte hi'), t('Yesterday’s day-end report and today’s due alerts, in front of you before the day begins.', 'कल का हिसाब और आज के बकाया, दिन शुरू होने से पहले सामने।', 'Kal ka day-end report aur aaj ke due alerts, din shuru hone se pehle saamne.')],
     [<Sun key="2" size={16} />, t('All day', 'पूरा दिन', 'Din bhar'), t('Billing and stock, together', 'बिलिंग और स्टॉक, साथ-साथ', 'Billing aur stock, saath-saath'), t('Every bill updates stock by itself, and the bill carries a UPI QR so the customer pays directly.', 'हर बिल से स्टॉक अपने आप बदले, और बिल पर UPI QR — ग्राहक सीधा भरे।', 'Har bill se stock khud update, aur bill pe UPI QR — customer seedha pay kare.')],
     [<Sunset key="3" size={16} />, t('Evening', 'शाम', 'Shaam'), t('Easy udhaar recovery', 'उधार वसूली आसान', 'Udhaar vasooli aasan'), t('Whoever owes gets a WhatsApp reminder with their own Hisab link. Clear accounts, no awkward call.', 'जिसका पैसा बाकी, उसे WhatsApp reminder और अपना हिसाब link — बिना झिझक।', 'Jiska paisa baaki, use WhatsApp reminder aur apna Hisab link — bina jhijhak.')],
     [<Moon key="4" size={16} />, t('Night', 'रात', 'Raat'), t('Close the day', 'दिन बंद', 'Din band'), t('What sold, what went on credit, how much cash came in. Then restock on Business Mart.', 'क्या बिका, कितना उधार, कितना नकद। फिर Business Mart से माल मंगाएं।', 'Kya bika, kitna udhaar, kitna cash. Phir Business Mart se maal mangao.')]
@@ -504,7 +504,7 @@ export default function Landing() {
   const { t } = useI18n();
   const intro = useIntro();
   const navTone = useNavTone();
-  useEffect(() => { document.title = 'BizYour — billing, stock, udhaar and a B2B bazaar for your shop'; }, []);
+  useEffect(() => { document.title = 'BizYour — billing, stock, udhaar and a B2B bazaar for your business'; }, []);
 
   const everywhere: [ReactNode, string, string][] = [
     [<Upload key="u" size={18} strokeWidth={1.6} />, t('Bring your old data', 'पुराना डेटा लाएं', 'Purana data lao'), t('CSV import of products and customers from Vyapar, Tally or Excel.', 'Vyapar, Tally या Excel से सामान और ग्राहक का CSV import।', 'Vyapar, Tally ya Excel se saaman aur customer ka CSV import.')],
@@ -528,7 +528,7 @@ export default function Landing() {
     [<Shirt key="2" size={22} strokeWidth={1.5} />, t('Garments', 'कपड़े', 'Kapde'), t('Many sizes and colours, one clean stock list, bills in seconds.', 'कई साइज़-रंग, एक साफ़ स्टॉक, सेकंडों में बिल।', 'Kai size-rang, ek saaf stock, seconds me bill.')],
     [<Smartphone key="3" size={22} strokeWidth={1.5} />, t('Mobile and electronics', 'मोबाइल और इलेक्ट्रॉनिक्स', 'Mobile aur electronics'), t('Costly stock, part payments and service, tracked properly.', 'महंगा स्टॉक, किस्तें और सर्विस, सही हिसाब।', 'Mehenga stock, kist aur service, sahi hisaab.')],
     [<Wrench key="4" size={22} strokeWidth={1.5} />, t('Hardware and sanitary', 'हार्डवेयर और सैनिटरी', 'Hardware aur sanitary'), t('Thousands of small items, rates always at hand.', 'हज़ारों छोटे सामान, रेट हमेशा सामने।', 'Hazaron chhote saaman, rate hamesha saamne.')],
-    [<Warehouse key="5" size={22} strokeWidth={1.5} />, t('Wholesalers and distributors', 'थोक और डिस्ट्रीब्यूटर', 'Wholesale aur distributor'), t('Get leads from shops on Business Mart, bill them from Workspace.', 'Business Mart पर दुकानों से leads, Workspace से बिल।', 'Business Mart pe dukaanon se leads, Workspace se bill.')],
+    [<Warehouse key="5" size={22} strokeWidth={1.5} />, t('Wholesalers and distributors', 'थोक और डिस्ट्रीब्यूटर', 'Wholesale aur distributor'), t('Get leads from businesses on Business Mart, bill them from Workspace.', 'Business Mart पर बिज़नेसों से leads, Workspace से बिल।', 'Business Mart pe businesses se leads, Workspace se bill.')],
     [<Package key="6" size={22} strokeWidth={1.5} />, t('Any product business', 'कोई भी सामान वाला बिज़नेस', 'Koi bhi saaman wala business'), t('If you sell goods and keep accounts, BizYour fits.', 'अगर आप सामान बेचते हैं और हिसाब रखते हैं, BizYour फिट है।', 'Agar aap saaman bechte ho aur hisaab rakhte ho, BizYour fit hai.')]
   ];
 
@@ -567,8 +567,8 @@ export default function Landing() {
         {/* hero: headline on a ledger page, the product on a laptop and a phone */}
         <section className="lp-hero">
           <div className="lp-hero-page">
-            <span className="lp-eyebrow">{t('For Indian shops', 'भारतीय दुकानों के लिए', 'Indian dukaanon ke liye')}</span>
-            <h1>{t('Your whole shop, in ', 'आपकी पूरी दुकान, ', 'Aapki poori dukaan, ')}<em>{t('one app.', 'एक ऐप में।', 'ek app me.')}</em></h1>
+            <span className="lp-eyebrow">{t('For Indian businesses', 'भारतीय बिज़नेसों के लिए', 'Indian businesses ke liye')}</span>
+            <h1>{t('Your whole business, in ', 'आपका पूरा बिज़नेस, ', 'Aapka poora business, ')}<em>{t('one app.', 'एक ऐप में।', 'ek app me.')}</em></h1>
             <p className="lp-lede">{t(
               'Billing, stock, udhaar, GST and reports in Workspace. Buying from wholesalers in Business Mart. One login, one subscription, one data.',
               'Workspace में बिलिंग, स्टॉक, उधार, GST और रिपोर्ट। Business Mart में थोक वालों से खरीद। एक लॉगिन, एक सब्सक्रिप्शन, एक डेटा।',
@@ -602,7 +602,7 @@ export default function Landing() {
         <section className="lp-section lp-sides" aria-labelledby="sides-h">
           <Reveal>
             <h2 id="sides-h">{t('One login. Two sides.', 'एक login. दो हिस्से।', 'Ek login. Do hisse.')}</h2>
-            <p className="lp-section-sub">{t('BizYour keeps your shop and your buying in one place, with one set of data. Switch between them with one tap.', 'BizYour में दुकान और खरीद एक जगह, एक ही डेटा। एक tap में बदलें।', 'BizYour me dukaan aur khareed ek jagah, ek hi data. Ek tap me badlo.')}</p>
+            <p className="lp-section-sub">{t('BizYour keeps your business and your buying in one place, with one set of data. Switch between them with one tap.', 'BizYour में बिज़नेस और खरीद एक जगह, एक ही डेटा। एक tap में बदलें।', 'BizYour me business aur khareed ek jagah, ek hi data. Ek tap me badlo.')}</p>
           </Reveal>
           <div className="lp-sides-grid">
             <Reveal delay={0}>
@@ -610,7 +610,7 @@ export default function Landing() {
                 <div className="lp-side-art" aria-hidden><span className="sa-bar" /><span className="sa-row" /><span className="sa-row short" /><span className="sa-total" /></div>
                 <BookOpenText size={28} strokeWidth={1.5} aria-hidden />
                 <h3>Workspace</h3>
-                <p>{t('Run your own shop: billing, stock, udhaar, purchases, GST and reports.', 'अपनी दुकान चलाइए: बिलिंग, स्टॉक, उधार, खरीद, GST और रिपोर्ट।', 'Apni dukaan chalao: billing, stock, udhaar, khareed, GST aur report.')}</p>
+                <p>{t('Run your own business: billing, stock, udhaar, purchases, GST and reports.', 'अपना बिज़नेस चलाइए: बिलिंग, स्टॉक, उधार, खरीद, GST और रिपोर्ट।', 'Apna business chalao: billing, stock, udhaar, khareed, GST aur report.')}</p>
                 <span className="lp-side-tag">{t('30-day free trial, then a plan', '30 दिन ट्रायल, फिर plan', '30 din trial, phir plan')}</span>
                 <span className="lp-side-go">{t('See Workspace', 'Workspace देखें', 'Workspace dekho')} <ArrowRight size={14} aria-hidden /></span>
               </a>
@@ -647,7 +647,7 @@ export default function Landing() {
         <section className="lp-section" aria-labelledby="day-h">
           <Reveal>
             <h2 id="day-h">{t('A day with BizYour', 'BizYour के साथ एक दिन', 'BizYour ke saath ek din')}</h2>
-            <p className="lp-section-sub">{t('From the moment the shop opens till it closes, BizYour stays with you at every hour. Tap a time of day.', 'दुकान खुलने से बंद होने तक, हर पहर BizYour साथ। दिन का कोई समय चुनें।', 'Dukaan khulne se band hone tak, har pehar BizYour saath. Din ka koi time chuno.')}</p>
+            <p className="lp-section-sub">{t('From the moment the business opens till it closes, BizYour stays with you at every hour. Tap a time of day.', 'बिज़नेस खुलने से बंद होने तक, हर पहर BizYour साथ। दिन का कोई समय चुनें।', 'Business khulne se band hone tak, har pehar BizYour saath. Din ka koi time chuno.')}</p>
           </Reveal>
           <DayWithBizYour />
         </section>
@@ -656,12 +656,12 @@ export default function Landing() {
         <section className="lp-section lp-mart" id="mart" aria-labelledby="mart-h">
           <Reveal>
             <span className="lp-kicker lp-kicker-mart">Business Mart · {t('Free, always', 'हमेशा मुफ़्त', 'Hamesha free')}</span>
-            <h2 id="mart-h">{t('Business Mart: the shops’ own wholesale bazaar', 'Business Mart: दुकानों का अपना थोक बाज़ार', 'Business Mart: dukaanon ka apna wholesale bazaar')}</h2>
-            <p className="lp-section-sub">{t('A bazaar inside BizYour, where shops deal directly with wholesalers. No middleman, no running around. Stop calling five wholesalers for one rate: post once, compare quotes, order the best.', 'BizYour के अंदर ही एक बाज़ार, जहाँ दुकानें सीधे थोक वालों से जुड़ती हैं। न दलाल, न चक्कर। एक रेट के लिए पाँच फ़ोन नहीं: एक बार बताइए, quote मिलाइए, सबसे अच्छा order कीजिए।', 'BizYour ke andar hi ek bazaar, jahan dukaanen seedha wholesalers se judti hain. Na dalaal, na chakkar. Ek rate ke liye paanch phone nahi: ek baar batao, quote milao, best order karo.')}</p>
+            <h2 id="mart-h">{t('Business Mart: the businesses’ own wholesale bazaar', 'Business Mart: बिज़नेसों का अपना थोक बाज़ार', 'Business Mart: businesses ka apna wholesale bazaar')}</h2>
+            <p className="lp-section-sub">{t('A bazaar inside BizYour, where businesses deal directly with wholesalers. No middleman, no running around. Stop calling five wholesalers for one rate: post once, compare quotes, order the best.', 'BizYour के अंदर ही एक बाज़ार, जहाँ बिज़नेस सीधे थोक वालों से जुड़ते हैं। न दलाल, न चक्कर। एक रेट के लिए पाँच फ़ोन नहीं: एक बार बताइए, quote मिलाइए, सबसे अच्छा order कीजिए।', 'BizYour ke andar hi ek bazaar, jahan businesses seedha wholesalers se judte hain. Na dalaal, na chakkar. Ek rate ke liye paanch phone nahi: ek baar batao, quote milao, best order karo.')}</p>
           </Reveal>
           <MartTour />
           <div className="lp-mart-notes">
-            <p className="lp-mart-sell">{t('Selling wholesale? Set up your seller profile and catalogue, get matching leads from shops and send quotes from the same app.', 'थोक बेचते हैं? Seller profile और catalogue बनाइए, दुकानों से leads पाइए, उसी ऐप से quote भेजिए।', 'Wholesale bechte ho? Seller profile aur catalogue banao, dukaanon se leads pao, usi app se quote bhejo.')}</p>
+            <p className="lp-mart-sell">{t('Selling wholesale? Set up your seller profile and catalogue, get matching leads from businesses and send quotes from the same app.', 'थोक बेचते हैं? Seller profile और catalogue बनाइए, बिज़नेसों से leads पाइए, उसी ऐप से quote भेजिए।', 'Wholesale bechte ho? Seller profile aur catalogue banao, businesses se leads pao, usi app se quote bhejo.')}</p>
             <p className="lp-mart-one">{t('Workspace and Business Mart — ', 'Workspace और Business Mart — ', 'Workspace aur Business Mart — ')}<b>{t('one login, one app.', 'एक ही login, एक ही ऐप।', 'ek hi login, ek hi app.')}</b></p>
           </div>
         </section>
@@ -719,7 +719,7 @@ export default function Landing() {
         {/* who */}
         <section className="lp-section" aria-labelledby="who-h">
           <Reveal>
-            <h2 id="who-h">{t('Made for shops that sell goods', 'सामान बेचने वाली दुकानों के लिए', 'Saaman bechne wali dukaanon ke liye')}</h2>
+            <h2 id="who-h">{t('Made for businesses that sell goods', 'सामान बेचने वाले बिज़नेसों के लिए', 'Saaman bechne wale businesses ke liye')}</h2>
             <p className="lp-section-sub">{t('If you make bills, keep stock and give credit, BizYour fits.', 'अगर आप बिल बनाते हैं, स्टॉक रखते हैं और उधार देते हैं — BizYour आपके लिए है।', 'Agar aap bill banate ho, stock rakhte ho aur udhaar dete ho — BizYour aapke liye hai.')}</p>
           </Reveal>
           <ul className="lp-who">
@@ -731,7 +731,7 @@ export default function Landing() {
         <section className="lp-section" id="pricing" aria-labelledby="price-h">
           <Reveal>
             <h2 id="price-h">{t('What it costs', 'कितना लगेगा', 'Kitna lagega')}</h2>
-            <p className="lp-section-sub">{t('The first 30 days are completely free. No card needed. Run your shop first, decide later.', 'पहले 30 दिन बिल्कुल मुफ़्त। कोई card नहीं। पहले दुकान चलाइए, फ़ैसला बाद में।', 'Pehle 30 din bilkul free. Koi card nahi. Pehle dukaan chalao, faisla baad me.')}</p>
+            <p className="lp-section-sub">{t('The first 30 days are completely free. No card needed. Run your business first, decide later.', 'पहले 30 दिन बिल्कुल मुफ़्त। कोई card नहीं। पहले बिज़नेस चलाइए, फ़ैसला बाद में।', 'Pehle 30 din bilkul free. Koi card nahi. Pehle business chalao, faisla baad me.')}</p>
           </Reveal>
           <div className="lp-price">
             <Reveal className="lp-price-col lp-price-mart">
@@ -760,10 +760,10 @@ export default function Landing() {
               <Faq q={t('Is Business Mart really free?', 'क्या Business Mart सच में मुफ़्त है?', 'Kya Business Mart sach me free hai?')} a={t('Yes. Business Mart is free for every business, with no trial and no end date. Only Workspace has a 30-day trial and then a paid plan.', 'हाँ। Business Mart हर बिज़नेस के लिए मुफ़्त है, कोई ट्रायल या आख़िरी तारीख नहीं। सिर्फ़ Workspace का 30 दिन ट्रायल, फिर plan।', 'Haan. Business Mart har business ke liye free hai, koi trial ya last date nahi. Sirf Workspace ka 30 din trial, phir plan.')} />
               <Faq q={t('What happens after the Workspace trial?', 'Workspace ट्रायल के बाद क्या?', 'Workspace trial ke baad kya?')} a={t('You choose a monthly or yearly plan. If you wait, Workspace turns read-only: you can still see and export everything, nothing is deleted. Business Mart keeps working.', 'महीने या साल का plan चुनें। रुकें तो Workspace सिर्फ़ देखने लायक रहेगा — सब दिखेगा और export होगा, कुछ delete नहीं। Business Mart चलता रहेगा।', 'Monthly ya yearly plan chuno. Ruko to Workspace sirf dekhne layak rahega — sab dikhega aur export hoga, kuch delete nahi. Business Mart chalta rahega.')} />
               <Faq q={t('Is internet necessary?', 'क्या इंटरनेट ज़रूरी है?', 'Kya internet zaroori hai?')} a={t('No. Billing also works offline. Bills keep getting made, and the data syncs when the internet comes back.', 'नहीं। बिलिंग ऑफ़लाइन भी होती है — बिल बनते रहते हैं, और नेट आते ही डेटा sync हो जाता है।', 'Nahi. Billing offline bhi hoti hai — bill bante rehte hain, aur net aate hi data sync ho jata hai.')} />
-              <Faq q={t('Does it handle GST?', 'क्या GST होता है?', 'Kya GST hota hai?')} a={t('Yes. GST bills, a full GST report and a ready GSTR-1 file for your CA, all from the same data. Shops without GST can turn it off.', 'हाँ। GST बिल, पूरी GST रिपोर्ट और CA के लिए तैयार GSTR-1 फ़ाइल, सब उसी डेटा से। बिना GST वाली दुकान इसे बंद कर सकती है।', 'Haan. GST bill, poori GST report aur CA ke liye taiyaar GSTR-1 file, sab usi data se. Bina GST wali dukaan ise band kar sakti hai.')} />
+              <Faq q={t('Does it handle GST?', 'क्या GST होता है?', 'Kya GST hota hai?')} a={t('Yes. GST bills, a full GST report and a ready GSTR-1 file for your CA, all from the same data. Businesses without GST can turn it off.', 'हाँ। GST बिल, पूरी GST रिपोर्ट और CA के लिए तैयार GSTR-1 फ़ाइल, सब उसी डेटा से। बिना GST वाला बिज़नेस इसे बंद कर सकता है।', 'Haan. GST bill, poori GST report aur CA ke liye taiyaar GSTR-1 file, sab usi data se. Bina GST wala business ise band kar sakta hai.')} />
               <Faq q={t('Can my staff use it?', 'क्या स्टाफ चला सकता है?', 'Kya staff chala sakta hai?')} a={t('Yes. Each staff member gets their own login with role limits, like billing and stock only. Profit and reports stay with the owner.', 'हाँ। हर स्टाफ का अपना login, role की सीमा के साथ, जैसे सिर्फ़ बिलिंग और स्टॉक। मुनाफ़ा और रिपोर्ट सिर्फ़ मालिक को।', 'Haan. Har staff ka apna login, role limit ke saath, jaise sirf billing aur stock. Profit aur report sirf owner ko.')} />
               <Faq q={t('Do I need a computer?', 'क्या कंप्यूटर चाहिए?', 'Kya computer chahiye?')} a={t('No. It runs in the browser on a phone, tablet or computer. Open bizyour.in and log in.', 'नहीं। फ़ोन, टैबलेट या कंप्यूटर के browser में चलता है। bizyour.in खोलें और login करें।', 'Nahi. Phone, tablet ya computer ke browser me chalta hai. bizyour.in kholo aur login karo.')} />
-              <Faq q={t('Is my data safe?', 'क्या डेटा सुरक्षित है?', 'Kya data safe hai?')} a={t('Your data is yours. Every shop sees only its own data, and you can back up or export it whenever you want. No lock-in.', 'डेटा आपका है। हर दुकान सिर्फ़ अपना डेटा देखती है, और आप कभी भी backup या export कर सकते हैं। कोई lock-in नहीं।', 'Data aapka hai. Har dukaan sirf apna data dekhti hai, aur aap kabhi bhi backup ya export kar sakte ho. Koi lock-in nahi.')} />
+              <Faq q={t('Is my data safe?', 'क्या डेटा सुरक्षित है?', 'Kya data safe hai?')} a={t('Your data is yours. Every business sees only its own data, and you can back up or export it whenever you want. No lock-in.', 'डेटा आपका है। हर बिज़नेस सिर्फ़ अपना डेटा देखता है, और आप कभी भी backup या export कर सकते हैं। कोई lock-in नहीं।', 'Data aapka hai. Har business sirf apna data dekhta hai, aur aap kabhi bhi backup ya export kar sakte ho. Koi lock-in nahi.')} />
               <Faq q={t('Which languages does it work in?', 'यह किन भाषाओं में चलता है?', 'Ye kin bhaashaon me chalta hai?')} a={t('English, Hindi and Hinglish. Switch any time, whichever feels easy.', 'English, हिंदी और Hinglish — कभी भी बदलें, जो आसान लगे।', 'English, Hindi aur Hinglish — kabhi bhi badlo, jo aasan lage.')} />
             </div>
           </div>
@@ -776,7 +776,7 @@ export default function Landing() {
               <img src="/bizyour-mark-512.png?v=c" alt="" width={52} height={52} />
               <span className="lp-team-eyebrow">TEAM DILIGENCE</span>
               <h2 id="team-h">{t('Proudly built by IITians at DILIGENCE', 'DILIGENCE के IITians ने गर्व से बनाया', 'DILIGENCE ke IITians ne garv se banaya')}</h2>
-              <p>{t('BizYour is not a faceless corporate product. It is built line by line by Team DILIGENCE, IITians who understand how India’s shops actually run.', 'BizYour कोई बेनाम कॉर्पोरेट प्रोडक्ट नहीं। इसे Team DILIGENCE के IITians लाइन-दर-लाइन बनाते हैं, जो जानते हैं कि भारत की दुकानें असल में कैसे चलती हैं।', 'BizYour koi benaam corporate product nahi. Ise Team DILIGENCE ke IITians line-by-line banate hain, jo jaante hain ki India ki dukaanen asal me kaise chalti hain.')}</p>
+              <p>{t('BizYour is not a faceless corporate product. It is built line by line by Team DILIGENCE, IITians who understand how India’s businesses actually run.', 'BizYour कोई बेनाम कॉर्पोरेट प्रोडक्ट नहीं। इसे Team DILIGENCE के IITians लाइन-दर-लाइन बनाते हैं, जो जानते हैं कि भारत के बिज़नेस असल में कैसे चलते हैं।', 'BizYour koi benaam corporate product nahi. Ise Team DILIGENCE ke IITians line-by-line banate hain, jo jaante hain ki India ke businesses asal me kaise chalte hain.')}</p>
               <a className="lp-team-link" href="https://thediligence.in" target="_blank" rel="noopener noreferrer">{t('Meet DILIGENCE', 'DILIGENCE के बारे में', 'DILIGENCE ke baare me')} <ArrowUpRight size={15} aria-hidden /></a>
             </div>
             <ul className="lp-team-facts">
@@ -791,7 +791,7 @@ export default function Landing() {
         <section className="lp-close" aria-labelledby="final-h">
           <div className="lp-final">
             <div>
-              <h2 id="final-h">{t('Open your shop on BizYour today.', 'आज ही अपनी दुकान BizYour पर खोलें।', 'Aaj hi apni dukaan BizYour pe kholo.')}</h2>
+              <h2 id="final-h">{t('Open your business on BizYour today.', 'आज ही अपना बिज़नेस BizYour पर खोलें।', 'Aaj hi apna business BizYour pe kholo.')}</h2>
               <p>{t('Two minutes to sign up with your email. Business Mart free forever, Workspace free for 30 days. No card needed.', 'email से दो मिनट में signup। Business Mart हमेशा मुफ़्त, Workspace 30 दिन मुफ़्त। कोई card नहीं।', 'Email se do minute me signup. Business Mart hamesha free, Workspace 30 din free. Koi card nahi.')}</p>
               <div className="lp-final-act">
                 <Link to="/signup" className="btn btn-primary btn-lg">{t('Create free account', 'मुफ़्त account बनाएं', 'Free account banao')}</Link>
@@ -840,7 +840,7 @@ export default function Landing() {
               <img src="/bizyour-mark-512.png?v=c" alt="" width={34} height={34} />
               <span><b>BizYour</b><small>by DILIGENCE</small></span>
             </div>
-            <p>{t('Made for shopkeepers, from billing to the bazaar.', 'दुकानदारों के लिए बना, बिलिंग से लेकर बाज़ार तक।', 'Dukaandaaron ke liye bana, billing se lekar bazaar tak.')}</p>
+            <p>{t('Made for business owners, from billing to the bazaar.', 'बिज़नेस वालों के लिए बना, बिलिंग से लेकर बाज़ार तक।', 'Business walon ke liye bana, billing se lekar bazaar tak.')}</p>
           </div>
           <nav aria-label={t('Product', 'प्रोडक्ट', 'Product')}>
             <h3>{t('Product', 'प्रोडक्ट', 'Product')}</h3>

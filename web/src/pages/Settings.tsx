@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, Download, ImagePlus, Plus, Printer, Trash2, Upload } from 'lucide-react';
-import { del, download, get, post, put } from '../lib/api';
+import { del, download, get, post, put, setToken } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { rupees } from '../lib/format';
@@ -290,6 +290,7 @@ function DataTab() {
         </div>
       </Panel>
       <ImportPanel />
+      <DeleteAccountPanel />
       <Modal open={!!restore} onClose={() => setRestore(null)} label={t('Restore backup', 'बैकअप वापस लाएं', 'Backup wapas lao')}>
         <div className="stack" style={{ gap: 12, padding: 20 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>{t('Go back to this backup?', 'इस बैकअप पर वापस जाएं?', 'Is backup par wapas jaye?')}</h2>
@@ -298,6 +299,45 @@ function DataTab() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+function DeleteAccountPanel() {
+  const { t, err } = useI18n();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await post('/api/account/delete', { password });
+      setToken(null);
+      window.location.href = '/';
+    } catch (e) { toast({ text: err(e), tone: 'error' }); setBusy(false); }
+  };
+  return (
+    <>
+      <Panel title={t('Delete account', 'खाता हटाएं', 'Account hatao')}>
+        <div className="panel-body stack" style={{ gap: 10 }}>
+          <p className="muted" style={{ margin: 0 }}>{t('Delete your account and ALL your data for good — bills, stock, customers, Business Mart, everything. This cannot be undone, so download your data or take a backup first.', 'अपना खाता और सारा डेटा हमेशा के लिए हटाएं — बिल, स्टॉक, ग्राहक, Business Mart, सब कुछ। यह वापस नहीं होगा, इसलिए पहले डेटा डाउनलोड या बैकअप ले लें।', 'Apna account aur saara data hamesha ke liye hatao — bill, stock, customers, Business Mart, sab kuch. Ye wapas nahi hoga, isliye pehle data download ya backup le lo.')}</p>
+          <div><Button variant="danger" icon={<Trash2 size={14} />} onClick={() => { setPassword(''); setOpen(true); }}>{t('Delete my account and data', 'मेरा खाता और डेटा हटाएं', 'Mera account aur data hatao')}</Button></div>
+        </div>
+      </Panel>
+      <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} label={t('Delete account', 'खाता हटाएं', 'Account hatao')}>
+        <div className="stack" style={{ gap: 12, padding: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>{t('Delete everything, for good?', 'सब कुछ हमेशा के लिए हटाएं?', 'Sab kuch hamesha ke liye hatao?')}</h2>
+          <p className="muted" style={{ margin: 0 }}>{t('Your account, your business and every record in it will be deleted right away and cannot be brought back. Type your password to confirm.', 'आपका खाता, आपका बिज़नेस और उसका हर रिकॉर्ड तुरंत हट जाएगा और वापस नहीं आएगा। पक्का करने के लिए अपना password लिखें।', 'Aapka account, aapka business aur uska har record turant hat jayega aur wapas nahi aayega. Pakka karne ke liye apna password likho.')}</p>
+          <Field label={t('Your password', 'आपका password', 'Aapka password')}>
+            {(id) => <Input id={id} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />}
+          </Field>
+          <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setOpen(false)} disabled={busy}>{t('Keep my account', 'खाता रहने दें', 'Account rehne do')}</Button>
+            <Button variant="danger" loading={busy} disabled={!password} onClick={remove}>{t('Delete forever', 'हमेशा के लिए हटाएं', 'Hamesha ke liye hatao')}</Button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
 
