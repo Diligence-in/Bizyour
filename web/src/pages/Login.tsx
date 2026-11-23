@@ -15,6 +15,7 @@ import { LangSwitch } from '../components/shell/AppShell';
 // prints the code in the server terminal, and the screen says so.
 
 const Landing = lazy(() => import('./Landing'));
+const Privacy = lazy(() => import('./Privacy'));
 
 // Logged-out routes: the public home page at "/", the auth screens beside it.
 // Any other path (an old bookmark to /bills, say) asks to log in first.
@@ -25,6 +26,7 @@ export function AuthRoutes() {
       <Route path="/signup" element={<AuthLayout><Signup /></AuthLayout>} />
       <Route path="/verify" element={<AuthLayout><Verify /></AuthLayout>} />
       <Route path="/forgot" element={<AuthLayout><Forgot /></AuthLayout>} />
+      <Route path="/privacy" element={<Suspense fallback={<div className="boot"><img src="/bizyour-mark-512.png?v=c" alt="BizYour" width={56} height={56} /></div>}><Privacy /></Suspense>} />
       <Route path="*" element={<AuthLayout><Login /></AuthLayout>} />
     </Routes>
   );
