@@ -28,6 +28,7 @@ const ReportsPage = lazy(() => import('./pages/Reports'));
 const HistoryPage = lazy(() => import('./pages/History'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 const HelpPage = lazy(() => import('./pages/Help'));
+const PrivacyPage = lazy(() => import('./pages/Privacy'));
 const WelcomePage = lazy(() => import('./pages/Welcome'));
 const MartHome = lazy(() => import('./pages/mart/MartHome'));
 const MartInquiry = lazy(() => import('./pages/mart/InquiryDetail'));
@@ -90,6 +91,7 @@ export function App() {
     <Routes>
       <Route path="welcome" element={<Guard><WelcomePage /></Guard>} />
       <Route path="setup" element={<Guard perm="owner"><SetupPage /></Guard>} />
+      <Route path="privacy" element={<PrivacyPage />} />
       <Route element={<AppShell />}>
         <Route index element={<Guard ws><HomePage /></Guard>} />
         <Route path="pos" element={<Guard ws perm="billing"><PosPage /></Guard>} />
