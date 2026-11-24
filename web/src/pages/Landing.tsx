@@ -864,7 +864,7 @@ export default function Landing() {
         </div>
         <div className="lp-foot-base">
           <span>© 2026 BizYour by DILIGENCE</span>
-          <span><Link to="/privacy">{t('Privacy Policy', 'प्राइवेसी पॉलिसी', 'Privacy Policy')}</Link> · {t('BizYour is a product of DILIGENCE.', 'BizYour, DILIGENCE का प्रोडक्ट है।', 'BizYour, DILIGENCE ka product hai.')} <a href="https://thediligence.in" target="_blank" rel="noopener noreferrer">thediligence.in</a></span>
+          <span><Link to="/privacy">{t('Privacy Policy', 'प्राइवेसी पॉलिसी', 'Privacy Policy')}</Link> · <a href="/terms.html">{t('Terms of Service', 'नियम व शर्तें', 'Terms of Service')}</a> · {t('BizYour is a product of DILIGENCE.', 'BizYour, DILIGENCE का प्रोडक्ट है।', 'BizYour, DILIGENCE ka product hai.')} <a href="https://thediligence.in" target="_blank" rel="noopener noreferrer">thediligence.in</a></span>
         </div>
       </footer>
     </div>
