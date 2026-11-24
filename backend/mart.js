@@ -125,14 +125,22 @@ function registerMart(app, deps) {
   }
 
   async function sellerStats(bizId) {
+    // Security audit H3 (24 Nov): deals / rating / repeat-buyers sirf un
+    // delivered orders par gine jayenge jinme asal payment ka record hai
+    // (receive par bani purchase me paid_amount > 0, ya us purchase par
+    // koi supplier payment). Bina iske do apne account se nakli delivery
+    // karke 5-star rating aur "repeat buyer" badge farm ho jata tha.
+    const PAID = `purchase_id IS NOT NULL AND (
+      EXISTS (SELECT 1 FROM purchases p WHERE p.id = mart_orders.purchase_id AND p.paid_amount > 0)
+      OR EXISTS (SELECT 1 FROM supplier_payments sp WHERE sp.purchase_id = mart_orders.purchase_id))`;
     const r = await db.get(
-      `SELECT COUNT(*) AS deals FROM mart_orders WHERE seller_business_id = ? AND status = 'delivered'`, bizId);
+      `SELECT COUNT(*) AS deals FROM mart_orders WHERE seller_business_id = ? AND status = 'delivered' AND ${PAID}`, bizId);
     const rr = await db.get(
-      `SELECT AVG(rating) AS avg, COUNT(*) AS n FROM mart_orders WHERE seller_business_id = ? AND rating IS NOT NULL`, bizId);
+      `SELECT AVG(rating) AS avg, COUNT(*) AS n FROM mart_orders WHERE seller_business_id = ? AND status = 'delivered' AND rating IS NOT NULL AND ${PAID}`, bizId);
     const rb = await db.get(
       `SELECT COUNT(*) AS c FROM (
          SELECT buyer_business_id FROM mart_orders
-         WHERE seller_business_id = ? AND status = 'delivered'
+         WHERE seller_business_id = ? AND status = 'delivered' AND ${PAID}
          GROUP BY buyer_business_id HAVING COUNT(*) >= 2
        ) repeat_buyers`, bizId);
     return {
@@ -853,7 +861,10 @@ function registerMart(app, deps) {
     const x = await partyOrder(req, res); if (!x) return;
     if (x.side !== 'buyer') return res.status(403).json({ error: 'buyer_only' });
     if (x.o.purchase_id) return res.status(400).json({ error: 'already_received' });
-    if (!['placed', 'confirmed', 'dispatched'].includes(x.o.status)) return res.status(400).json({ error: 'invalid_status_change' });
+    // Security audit H2 (24 Nov): receive SIRF dispatched state se —
+    // placed/confirmed par receive dabane se bina maal bheje nakli
+    // delivery + purchase + stock ban jata tha.
+    if (x.o.status !== 'dispatched') return res.status(400).json({ error: 'invalid_status_change' });
     const bizId = req.user.business_id;
     const o = x.o;
     const b = req.body || {};

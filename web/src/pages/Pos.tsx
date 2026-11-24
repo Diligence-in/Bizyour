@@ -8,7 +8,7 @@ import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { gstPart, qty as fmtQty, round2, rupees } from '../lib/format';
 import type { BillingProduct, Customer, Invoice } from '../lib/types';
-import { Button, Field, IconButton, Input, Modal, Money, Segmented, useToast } from '../components/ui';
+import { Button, Field, IconButton, Input, Modal, Money, Segmented, Select, useToast } from '../components/ui';
 import { useIsMobile, usePageTitle } from '../components/shell/AppShell';
 
 // The counter. Built for two people at once:
@@ -25,6 +25,7 @@ import { useIsMobile, usePageTitle } from '../components/shell/AppShell';
 // screen" link. The bill's own quantities count as available stock.
 
 type Mode = 'Cash' | 'UPI' | 'Bank' | 'Udhaar';
+const UNITS = ['piece', 'pack', 'kg', 'gram', 'litre', 'ml', 'box', 'dozen', 'bag', 'bottle', 'metre'];
 interface Line { product: BillingProduct; qty: number; price: number }
 
 function addDays(n: number) {
@@ -131,6 +132,11 @@ export default function PosPage() {
   const setQtyAt = (id: number, v: number) => setLines((ls) => ls.flatMap((l) => (l.product.id !== id ? [l] : v <= 0 ? [] : [{ ...l, qty: v }])));
   const setPriceAt = (id: number, v: number) => setLines((ls) => ls.map((l) => (l.product.id === id ? { ...l, price: v } : l)));
 
+  // Quick-add (founder, 24 Nov): bill banate hue naya item yahi banao —
+  // pehle Products me jaakar add karne ki jarurat nahi; item stock me
+  // save hokar seedha is bill me jud jata hai.
+  const [quickOpen, setQuickOpen] = useState(false);
+
   const reset = () => {
     setLines([]); setCustomer(null); setMode('Cash'); setDiscount(''); setReceived(null); setDue(addDays(15)); setDone(null); setPayOpen(false);
     setTimeout(() => searchRef.current?.focus(), 0);
@@ -205,6 +211,7 @@ export default function PosPage() {
     else if (e.key === 'Enter') {
       e.preventDefault();
       if (matches[hi]) add(matches[hi]);
+      else if (q.trim()) setQuickOpen(true);
       else if (!q.trim() && lines.length && !mobile) save();
     } else if (e.key === 'Escape') { setQ(''); }
   };
@@ -310,10 +317,19 @@ export default function PosPage() {
                   </button>
                 );
               })}
+              <button className="pos-result" onClick={() => setQuickOpen(true)}>
+                <span className="grow ellipsis" style={{ fontWeight: 500 }}>+ {t(`New item: ${q.trim()}`, `नया सामान: ${q.trim()}`, `Naya saaman: ${q.trim()}`)}</span>
+                <span className="muted" style={{ fontSize: 13 }}>{t('add here — saved to stock too', 'यहीं जोड़ें — stock में भी जाएगा', 'yahi jodo — stock me bhi jayega')}</span>
+              </button>
             </div>
           )}
           {q.trim() && !matches.length && products.data && (
-            <div className="pos-results"><div style={{ padding: 14 }} className="muted">{t('No item with that name.', 'इस नाम का सामान नहीं।', 'Is naam ka saaman nahi.')} <Link to="/products?new=1">{t('Add it to products', 'सामान में जोड़ें', 'Saaman me jodo')}</Link></div></div>
+            <div className="pos-results">
+              <button className="pos-result" onClick={() => setQuickOpen(true)}>
+                <span className="grow ellipsis" style={{ fontWeight: 500 }}>+ {t(`New item: ${q.trim()}`, `नया सामान: ${q.trim()}`, `Naya saaman: ${q.trim()}`)}</span>
+                <span className="muted" style={{ fontSize: 13 }}>{t('not in stock yet — add it here, no need to open Products', 'stock में नहीं है — यहीं जोड़ें, Products खोलने की ज़रूरत नहीं', 'stock me nahi hai — yahi jodo, Products kholne ki jarurat nahi')}</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -386,6 +402,9 @@ export default function PosPage() {
 
       <CustomerPicker open={custOpen} onClose={() => { setCustOpen(false); setTimeout(() => searchRef.current?.focus(), 0); }}
         customers={customers.data?.customers || []} onPick={(c) => { setCustomer(c); setCustOpen(false); setTimeout(() => searchRef.current?.focus(), 0); }} />
+
+      <QuickAddItem open={quickOpen} initialName={q.trim()} onClose={() => setQuickOpen(false)}
+        onCreated={(p) => { setQuickOpen(false); add(p); }} />
     </div>
   );
 
@@ -513,6 +532,61 @@ function CustomerPicker({ open, onClose, customers, onPick }: { open: boolean; o
             </div>
           </div>
         )}
+      </div>
+    </Modal>
+  );
+}
+
+function QuickAddItem({ open, initialName, onClose, onCreated }: { open: boolean; initialName: string; onClose: () => void; onCreated: (p: BillingProduct) => void }) {
+  const { t, err } = useI18n();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [name, setName] = useState('');
+  const [sell, setSell] = useState('');
+  const [buy, setBuy] = useState('');
+  const [stock, setStock] = useState('');
+  const [unit, setUnit] = useState('pack');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (open) { setName(initialName); setSell(''); setBuy(''); setStock(''); setUnit('pack'); } }, [open, initialName ]);
+  const create = async () => {
+    const sellN = Number(sell);
+    if (!name.trim() || !(sellN > 0) || busy) return;
+    setBusy(true);
+    try {
+      const stockVal = stock.trim() === '' ? 1 : Math.max(0, Number(stock) || 0);
+      const r = await post<{ product: Record<string, unknown> }>('/api/products', {
+        name: name.trim(), sell_price: sellN, buy_price: Number(buy) > 0 ? Number(buy) : sellN,
+        stock_qty: stockVal, unit, gst_rate: 0
+      });
+      const p = r.product || {};
+      qc.invalidateQueries({ queryKey: ['billing-products'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
+      toast({ text: t(`${name.trim()} saved to stock and added to this bill.`, `${name.trim()} stock में save होकर बिल में जुड़ गया।`, `${name.trim()} stock me save hokar bill me jud gaya.`) });
+      onCreated({
+        id: Number(p.id), name: String(p.name || name.trim()), unit: String(p.unit || unit),
+        sell_price: Number(p.sell_price ?? sellN), gst_rate: Number(p.gst_rate ?? 0),
+        stock_qty: Number((p.stock_qty as number) ?? (p.stock as number) ?? stockVal)
+      });
+    } catch (e) { toast({ text: err(e), tone: 'error' }); } finally { setBusy(false); }
+  };
+  return (
+    <Modal open={open} onClose={onClose} label={t('New item', 'नया सामान', 'Naya saaman')}>
+      <div className="stack" style={{ gap: 12, padding: 20 }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>{t('Add a new item', 'नया सामान जोड़ें', 'Naya saaman jodo')}</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>{t('Saved in your stock right away, and added to this bill — no need to open Products first.', 'Turant aapke stock me save hoga aur is bill me jud jayega — pehle Products kholne ki jarurat nahi.', 'Turant aapke stock me save hoga aur is bill me jud jayega — pehle Products kholne ki jarurat nahi.')}</p>
+        <Field label={t('Item name', 'सामान का नाम', 'Saaman ka naam')}>{(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}</Field>
+        <div className="row" style={{ gap: 10 }}>
+          <Field label={t('Selling price ₹', 'बेचने का दाम ₹', 'Bechne ka daam ₹')}>{(id) => <Input id={id} inputMode="decimal" value={sell} onChange={(e) => setSell(e.target.value)} />}</Field>
+          <Field label={t('Buying price ₹ (optional)', 'खरीद दाम ₹ (chaaho to)', 'Khareed daam ₹ (chaaho to)')}>{(id) => <Input id={id} inputMode="decimal" value={buy} onChange={(e) => setBuy(e.target.value)} />}</Field>
+        </div>
+        <div className="row" style={{ gap: 10 }}>
+          <Field label={t('Stock now (blank = 1)', 'अभी stock (khaali = 1)', 'Abhi stock (khaali = 1)')}>{(id) => <Input id={id} inputMode="decimal" value={stock} onChange={(e) => setStock(e.target.value)} />}</Field>
+          <Field label={t('Unit', 'इकाई', 'Unit')}>{(id) => <Select id={id} value={unit} onChange={(e) => setUnit(e.target.value)}>{UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</Select>}</Field>
+        </div>
+        <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+          <Button onClick={onClose} disabled={busy}>{t('Cancel', 'रद्द', 'Cancel')}</Button>
+          <Button variant="primary" onClick={create} loading={busy} disabled={!name.trim() || !(Number(sell) > 0)}>{t('Add to bill', 'बिल में जोड़ें', 'Bill me jodo')}</Button>
+        </div>
       </div>
     </Modal>
   );

@@ -1347,10 +1347,19 @@ app.delete('/api/admin/businesses/:id', requireAuth, requireSuperAdmin, async (r
 // (trial/plan expired) account must be deletable by its owner.
 app.post('/api/account/delete', requireAuth, requireOwner, async (req, res) => {
   const password = String((req.body || {}).password || '');
+  // Security audit H1 (24 Nov): ye password check bhi login wala hi
+  // DB-lockout use karega (5 galat koshish = 15 min lock, key
+  // delete:<user_id>) — warna chori hua 30-din ka session token lekar
+  // koi bina ruke password guess karke poora business uda sakta tha.
+  const delKey = 'delete:' + req.user.id;
+  const lockMin = await loginLockMinutes(delKey);
+  if (lockMin > 0) return res.status(429).json({ error: 'too_many_attempts', retry_after_min: lockMin });
   const me = await db.get('SELECT password_hash FROM users WHERE id = ?', req.user.id);
   if (!me || !(await bcrypt.compare(password, me.password_hash))) {
+    await recordLoginFailure(delKey, LOGIN_ID_MAX_ATTEMPTS);
     return res.status(403).json({ error: 'wrong_password' });
   }
+  await db.run('DELETE FROM login_attempts WHERE key = ?', delKey);
   const bizId = req.user.business_id;
   const shopUsers = await db.all('SELECT id, email FROM users WHERE business_id = ?', bizId);
   const userIds = shopUsers.map((u) => u.id);
@@ -1919,7 +1928,7 @@ app.post('/api/workspace/activate', requireAuth, requireOwner, async (req, res) 
 // temp file (safe while the app is running); the temp file is deleted after.
 // CLOUD mode (Postgres): there is no local file to copy, so the honest
 // equivalent is a JSON export of the CALLER'S business data — every table's
-// rows for that business (sessions of the business's own users included).
+// rows for that business (sessions and password hashes excluded — audit M1).
 app.get('/api/backup', requireAuth, requireOwner, async (req, res) => {
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   if (db.engine === 'postgres') {
@@ -1932,15 +1941,15 @@ app.get('/api/backup', requireAuth, requireOwner, async (req, res) => {
         exported_at: new Date().toISOString(), tables: {}
       };
       for (const t of TABLES) {
+        // Security audit M1 (24 Nov): sessions (live tokens) aur
+        // password_hash backup download me bhi nahi jayenge — upar wale
+        // buildBusinessExport jaisa hi niyam yahan bhi.
+        if (t === 'sessions') continue;
         if (t === 'businesses') {
           const b = await getBusiness(bizId);
           out.tables.businesses = b ? [b] : [];
         } else if (t === 'users') {
-          out.tables.users = users;
-        } else if (t === 'sessions') {
-          out.tables.sessions = userIds.length
-            ? await db.all(`SELECT * FROM sessions WHERE user_id IN (${userIds.map(() => '?').join(',')})`, ...userIds)
-            : [];
+          out.tables.users = users.map((u) => { const { password_hash, ...rest } = u; return rest; });
         } else {
           out.tables[t] = await db.all(`SELECT * FROM ${t} WHERE business_id = ?`, bizId);
         }
@@ -5196,15 +5205,16 @@ async function buildBusinessExport(bizId) {
     exported_at: new Date().toISOString(), tables: {}
   };
   for (const t of TABLES) {
+    // Security audit M1 (24 Nov): sessions (live bearer tokens) kabhi
+    // export/snapshot me nahi jayenge — restore inhe use hi nahi karta,
+    // aur backup file jiske haath lage use bina password ke andar ghusne
+    // ka raasta mil jata tha. Users bhi password_hash ke bina jayenge.
+    if (t === 'sessions') continue;
     if (t === 'businesses') {
       const b = await getBusiness(bizId);
       out.tables.businesses = b ? [b] : [];
     } else if (t === 'users') {
-      out.tables.users = users;
-    } else if (t === 'sessions') {
-      out.tables.sessions = userIds.length
-        ? await db.all(`SELECT * FROM sessions WHERE user_id IN (${userIds.map(() => '?').join(',')})`, ...userIds)
-        : [];
+      out.tables.users = users.map((u) => { const { password_hash, ...rest } = u; return rest; });
     } else {
       out.tables[t] = await db.all(`SELECT * FROM ${t} WHERE business_id = ?`, bizId);
     }
@@ -5296,8 +5306,12 @@ const RESTORE_COLUMNS = {
   customer_payments: ['id', 'business_id', 'invoice_id', 'amount', 'mode', 'date', 'created_at', 'updated_at', 'sync_status'],
   stock_movements: ['id', 'business_id', 'product_id', 'type', 'qty_change', 'ref_id', 'created_at', 'updated_at', 'sync_status'],
   expenses: ['id', 'business_id', 'title', 'category', 'amount', 'date', 'payment_mode', 'notes', 'created_at', 'updated_at', 'sync_status'],
-  subscriptions: ['id', 'business_id', 'plan_code', 'trial_ends_at', 'paid_until', 'grace_days', 'blocked', 'created_at', 'updated_at', 'sync_status'],
-  subscription_payments: ['id', 'business_id', 'plan_code', 'amount', 'method', 'reference', 'status', 'invoice_no', 'gateway_order_id', 'gateway_payment_id', 'period_from', 'period_to', 'created_at', 'updated_at', 'sync_status'],
+  // Security audit H4 (24 Nov): subscriptions / subscription_payments
+  // restore se BAHAR hain — ye platform ke control ki state hai (plan,
+  // paid_until, admin ka blocked flag). Snapshot se verbatim wapas likhne
+  // par owner purana backup restore karke admin ke block/plan-change ko
+  // ulta sakta tha. Restore sirf business ka apna data (bill, stock,
+  // khata) wapas lata hai; subscription hamesha current hi rahegi.
   onboarding: ['id', 'business_id', 'dismissed', 'wa_done', 'created_at', 'updated_at', 'sync_status'],
   // Features 1+2: estimates + returns restore with the rest of the
   // business data (an older snapshot without these tables restores as
@@ -5307,8 +5321,8 @@ const RESTORE_COLUMNS = {
   returns: ['id', 'business_id', 'invoice_id', 'customer_id', 'return_no', 'date', 'total_amount', 'gst_amount', 'reason', 'created_by', 'created_at', 'updated_at', 'sync_status'],
   return_items: ['id', 'business_id', 'return_id', 'invoice_item_id', 'product_id', 'qty', 'price', 'gst_rate', 'created_at', 'updated_at', 'sync_status']
 };
-const RESTORE_DELETE_ORDER = ['estimate_items', 'estimates', 'return_items', 'returns', 'invoice_items', 'customer_payments', 'stock_movements', 'purchase_items', 'supplier_payments', 'invoices', 'purchases', 'expenses', 'subscription_payments', 'subscriptions', 'onboarding', 'products', 'customers', 'suppliers'];
-const RESTORE_INSERT_ORDER = ['suppliers', 'products', 'customers', 'purchases', 'purchase_items', 'supplier_payments', 'invoices', 'invoice_items', 'customer_payments', 'stock_movements', 'expenses', 'subscriptions', 'subscription_payments', 'onboarding', 'estimates', 'estimate_items', 'returns', 'return_items'];
+const RESTORE_DELETE_ORDER = ['estimate_items', 'estimates', 'return_items', 'returns', 'invoice_items', 'customer_payments', 'stock_movements', 'purchase_items', 'supplier_payments', 'invoices', 'purchases', 'expenses', 'onboarding', 'products', 'customers', 'suppliers'];
+const RESTORE_INSERT_ORDER = ['suppliers', 'products', 'customers', 'purchases', 'purchase_items', 'supplier_payments', 'invoices', 'invoice_items', 'customer_payments', 'stock_movements', 'expenses', 'onboarding', 'estimates', 'estimate_items', 'returns', 'return_items'];
 
 function parseSnapshotPayload(snap) {
   let payload;

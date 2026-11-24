@@ -2509,7 +2509,7 @@ $('billCustomer').addEventListener('change', () => {
   $('newCustWrap').classList.toggle('hidden', $('billCustomer').value !== '__new__');
 });
 function billProductOptions(sel) {
-  sel.innerHTML = billProducts.map((p) =>
+  sel.innerHTML = `<option value="__new__">${tr('+ Add new item…', '+ नया सामान जोड़ें…', '+ Naya saaman jodo…')}</option>` + billProducts.map((p) =>
     `<option value="${p.id}" data-sell="${Number(p.sell_price)}" data-gst="${Number(p.gst_rate)}" data-stock="${Number(p.stock_qty)}">${esc(p.name)} (${esc(p.unit)}) · ${fmt(p.sell_price)} · ${tr("stock", "स्टॉक")} ${fmtQty(p.stock_qty)}</option>`
   ).join('');
 }
@@ -2517,7 +2517,7 @@ function billItemRow() {
   const row = document.createElement('div');
   row.className = 'bill-item-row';
   row.innerHTML = `
-    <div class="field" style="margin:0"><label>${tr("Product", "सामान")}</label><input class="input bi-search" type="text" autocomplete="off" placeholder="${tr("Search product…", "सामान खोजो…")}" style="margin-bottom:6px"><select class="input bi-prod"></select><div class="qty-warn"></div></div>
+    <div class="field" style="margin:0"><label>${tr("Product", "सामान")}</label><input class="input bi-search" type="text" autocomplete="off" placeholder="${tr("Search product…", "सामान खोजो…")}" style="margin-bottom:6px"><select class="input bi-prod"></select><div class="qty-warn"></div><div class="bi-new hidden" style="margin-top:6px"><input class="input bi-new-name" type="text" placeholder="${tr("Item name", "सामान का नाम", "Saaman ka naam")}" style="margin-bottom:6px"><div style="display:flex;gap:6px"><input class="input bi-new-sell" type="number" min="0" step="0.01" placeholder="${tr("Sell price ₹", "बेच दाम ₹", "Bech daam ₹")}"><input class="input bi-new-stock" type="number" min="0" step="0.01" placeholder="${tr("Stock (blank=1)", "Stock (खाली=1)", "Stock (khaali=1)")}"><button type="button" class="btn btn-primary btn-sm bi-new-add">${tr("Add", "जोड़ें", "Jodo")}</button></div></div></div>
     <div class="field" style="margin:0"><label>Qty</label><input class="input bi-qty" type="number" min="0" step="0.01" value="1"></div>
     <div class="field" style="margin:0"><label>${tr("Rate ₹", "भाव ₹")}</label><input class="input bi-rate" type="number" min="0" step="0.01" value="0"></div>
     <div class="gst-cell bi-gst">—</div>
@@ -2525,12 +2525,25 @@ function billItemRow() {
     <button type="button" class="btn btn-danger btn-sm rm">✕</button>`;
   const sel = row.querySelector('.bi-prod');
   billProductOptions(sel);
+  if (billProducts.length) sel.value = String(billProducts[0].id);
+  const newBox = row.querySelector('.bi-new');
   const syncRate = () => {
     const o = sel.selectedOptions[0];
     if (o) row.querySelector('.bi-rate').value = o.dataset.sell || 0;
     billRecalc();
   };
-  sel.addEventListener('change', syncRate);
+  sel.addEventListener('change', () => {
+    if (sel.value === '__new__') {
+      newBox.classList.remove('hidden');
+      const nm = row.querySelector('.bi-new-name');
+      const sv = row.querySelector('.bi-search').value.trim();
+      if (sv && !nm.value) nm.value = sv;
+      nm.focus();
+      return;
+    }
+    newBox.classList.add('hidden');
+    syncRate();
+  });
   // SaaS Stage 1: search-as-you-type in the product picker — typing filters
   // the dropdown options live and selects the first match. The underlying
   // <select> (and all billing math) is untouched.
@@ -2539,11 +2552,29 @@ function billItemRow() {
     const q = searchIn.value.trim().toLowerCase();
     let first = null;
     [...sel.options].forEach((o) => {
-      const hit = !q || o.textContent.toLowerCase().includes(q);
+      const hit = o.value === '__new__' || !q || o.textContent.toLowerCase().includes(q);
       o.hidden = !hit;
-      if (hit && !first) first = o;
+      if (hit && o.value !== '__new__' && !first) first = o;
     });
     if (first) { sel.value = first.value; syncRate(); }
+  });
+  row.querySelector('.bi-new-add').addEventListener('click', async () => {
+    const name = row.querySelector('.bi-new-name').value.trim();
+    const sell = Number(row.querySelector('.bi-new-sell').value) || 0;
+    if (!name || !(sell > 0)) { (name ? row.querySelector('.bi-new-sell') : row.querySelector('.bi-new-name')).focus(); return; }
+    const stockRaw = row.querySelector('.bi-new-stock').value;
+    const stockQty = stockRaw === '' ? 1 : Math.max(0, Number(stockRaw) || 0);
+    const btn = row.querySelector('.bi-new-add'); btn.disabled = true;
+    try {
+      const r = await api('POST', '/api/products', { name, category: '', unit: 'pack', gst_rate: 0, buy_price: sell, sell_price: sell, low_stock_limit: 0, hsn_code: '', stock_qty: stockQty });
+      const p = r.product || {};
+      billProducts.push({ id: p.id, name: p.name || name, unit: p.unit || 'pack', sell_price: Number(p.sell_price ?? sell), gst_rate: Number(p.gst_rate ?? 0), stock_qty: Number(p.stock_qty ?? p.stock ?? stockQty) });
+      document.querySelectorAll('#billItems .bill-item-row').forEach((rw) => refreshBillRowOptions(rw));
+      sel.value = String(p.id);
+      newBox.classList.add('hidden');
+      syncRate();
+    } catch (e) { alert((e && e.message) || 'Error'); }
+    finally { btn.disabled = false; }
   });
   row.querySelector('.bi-qty').addEventListener('input', billRecalc);
   row.querySelector('.bi-rate').addEventListener('input', billRecalc);
