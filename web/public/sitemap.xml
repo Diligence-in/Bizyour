@@ -1,22 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://bizyour.in/</loc>
+    <loc>https://www.bizyour.in/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://bizyour.in/privacy</loc>
+    <loc>https://www.bizyour.in/privacy</loc>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://bizyour.in/signup</loc>
+    <loc>https://www.bizyour.in/terms.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.bizyour.in/signup</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://bizyour.in/login</loc>
+    <loc>https://www.bizyour.in/login</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>

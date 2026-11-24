@@ -1,0 +1,45 @@
+# BizYour
+
+> BizYour (bizyour.in) is a business management app by DILIGENCE for Indian
+> shops and small businesses: billing, stock (inventory), udhaar (customer
+> credit), GST reports, and a built-in B2B wholesale marketplace called
+> Business Mart — all in one app, with one login, one subscription and one
+> data set.
+
+## What it is
+
+- **Workspace**: the shop-management side — GST billing with WhatsApp bill
+  sharing (PDF), stock management, purchases, customer udhaar ledger,
+  supplier payments, expenses, estimates and returns, a monthly business
+  report card, and a ready GSTR-1 file for the CA.
+- **Business Mart**: a B2B bazaar inside the same app where businesses buy
+  from wholesalers and distributors. An order received in the Mart
+  automatically becomes a purchase and updates stock. Business Mart is
+  **free forever** for every business.
+- **Pricing model**: Business Mart is free. Workspace is free for the first
+  30 days (no card needed), then a paid plan; if the plan lapses the data
+  stays visible and exportable in read-only mode — nothing is deleted.
+- **Languages**: English, Hindi and Hinglish on every screen.
+- **Works offline** for billing; data syncs when the connection returns.
+- Runs in the browser on phone, tablet or computer — no installation and
+  no computer required. Staff get their own logins with role limits.
+
+## Who it is for
+
+Kirana and general stores, mobile and electronics shops, and other
+goods-selling businesses (garments, hardware, electrical, cosmetics,
+footwear, gift and stationery), plus wholesalers and distributors who
+supply them.
+
+## Who builds it
+
+BizYour is built by **Team DILIGENCE** — IITians based in Delhi, India.
+It is not a faceless corporate product; it is built line by line by a
+small team that can actually be reached.
+
+## Links
+
+- Website: https://www.bizyour.in/
+- Sign up (free): https://www.bizyour.in/signup
+- Privacy Policy: https://www.bizyour.in/privacy
+- Contact: diligence.in@zohomail.in, +91 8506059604

@@ -98,14 +98,19 @@ function securityHeaders(req, res, next) {
 // bundled locally; the only outbound navigation is wa.me links, which are
 // plain navigations and not governed by connect-src. connect-src allows the
 // configured API origin for split deploys.
+//
+// The Google Analytics domains below exist ONLY so the optional,
+// consent-gated analytics in web/dist/consent.js can load when a GA4
+// Measurement ID is configured there. While that ID is empty, nothing
+// loads and no request to Google is ever made.
 function webAppCsp(apiOrigin) {
-  const connect = ["'self'"];
+  const connect = ["'self'", 'https://www.google-analytics.com', 'https://*.google-analytics.com'];
   if (apiOrigin) connect.push(apiOrigin);
   return [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' https://www.googletagmanager.com",
     "style-src 'self' 'unsafe-inline'", // React inline style attributes
-    "img-src 'self' data: blob:",
+    "img-src 'self' data: blob: https://www.google-analytics.com",
     "font-src 'self' data:",
     `connect-src ${connect.join(' ')}`,
     "frame-ancestors 'self'",
