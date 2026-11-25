@@ -2487,7 +2487,20 @@ app.get('/api/customers/:id', requireAuth, requireBillingAccess, async (req, res
 // served by this backend (GET /hisab/:token). The token is a credential:
 // it is never exposed in list payloads (publicCustomer carries only
 // hisab_enabled), regenerating kills the old link, disabling clears it.
-function newShareToken() { return crypto.randomBytes(24).toString('hex'); }
+// Short share token: 12 base62 chars (62^12 combinations) — short enough
+// to paste in a WhatsApp message, still unguessable. Rejection sampling
+// (bytes < 248, i.e. a multiple of 62) keeps every character uniform.
+// Old 48-hex tokens keep working — lookups are by exact string, never
+// by format — so links already shared stay valid.
+const B62_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function newShareToken() {
+  let s = '';
+  while (s.length < 12) {
+    const b = crypto.randomBytes(12 - s.length);
+    for (const byte of b) if (byte < 248 && s.length < 12) s += B62_CHARS[byte % 62];
+  }
+  return s;
+}
 
 app.post('/api/customers/:id/hisab-link', requireAuth, requireBillingAccess, async (req, res) => {
   const bizId = req.user.business_id;
@@ -2535,15 +2548,19 @@ app.delete('/api/customers/:id/hisab-link', requireAuth, requireBillingAccess, d
 // ---------- Bill PDF public link ----------
 // One secret link per bill, minted lazily on first share: anyone holding
 // the link opens ONLY that bill's PDF in the browser — no login, same
-// pattern as the customer hisab link. The token is a credential (48 hex
-// chars, unguessable); a cancelled bill's link stops working.
-app.get('/api/public/bill/:token/pdf', security.limits.publicRead, async (req, res) => {
+// pattern as the customer hisab link. The link is short on purpose
+// (https://www.bizyour.in/b/<12-char token>) so it fits a WhatsApp
+// message; the old long path stays registered so links already shared
+// keep working. A cancelled bill's link stops working.
+async function servePublicBillPdf(req, res) {
   const token = String(req.params.token || '');
   if (!token) return res.status(404).json({ error: 'link_not_found' });
   const inv = await db.get('SELECT * FROM invoices WHERE share_token = ?', token);
   if (!inv || inv.cancelled_at) return res.status(404).json({ error: 'link_not_found' });
   return sendBillPdfFor(res, inv, inv.business_id);
-});
+}
+app.get('/b/:token', security.limits.publicRead, servePublicBillPdf);
+app.get('/api/public/bill/:token/pdf', security.limits.publicRead, servePublicBillPdf);
 
 app.get('/api/public/hisab/:token', security.limits.publicRead, async (req, res) => {
   const token = String(req.params.token || '');
@@ -3950,7 +3967,7 @@ app.get('/api/invoices/:id/whatsapp-link', requireAuth, requireBillingAccess, as
       `UPDATE invoices SET share_token = ? WHERE id = ? AND business_id = ?`
     , billToken, inv.id, bizId);
   }
-  msg += `\nBill PDF: https://www.bizyour.in/api/public/bill/${billToken}/pdf`;
+  msg += `\nBill PDF: https://www.bizyour.in/b/${billToken}`;
   // Updates Stage D: generating a bill's WhatsApp link IS the onboarding
   // WhatsApp step happening for real — mark it done (best-effort only;
   // the link response must never fail because of the checklist).
@@ -3979,7 +3996,7 @@ app.get('/api/invoices/:id/bill-link', requireAuth, requireBillingAccess, async 
       `UPDATE invoices SET share_token = ? WHERE id = ? AND business_id = ?`
     , token, inv.id, bizId);
   }
-  res.json({ token, url_path: '/api/public/bill/' + token + '/pdf' });
+  res.json({ token, url_path: '/b/' + token });
 });
 
 app.get('/api/customers/:id/reminder-link', requireAuth, requireBillingAccess, async (req, res) => {

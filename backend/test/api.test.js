@@ -401,23 +401,27 @@ test('bill PDF public link: mint, open without login, bad token 404, WhatsApp me
   // First mint returns a token + path; second mint returns the same token.
   const link1 = await api('GET', `/api/invoices/${id}/bill-link`, { token: t });
   assert.equal(link1.status, 200, link1.text);
-  assert.match(link1.json.token, /^[0-9a-f]{48}$/);
-  assert.equal(link1.json.url_path, `/api/public/bill/${link1.json.token}/pdf`);
+  assert.match(link1.json.token, /^[0-9A-Za-z]{12}$/);
+  assert.equal(link1.json.url_path, `/b/${link1.json.token}`);
   const link2 = await api('GET', `/api/invoices/${id}/bill-link`, { token: t });
   assert.equal(link2.json.token, link1.json.token);
-  // The public PDF opens with NO login, as a real PDF.
-  const pub = await fetch(`${BASE}/api/public/bill/${link1.json.token}/pdf`);
+  // The short public PDF opens with NO login, as a real PDF.
+  const pub = await fetch(`${BASE}/b/${link1.json.token}`);
   assert.equal(pub.status, 200);
   assert.equal(pub.headers.get('content-type'), 'application/pdf');
   const buf = Buffer.from(await pub.arrayBuffer());
   assert.equal(buf.slice(0, 4).toString(), '%PDF');
   assert.ok(buf.length > 5000);
+  // The old long path still serves the same bill (links already shared).
+  const old = await fetch(`${BASE}/api/public/bill/${link1.json.token}/pdf`);
+  assert.equal(old.status, 200);
+  assert.equal(old.headers.get('content-type'), 'application/pdf');
   // A guessed token gets nothing.
-  const bad = await fetch(`${BASE}/api/public/bill/000000000000000000000000000000000000000000000000/pdf`);
+  const bad = await fetch(`${BASE}/b/000000000000`);
   assert.equal(bad.status, 404);
   assert.equal((await bad.json()).error, 'link_not_found');
-  // The WhatsApp text message carries the same public PDF link.
+  // The WhatsApp text message carries the same short public PDF link.
   const wa = await api('GET', `/api/invoices/${id}/whatsapp-link`, { token: t });
   assert.equal(wa.status, 200, wa.text);
-  assert.ok(wa.json.message.includes(`Bill PDF: https://www.bizyour.in/api/public/bill/${link1.json.token}/pdf`), wa.json.message);
+  assert.ok(wa.json.message.includes(`Bill PDF: https://www.bizyour.in/b/${link1.json.token}`), wa.json.message);
 });
