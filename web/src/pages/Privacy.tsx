@@ -9,7 +9,11 @@ import '../styles/landing.css';
 // started by the user, never sent by us on their behalf.
 
 export default function Privacy() {
-  useEffect(() => { document.title = 'Privacy Policy — BizYour by DILIGENCE'; }, []);
+  useEffect(() => {
+    document.title = 'Privacy Policy — BizYour by DILIGENCE';
+    const c = document.querySelector('link[rel="canonical"]'); if (c) c.setAttribute('href', 'https://www.bizyour.in/privacy');
+    const og = document.querySelector('meta[property="og:url"]'); if (og) og.setAttribute('content', 'https://www.bizyour.in/privacy');
+  }, []);
 
   return (
     <div className="lp lp-legal-page">
@@ -56,7 +60,7 @@ export default function Privacy() {
         <p>We keep your data while your account is active. If you delete your account yourself from the app (Settings → Data → Delete account), or ask us to delete it, we delete or anonymise your personal data within a reasonable period, except records we must keep by law (for example, tax and billing records) or to resolve disputes.</p>
 
         <h2>8. Your rights</h2>
-        <p>Under India's Digital Personal Data Protection Act, 2023, you can ask us to show you the personal data we hold about you, correct it, or delete it. Much of this you can do yourself: your records are visible in the app, you can export or take a backup of your business data at any time, and the account owner can permanently delete the account and all its data from Settings → Data → Delete account. For anything else, contact us using the details below and we will respond within the time the law allows.</p>
+        <p>Under India's Digital Personal Data Protection Act, 2023, you can ask us to show you the personal data we hold about you, correct it, or delete it. Much of this you can do yourself: your records are visible in the app, you can export or take a backup of your business data at any time, and the account owner can permanently delete the account and its data from Settings → Data → Delete account (the section above explains the few records the law may require us to keep). For anything else, contact us using the details below and we will respond within the time the law allows.</p>
 
         <h2>9. Cookies and local storage</h2>
         <p>BizYour uses only the storage your browser needs for the app to work — keeping you signed in, remembering your language and keeping the app usable offline. We do not use advertising or cross-site tracking cookies.</p>

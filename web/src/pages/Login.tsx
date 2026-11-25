@@ -19,6 +19,13 @@ const Privacy = lazy(() => import('./Privacy'));
 
 // Logged-out routes: the public home page at "/", the auth screens beside it.
 // Any other path (an old bookmark to /bills, say) asks to log in first.
+function setCanonical(href: string) {
+  let c = document.querySelector('link[rel="canonical"]');
+  if (!c) { c = document.createElement('link'); c.setAttribute('rel', 'canonical'); document.head.appendChild(c); }
+  c.setAttribute('href', href);
+  const og = document.querySelector('meta[property="og:url"]'); if (og) og.setAttribute('content', href);
+}
+
 export function AuthRoutes() {
   return (
     <Routes>
@@ -43,7 +50,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
           <div className="ll-row"><span>Mustard Oil 1L</span><span className="num">₹175</span></div>
           <div className="ll-total"><span>Total</span><span className="num">₹1,280</span></div>
         </div>
-        <p className="login-quote">{t('The shop counter and the wholesale market, in one app.', 'दुकान का काउंटर और थोक बाज़ार — एक ही app में।', 'Dukaan ka counter aur thok bazaar — ek hi app me.')}</p>
+        <p className="login-quote">{t('The business counter and the wholesale market, in one app.', 'बिज़नेस का काउंटर और थोक बाज़ार — एक ही app में।', 'Business ka counter aur thok bazaar — ek hi app me.')}</p>
       </div>
       <main className="login-main">
         <div className="login-card">
@@ -63,6 +70,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
 
 /* ---------- log in ---------- */
 function Login() {
+  useEffect(() => { document.title = 'Log in — BizYour'; setCanonical('https://www.bizyour.in/login'); }, []);
   const { t, err } = useI18n();
   const { login } = useSession();
   const nav = useNavigate();
@@ -93,7 +101,7 @@ function Login() {
 
   return (
     <>
-      <h1>{t('Log in to your shop', 'अपनी दुकान में login करें', 'Apni dukaan me login karo')}</h1>
+      <h1>{t('Log in to your business', 'अपने बिज़नेस में login करें', 'Apne business me login karo')}</h1>
       <p className="muted" style={{ marginTop: 6, marginBottom: 24 }}>{t('Use the email or mobile number you signed up with.', 'Signup वाला email या mobile नंबर डालें।', 'Signup wala email ya mobile number daalo.')}</p>
       <form onSubmit={submit} className="stack" style={{ gap: 16 }}>
         <Field label={t('Email or mobile', 'Email या mobile', 'Email ya mobile')}>
@@ -115,6 +123,7 @@ function Login() {
 
 /* ---------- sign up ---------- */
 function Signup() {
+  useEffect(() => { document.title = 'Create your free account — BizYour'; setCanonical('https://www.bizyour.in/signup'); }, []);
   const { t, err } = useI18n();
   const nav = useNavigate();
   const [f, setF] = useState({ name: '', email: '', mobile: '', password: '' });
@@ -152,6 +161,7 @@ function Signup() {
         {error && <div className="banner banner-owed" role="alert">{error}</div>}
         <Button type="submit" variant="primary" size="lg" block loading={busy}>{t('Create account', 'account बनाएं', 'Account banao')}</Button>
       </form>
+      <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>{t('By creating an account you agree to our ', 'Account बनाकर आप हमारी ', 'Account banakar aap hamari ')}<a href="/terms.html" target="_blank" rel="noopener noreferrer">{t('Terms of Service', 'नियम व शर्तें', 'Terms of Service')}</a>{t(' and ', ' और ', ' aur ')}<Link to="/privacy">{t('Privacy Policy', 'प्राइवेसी पॉलिसी', 'Privacy Policy')}</Link>{t('.', ' से सहमत होते हैं।', ' se sahmat hote hain.')}</p>
       <div className="login-links"><Link to="/login">{t('Already have an account? Log in', 'account है? login करें', 'Account hai? Login karo')}</Link></div>
     </>
   );

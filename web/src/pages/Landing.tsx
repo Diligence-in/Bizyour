@@ -283,7 +283,7 @@ function WorkspaceTour() {
         [t('GST billing', 'GST बिलिंग', 'GST billing'), t('A bill in seconds. GST works itself out, UPI QR prints on the bill, and the bill goes to the customer’s WhatsApp as a PDF.', 'सेकंडों में बिल। GST अपने आप, बिल पर UPI QR, और बिल सीधा ग्राहक के WhatsApp पर PDF में।', 'Seconds me bill. GST apne aap, bill pe UPI QR, aur bill seedha customer ke WhatsApp pe PDF me.')],
         [t('Estimate to bill', 'एस्टीमेट से बिल', 'Estimate se bill'), t('Give an estimate first. If they agree, it becomes a proper bill in one click.', 'पहले एस्टीमेट दें, हाँ हो तो एक click में पक्का बिल।', 'Pehle estimate do, haan ho to ek click me pakka bill.')],
         [t('Returns', 'वापसी', 'Return'), t('Credit notes for returned goods, so the books always stay clean.', 'लौटे माल पर credit note — हिसाब हमेशा साफ़।', 'Maal wapsi pe credit note — hisaab hamesha saaf.')],
-        [t('Offline billing', 'ऑफ़लाइन बिलिंग', 'Offline billing'), t('Bills keep getting made even if the net is down. The business never stops.', 'नेट बंद हो तो भी बिल बनता रहे — बिज़नेस कभी नहीं रुकता।', 'Net band ho to bhi bill banta rahe — business kabhi nahi rukta.')]
+        [t('Offline billing', 'ऑफ़लाइन बिलिंग', 'Offline billing'), t('Bills keep getting made even if the net is down, and sync when it returns.', 'नेट बंद हो तो भी बिल बनता रहे, और नेट आते ही sync हो जाए।', 'Net band ho to bhi bill banta rahe, aur net aate hi sync ho jaye.')]
       ]
     },
     {
@@ -291,7 +291,7 @@ function WorkspaceTour() {
       alt: t('A customer’s udhaar account', 'ग्राहक का उधार खाता', 'Customer ka udhaar khata'),
       cap: t('Every customer’s khata, with a reminder one tap away.', 'हर ग्राहक का खाता, reminder एक tap पर।', 'Har customer ka khata, reminder ek tap pe.'),
       items: [
-        [t('Udhaar khata', 'उधार खाता', 'Udhaar khata'), t('Who owes what, due-date alerts, WhatsApp reminders and a Hisab link your customer opens without logging in.', 'किसका कितना बाकी, due-date alert, WhatsApp reminder और ग्राहक के लिए बिना login वाला हिसाब link।', 'Kiska kitna baaki, due-date alert, WhatsApp reminder aur customer ke liye bina login wala Hisab link.')],
+        [t('Udhaar khata', 'उधार खाता', 'Udhaar khata'), t('Who owes what, due-date alerts, one-tap WhatsApp reminders you send yourself, and a Hisab link your customer opens without logging in.', 'किसका कितना बाकी, due-date alert, एक tap में खुद भेजा जाने वाला WhatsApp reminder और ग्राहक के लिए बिना login वाला हिसाब link।', 'Kiska kitna baaki, due-date alert, ek tap me khud bheja jaane wala WhatsApp reminder aur customer ke liye bina login wala Hisab link.')],
         [t('Purchases and suppliers', 'खरीद और सप्लायर', 'Khareed aur supplier'), t('Record what you buy and what you owe each supplier.', 'क्या खरीदा, किस सप्लायर का कितना देना है।', 'Kya khareeda, kis supplier ka kitna dena hai.')]
       ]
     },
@@ -391,7 +391,7 @@ function DayWithBizYour() {
   const day: [ReactNode, string, string, string][] = [
     [<Sunrise key="1" size={16} />, t('Morning', 'सुबह', 'Subah'), t('As the business opens', 'बिज़नेस खुलते ही', 'Business khulte hi'), t('Yesterday’s day-end report and today’s due alerts, in front of you before the day begins.', 'कल का हिसाब और आज के बकाया, दिन शुरू होने से पहले सामने।', 'Kal ka day-end report aur aaj ke due alerts, din shuru hone se pehle saamne.')],
     [<Sun key="2" size={16} />, t('All day', 'पूरा दिन', 'Din bhar'), t('Billing and stock, together', 'बिलिंग और स्टॉक, साथ-साथ', 'Billing aur stock, saath-saath'), t('Every bill updates stock by itself, and the bill carries a UPI QR so the customer pays directly.', 'हर बिल से स्टॉक अपने आप बदले, और बिल पर UPI QR — ग्राहक सीधा भरे।', 'Har bill se stock khud update, aur bill pe UPI QR — customer seedha pay kare.')],
-    [<Sunset key="3" size={16} />, t('Evening', 'शाम', 'Shaam'), t('Easy udhaar recovery', 'उधार वसूली आसान', 'Udhaar vasooli aasan'), t('Whoever owes gets a WhatsApp reminder with their own Hisab link. Clear accounts, no awkward call.', 'जिसका पैसा बाकी, उसे WhatsApp reminder और अपना हिसाब link — बिना झिझक।', 'Jiska paisa baaki, use WhatsApp reminder aur apna Hisab link — bina jhijhak.')],
+    [<Sunset key="3" size={16} />, t('Evening', 'शाम', 'Shaam'), t('Easy udhaar recovery', 'उधार वसूली आसान', 'Udhaar vasooli aasan'), t('Whoever owes, you send them a WhatsApp reminder in one tap, with their own Hisab link. Clear accounts, no awkward call.', 'जिसका पैसा बाकी, उसे एक tap में WhatsApp reminder भेजें, उसके अपने हिसाब link के साथ — बिना झिझक।', 'Jiska paisa baaki, use ek tap me WhatsApp reminder bhejo, uske apne Hisab link ke saath — bina jhijhak.')],
     [<Moon key="4" size={16} />, t('Night', 'रात', 'Raat'), t('Close the day', 'दिन बंद', 'Din band'), t('What sold, what went on credit, how much cash came in. Then restock on Business Mart.', 'क्या बिका, कितना उधार, कितना नकद। फिर Business Mart से माल मंगाएं।', 'Kya bika, kitna udhaar, kitna cash. Phir Business Mart se maal mangao.')]
   ];
   return (
@@ -504,7 +504,11 @@ export default function Landing() {
   const { t } = useI18n();
   const intro = useIntro();
   const navTone = useNavTone();
-  useEffect(() => { document.title = 'BizYour — billing, stock, udhaar and a B2B bazaar for your business'; }, []);
+  useEffect(() => {
+    document.title = 'BizYour — billing, stock, udhaar and a B2B bazaar for your business';
+    const c = document.querySelector('link[rel="canonical"]'); if (c) c.setAttribute('href', 'https://www.bizyour.in/');
+    const og = document.querySelector('meta[property="og:url"]'); if (og) og.setAttribute('content', 'https://www.bizyour.in/');
+  }, []);
 
   const everywhere: [ReactNode, string, string][] = [
     [<Upload key="u" size={18} strokeWidth={1.6} />, t('Bring your old data', 'पुराना डेटा लाएं', 'Purana data lao'), t('CSV import of products and customers from Vyapar, Tally or Excel.', 'Vyapar, Tally या Excel से सामान और ग्राहक का CSV import।', 'Vyapar, Tally ya Excel se saaman aur customer ka CSV import.')],
@@ -523,11 +527,11 @@ export default function Landing() {
     [t('Day-end report', 'दिन का हिसाब', 'Day-end report'), t('Add up the day’s figures by hand', 'हाथ से दिन का हिसाब जोड़ें', 'Haath se din ka hisaab jodo'), t('In this very app', 'इसी ऐप में', 'Yahi app me')]
   ];
 
-  const who: [ReactNode, string, string][] = [
-    [<Store key="1" size={22} strokeWidth={1.5} />, t('Kirana and general stores', 'किराना और जनरल स्टोर', 'Kirana aur general store'), t('Fast counter billing, daily stock, regular customers on credit.', 'तेज़ बिलिंग, रोज़ का स्टॉक, उधार वाले ग्राहक।', 'Tez billing, roz ka stock, udhaar wale customer.')],
-    [<Shirt key="2" size={22} strokeWidth={1.5} />, t('Garments', 'कपड़े', 'Kapde'), t('Many sizes and colours, one clean stock list, bills in seconds.', 'कई साइज़-रंग, एक साफ़ स्टॉक, सेकंडों में बिल।', 'Kai size-rang, ek saaf stock, seconds me bill.')],
-    [<Smartphone key="3" size={22} strokeWidth={1.5} />, t('Mobile and electronics', 'मोबाइल और इलेक्ट्रॉनिक्स', 'Mobile aur electronics'), t('Costly stock, part payments and service, tracked properly.', 'महंगा स्टॉक, किस्तें और सर्विस, सही हिसाब।', 'Mehenga stock, kist aur service, sahi hisaab.')],
-    [<Wrench key="4" size={22} strokeWidth={1.5} />, t('Hardware and sanitary', 'हार्डवेयर और सैनिटरी', 'Hardware aur sanitary'), t('Thousands of small items, rates always at hand.', 'हज़ारों छोटे सामान, रेट हमेशा सामने।', 'Hazaron chhote saaman, rate hamesha saamne.')],
+  const who: [ReactNode, string, string, string?][] = [
+    [<Store key="1" size={22} strokeWidth={1.5} />, t('Kirana and general stores', 'किराना और जनरल स्टोर', 'Kirana aur general store'), t('Fast counter billing, daily stock, regular customers on credit.', 'तेज़ बिलिंग, रोज़ का स्टॉक, उधार वाले ग्राहक।', 'Tez billing, roz ka stock, udhaar wale customer.'), '/kirana-store.html'],
+    [<Shirt key="2" size={22} strokeWidth={1.5} />, t('Garments', 'कपड़े', 'Kapde'), t('Many sizes and colours, one clean stock list, bills in seconds.', 'कई साइज़-रंग, एक साफ़ स्टॉक, सेकंडों में बिल।', 'Kai size-rang, ek saaf stock, seconds me bill.'), '/garment-shop.html'],
+    [<Smartphone key="3" size={22} strokeWidth={1.5} />, t('Mobile and electronics', 'मोबाइल और इलेक्ट्रॉनिक्स', 'Mobile aur electronics'), t('Costly stock, part payments and service, tracked properly.', 'महंगा स्टॉक, किस्तें और सर्विस, सही हिसाब।', 'Mehenga stock, kist aur service, sahi hisaab.'), '/mobile-shop.html'],
+    [<Wrench key="4" size={22} strokeWidth={1.5} />, t('Hardware and sanitary', 'हार्डवेयर और सैनिटरी', 'Hardware aur sanitary'), t('Thousands of small items, rates always at hand.', 'हज़ारों छोटे सामान, रेट हमेशा सामने।', 'Hazaron chhote saaman, rate hamesha saamne.'), '/hardware-shop.html'],
     [<Warehouse key="5" size={22} strokeWidth={1.5} />, t('Wholesalers and distributors', 'थोक और डिस्ट्रीब्यूटर', 'Wholesale aur distributor'), t('Get leads from businesses on Business Mart, bill them from Workspace.', 'Business Mart पर बिज़नेसों से leads, Workspace से बिल।', 'Business Mart pe businesses se leads, Workspace se bill.')],
     [<Package key="6" size={22} strokeWidth={1.5} />, t('Any product business', 'कोई भी सामान वाला बिज़नेस', 'Koi bhi saaman wala business'), t('If you sell goods and keep accounts, BizYour fits.', 'अगर आप सामान बेचते हैं और हिसाब रखते हैं, BizYour फिट है।', 'Agar aap saaman bechte ho aur hisaab rakhte ho, BizYour fit hai.')]
   ];
@@ -695,7 +699,7 @@ export default function Landing() {
         <section className="lp-section" aria-labelledby="how-h">
           <Reveal>
             <h2 id="how-h">{t('How to start', 'कैसे शुरू करें', 'Kaise shuru karein')}</h2>
-            <p className="lp-section-sub">{t('Three steps. Two minutes. Done.', 'तीन step. दो मिनट. बस।', 'Teen step. Do minute. Khatam.')}</p>
+            <p className="lp-section-sub">{t('Two minutes to sign up — first bill within five.', 'दो मिनट में signup — पहला बिल पाँच मिनट के अंदर।', 'Do minute me signup — pehla bill paanch minute ke andar.')}</p>
           </Reveal>
           <ol className="lp-how">
             <li><Reveal delay={0}>
@@ -723,7 +727,7 @@ export default function Landing() {
             <p className="lp-section-sub">{t('If you make bills, keep stock and give credit, BizYour fits.', 'अगर आप बिल बनाते हैं, स्टॉक रखते हैं और उधार देते हैं — BizYour आपके लिए है।', 'Agar aap bill banate ho, stock rakhte ho aur udhaar dete ho — BizYour aapke liye hai.')}</p>
           </Reveal>
           <ul className="lp-who">
-            {who.map(([icon, h, p], k) => <li key={h}><Reveal delay={(k % 3) * 80}><span className="who-ic">{icon}</span><b>{h}</b><span>{p}</span></Reveal></li>)}
+            {who.map(([icon, h, p, href], k) => <li key={h}><Reveal delay={(k % 3) * 80}><span className="who-ic">{icon}</span><b>{href ? <a href={href}>{h}</a> : h}</b><span>{p}</span></Reveal></li>)}
           </ul>
         </section>
 
@@ -746,6 +750,7 @@ export default function Landing() {
               <Link to="/signup" className="btn btn-primary">{t('Start the free trial', 'फ्री ट्रायल शुरू करें', 'Free trial shuru karo')}</Link>
             </Reveal>
           </div>
+          <p className="lp-price-more"><a href="/pricing.html">{t('See the full pricing page — what is free, what is paid, and what happens after the trial', 'पूरी pricing देखें — क्या मुफ़्त है, क्या paid है, और trial के बाद क्या होता है', 'Poori pricing dekho — kya free hai, kya paid hai, aur trial ke baad kya hota hai')} →</a></p>
         </section>
 
         {/* FAQ */}
@@ -785,6 +790,12 @@ export default function Landing() {
               <li><b>{t('Your language', 'आपकी भाषा', 'Aapki bhasha')}</b><span>{t('English, हिंदी and Hinglish across every screen.', 'हर स्क्रीन पर English, हिंदी और Hinglish।', 'Har screen par English, हिंदी aur Hinglish.')}</span></li>
             </ul>
           </div>
+          <ul className="lp-team-members">
+            <li><b>Priyanshu Garg</b><span className="tm-role">{t('Founder · Operations', 'Founder · Operations', 'Founder · Operations')}</span><span>{t('Strategy, operations and execution. IIT Patna.', 'Strategy, operations और execution। IIT Patna।', 'Strategy, operations aur execution. IIT Patna.')}</span></li>
+            <li><b>Aditya Kumar</b><span className="tm-role">Sales</span><span>{t('Client relationships and business growth.', 'Client relationships और business growth।', 'Client relationships aur business growth.')}</span></li>
+            <li><b>Vedant Mishra</b><span className="tm-role">Technology</span><span>{t('Builds the systems and AI behind BizYour.', 'BizYour के पीछे के systems और AI बनाता है।', 'BizYour ke peeche ke systems aur AI banata hai.')}</span></li>
+            <li><b>Shashank Mehta</b><span className="tm-role">Marketing</span><span>{t('Builds the brand and market presence.', 'Brand और market presence बनाता है।', 'Brand aur market presence banata hai.')}</span></li>
+          </ul>
         </section>
 
         {/* final call */}
@@ -846,7 +857,7 @@ export default function Landing() {
             <h3>{t('Product', 'प्रोडक्ट', 'Product')}</h3>
             <a href="#workspace">Workspace</a>
             <a href="#mart">Business Mart</a>
-            <a href="#pricing">{t('Pricing', 'कीमत', 'Pricing')}</a>
+            <a href="/pricing.html">{t('Pricing', 'कीमत', 'Pricing')}</a>
             <a href="#faq">{t('Questions', 'सवाल', 'Sawaal')}</a>
           </nav>
           <nav aria-label={t('Account', 'अकाउंट', 'Account')}>
@@ -854,6 +865,15 @@ export default function Landing() {
             <Link to="/signup">{t('Create free account', 'मुफ़्त account बनाएं', 'Free account banao')}</Link>
             <Link to="/login">{t('Log in', 'लॉग इन', 'Log in')}</Link>
             <Link to="/forgot">{t('Forgot password', 'पासवर्ड भूल गए', 'Password bhool gaye')}</Link>
+          </nav>
+          <nav aria-label={t('Trades', 'व्यापार', 'Trades')}>
+            <h3>{t('Trades', 'व्यापार', 'Trades')}</h3>
+            <a href="/kirana-store.html">{t('Kirana & general stores', 'किराना और जनरल स्टोर', 'Kirana aur general store')}</a>
+            <a href="/mobile-shop.html">{t('Mobile & electronics', 'मोबाइल और इलेक्ट्रॉनिक्स', 'Mobile aur electronics')}</a>
+            <a href="/garment-shop.html">{t('Garments', 'कपड़े', 'Kapde')}</a>
+            <a href="/hardware-shop.html">{t('Hardware', 'हार्डवेयर', 'Hardware')}</a>
+            <a href="/electrical-shop.html">{t('Electrical', 'इलेक्ट्रिकल', 'Electrical')}</a>
+            <a href="/cosmetics-shop.html">{t('Cosmetics & footwear', 'कॉस्मेटिक्स और फुटवियर', 'Cosmetics aur footwear')}</a>
           </nav>
           <div>
             <h3>{t('Company', 'कंपनी', 'Company')}</h3>
