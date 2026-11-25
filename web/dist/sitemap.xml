@@ -1,28 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://www.bizyour.in/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://www.bizyour.in/privacy</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://www.bizyour.in/terms.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://www.bizyour.in/signup</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.bizyour.in/login</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
+<url><loc>https://www.bizyour.in/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+<url><loc>https://www.bizyour.in/kirana-store.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://www.bizyour.in/mobile-shop.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://www.bizyour.in/hardware-shop.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://www.bizyour.in/garment-shop.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://www.bizyour.in/electrical-shop.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://www.bizyour.in/cosmetics-shop.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://www.bizyour.in/pricing.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://www.bizyour.in/privacy</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+<url><loc>https://www.bizyour.in/terms.html</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+<url><loc>https://www.bizyour.in/signup</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+<url><loc>https://www.bizyour.in/login</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
 </urlset>
