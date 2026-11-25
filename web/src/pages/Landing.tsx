@@ -790,12 +790,6 @@ export default function Landing() {
               <li><b>{t('Your language', 'आपकी भाषा', 'Aapki bhasha')}</b><span>{t('English, हिंदी and Hinglish across every screen.', 'हर स्क्रीन पर English, हिंदी और Hinglish।', 'Har screen par English, हिंदी aur Hinglish.')}</span></li>
             </ul>
           </div>
-          <ul className="lp-team-members">
-            <li><span className="tm-role">{t('Operations', 'Operations', 'Operations')}</span><span>{t('Strategy, operations and execution. IIT Patna.', 'Strategy, operations और execution। IIT Patna।', 'Strategy, operations aur execution. IIT Patna.')}</span></li>
-            <li><span className="tm-role">Sales</span><span>{t('Client relationships and business growth.', 'Client relationships और business growth।', 'Client relationships aur business growth.')}</span></li>
-            <li><span className="tm-role">Technology</span><span>{t('Builds the systems and AI behind BizYour.', 'BizYour के पीछे के systems और AI बनाता है।', 'BizYour ke peeche ke systems aur AI banata hai.')}</span></li>
-            <li><span className="tm-role">Marketing</span><span>{t('Builds the brand and market presence.', 'Brand और market presence बनाता है।', 'Brand aur market presence banata hai.')}</span></li>
-          </ul>
         </section>
 
         {/* final call */}

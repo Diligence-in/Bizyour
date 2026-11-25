@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check, MessageCircle, Minus, Plus, Printer, Search, Trash2, UserRound, X } from 'lucide-react';
+import { ArrowLeft, Check, Minus, Plus, Printer, Search, Share2, Trash2, UserRound, X } from 'lucide-react';
 import { get, post, put } from '../lib/api';
 import { billShareMessage, downloadBlob, fetchBillPdf, hasPhone, openBillPdf, openWa, tryShareFile } from '../lib/shareBill';
 import { useI18n } from '../lib/i18n';
@@ -415,9 +415,10 @@ export default function PosPage() {
     const blobRef = useRef<Blob | null>(null);
     const infoRef = useRef<{ shop: string; balance: number } | null>(null);
 
-    // WhatsApp par bill bhejo — the PDF leaves from the shopkeeper's OWN
-    // WhatsApp: share sheet with the PDF attached where supported, else
-    // PDF download + wa.me with a ready message, else ask for the number.
+    // Share bill — the PDF leaves through the phone's own share sheet with
+    // the file attached (WhatsApp, SMS, email, Drive — the shopkeeper picks):
+    // share sheet where supported, else PDF download + wa.me with a ready
+    // message, else ask for the number.
     const share = async () => {
       setWa(true);
       try {
@@ -462,7 +463,7 @@ export default function PosPage() {
             {inv.pending_amount > 0 ? <> · <Money value={inv.pending_amount} tone="owed" /> {t('on udhaar', 'उधार', 'udhaar')}</> : <> · {t('paid', 'चुकता', 'paid')} {inv.payment_mode ? `(${inv.payment_mode})` : ''}</>}
           </p>
           <div className="done-actions">
-            <Button variant="primary" size="lg" onClick={share} loading={wa}><MessageCircle size={18} /> {t('Send bill on WhatsApp', 'WhatsApp पर बिल भेजें', 'WhatsApp par bill bhejo')}</Button>
+            <Button variant="primary" size="lg" onClick={share} loading={wa}><Share2 size={18} /> {t('Share bill', 'बिल शेयर करें', 'Bill share karo')}</Button>
             <Button size="lg" onClick={onNew} autoFocus><Plus size={18} /> {t('Next bill', 'अगला बिल', 'Agla bill')}</Button>
             <Button size="lg" onClick={() => openBillPdf(inv.id, inv.bill_no).catch(() => nav(`/bills/${inv.id}`))}><Printer size={18} /> {t('Print / PDF', 'प्रिंट / PDF', 'Print / PDF')}</Button>
           </div>

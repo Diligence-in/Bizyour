@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Ban, FileJson, IndianRupee, MessageCircle, PencilLine, Printer, Undo2 } from 'lucide-react';
+import { ArrowLeft, Ban, FileJson, IndianRupee, PencilLine, Printer, Share2, Undo2 } from 'lucide-react';
 import { download, get, post } from '../lib/api';
 import { billShareMessage, downloadBlob, fetchBillPdf, hasPhone, openBillPdf, openWa, tryShareFile } from '../lib/shareBill';
 import { useI18n } from '../lib/i18n';
@@ -56,10 +56,11 @@ export default function BillDetailPage() {
   const [phoneVal, setPhoneVal] = useState('');
   const [waBlob, setWaBlob] = useState<Blob | null>(null);
 
-  // WhatsApp par bill bhejo — the PDF leaves from the shopkeeper's OWN
-  // WhatsApp: share sheet with the PDF attached where supported, else
-  // PDF download + wa.me with a ready message, else ask for the number.
-  const whatsapp = async () => {
+  // Share bill — the PDF leaves through the phone's own share sheet with
+  // the file attached (WhatsApp, SMS, email, Drive — the shopkeeper picks):
+  // share sheet where supported, else PDF download + wa.me with a ready
+  // message, else ask for the number.
+  const shareBill = async () => {
     if (!d) return;
     setWaBusy(true);
     try {
@@ -171,7 +172,7 @@ export default function BillDetailPage() {
         <aside className="detail-side no-print">
           <section className="panel panel-body stack">
             {!inv.cancelled && pending > 0 && <Button variant="primary" block icon={<IndianRupee size={16} />} onClick={() => setPay(true)}>{t('Record payment', 'भुगतान दर्ज करें', 'Payment likho')}</Button>}
-            <Button block icon={<MessageCircle size={16} />} onClick={whatsapp} loading={waBusy}>{t('Send bill on WhatsApp', 'WhatsApp पर बिल भेजें', 'WhatsApp par bill bhejo')}</Button>
+            <Button variant="primary" size="lg" block icon={<Share2 size={18} />} onClick={shareBill} loading={waBusy}>{t('Share bill', 'बिल शेयर करें', 'Bill share karo')}</Button>
             {askPhone && (
               <div className="stack" style={{ gap: 8 }}>
                 <p className="muted" style={{ fontSize: 13, margin: 0 }}>{t('No mobile number on this bill. Enter the customer’s number — the PDF will download, attach it in the chat.', 'इस बिल पर मोबाइल नंबर नहीं है। ग्राहक का नंबर लिखें — PDF डाउनलोड होगा, चैट में जोड़ दें।', 'Is bill par mobile number nahi hai. Customer ka number likho — PDF download hoga, chat me jod dena.')}</p>

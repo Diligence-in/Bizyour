@@ -333,6 +333,14 @@ function requireOwner(req, res, next) {
 
 // ---------- health ----------
 app.get('/api/health', async (req, res) => {
+  // One cheap query so this endpoint also wakes the database: Neon (free
+  // tier) suspends its compute after ~5 minutes idle, and the first real
+  // query after that waits seconds for the wake-up — that is the "app is
+  // slow" the shopkeeper feels after a gap. A keep-alive ping every few
+  // minutes on this endpoint keeps both the Render service AND the
+  // database warm. If the DB is briefly unreachable the health answer
+  // stays 200 — the ping only needs the service up.
+  try { await db.get('SELECT 1 AS one'); } catch (e) { /* warm-up poke only */ }
   res.json({ ok: true, mode: db.mode, db: db.engine, stage: 'A', app: 'BizYour by DILIGENCE', modules: ['workspace', 'business-mart'] });
 });
 
