@@ -3414,24 +3414,8 @@ async function sendBillWhatsApp(invoiceId, errId, onNeedPhone) {
   hideErr(errId);
   try {
     const r = await api('GET', `/api/invoices/${invoiceId}/whatsapp-link`);
-    // Share sheet first: the bill PDF rides as an attached file, so the
-    // WhatsApp chat opens with the PDF already in it — the owner only
-    // presses send. A cancelled share sheet stays cancelled (no wa.me
-    // popping up behind it); any other failure falls back to wa.me text.
-    let shared = false, cancelled = false;
-    try {
-      const res = await fetch(apiUrl(`/api/invoices/${invoiceId}/pdf`), { headers: token ? { Authorization: 'Bearer ' + token } : {} });
-      if (res.ok) {
-        const blob = await res.blob();
-        const file = new File([blob], `bill-${invoiceId}.pdf`, { type: 'application/pdf' });
-        if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
-          const msg = (r.message || '') + '\n' + tr('The bill PDF is attached with this message.', 'बिल की PDF इस संदेश के साथ है।', 'Bill ki PDF is message ke saath hai.');
-          await navigator.share({ files: [file], text: msg });
-          shared = true;
-        }
-      }
-    } catch (e) { if (e && e.name === 'AbortError') cancelled = true; }
-    if (shared || cancelled) return;
+    // WhatsApp-only, text message: wa.me opens straight into the
+    // customer's chat with the message ready — no share sheet, no file.
     window.open(r.url, '_blank');
   } catch (err) {
     if (err.message === 'customer_phone_missing' && onNeedPhone) { onNeedPhone(); return; }

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Ban, FileJson, IndianRupee, PencilLine, Printer, Share2, Undo2 } from 'lucide-react';
+import { ArrowLeft, Ban, FileJson, IndianRupee, PencilLine, Printer, Undo2 } from 'lucide-react';
 import { download, get, post } from '../lib/api';
-import { billShareMessage, downloadBlob, fetchBillPdf, hasPhone, openBillPdf, openWa, tryShareFile } from '../lib/shareBill';
+import { billShareMessage, hasPhone, openBillPdf, openWa } from '../lib/shareBill';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { dateLabel, qty as fmtQty, rupees, todayStr } from '../lib/format';
@@ -54,38 +54,29 @@ export default function BillDetailPage() {
   const [waBusy, setWaBusy] = useState(false);
   const [askPhone, setAskPhone] = useState(false);
   const [phoneVal, setPhoneVal] = useState('');
-  const [waBlob, setWaBlob] = useState<Blob | null>(null);
 
-  // Share bill — the PDF leaves through the phone's own share sheet with
-  // the file attached (WhatsApp, SMS, email, Drive — the shopkeeper picks):
-  // share sheet where supported, else PDF download + wa.me with a ready
-  // message, else ask for the number.
-  const shareBill = async () => {
+  // WhatsApp par bill bhejo — seedha customer ki chat khulti hai, message
+  // text ready milta hai, bas Send dabana hai. Text-only: wa.me se file
+  // attach nahi ho sakti, PDF alag se Print / PDF button se bhejta hai.
+  const whatsapp = async () => {
     if (!d) return;
     setWaBusy(true);
     try {
       const shop = d.business.name || 'BizYour';
       const balance = d.net_pending ?? inv.pending_amount;
-      const fname = `bill-${inv.bill_no}.pdf`;
-      const blob = await fetchBillPdf(inv.id);
-      setWaBlob(blob);
-      const r = await tryShareFile(blob, fname, billShareMessage(t, { shop, customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: true }));
-      if (r === 'shared' || r === 'cancelled') return;
+      const msg = billShareMessage(t, { shop, customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: false });
       if (hasPhone(d.customer?.phone)) {
-        downloadBlob(blob, fname);
-        openWa(d.customer!.phone!, billShareMessage(t, { shop, customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: false }));
-        toast({ text: t('PDF downloaded — attach it in the WhatsApp chat', 'PDF डाउनलोड हुआ — WhatsApp चैट में जोड़ दें', 'PDF download hua — WhatsApp chat me jod do') });
+        openWa(d.customer!.phone!, msg);
       } else {
         setAskPhone(true);
       }
     } catch (e) { toast({ text: err(e), tone: 'error' }); } finally { setWaBusy(false); }
   };
   const sendToNumber = () => {
-    if (!d || !waBlob) return;
+    if (!d) return;
     const balance = d.net_pending ?? inv.pending_amount;
     const msg = billShareMessage(t, { shop: d.business.name || 'BizYour', customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: false });
     if (openWa(phoneVal, msg)) {
-      downloadBlob(waBlob, `bill-${inv.bill_no}.pdf`);
       setAskPhone(false);
     } else {
       toast({ text: t('Enter a valid mobile number', 'सही मोबाइल नंबर लिखें', 'Sahi mobile number likho'), tone: 'error' });
@@ -172,10 +163,10 @@ export default function BillDetailPage() {
         <aside className="detail-side no-print">
           <section className="panel panel-body stack">
             {!inv.cancelled && pending > 0 && <Button variant="primary" block icon={<IndianRupee size={16} />} onClick={() => setPay(true)}>{t('Record payment', 'भुगतान दर्ज करें', 'Payment likho')}</Button>}
-            <Button variant="primary" size="lg" block icon={<Share2 size={18} />} onClick={shareBill} loading={waBusy}>{t('Share bill', 'बिल शेयर करें', 'Bill share karo')}</Button>
+            <Button block onClick={whatsapp} loading={waBusy}>{t('Send bill on WhatsApp', 'WhatsApp पर बिल भेजें', 'WhatsApp par bill bhejo')}</Button>
             {askPhone && (
               <div className="stack" style={{ gap: 8 }}>
-                <p className="muted" style={{ fontSize: 13, margin: 0 }}>{t('No mobile number on this bill. Enter the customer’s number — the PDF will download, attach it in the chat.', 'इस बिल पर मोबाइल नंबर नहीं है। ग्राहक का नंबर लिखें — PDF डाउनलोड होगा, चैट में जोड़ दें।', 'Is bill par mobile number nahi hai. Customer ka number likho — PDF download hoga, chat me jod dena.')}</p>
+                <p className="muted" style={{ fontSize: 13, margin: 0 }}>{t('No mobile number on this bill. Enter the customer’s number — the WhatsApp chat will open with the message ready.', 'इस बिल पर मोबाइल नंबर नहीं है। ग्राहक का नंबर लिखें — WhatsApp चैट मैसेज के साथ खुलेगी।', 'Is bill par mobile number nahi hai. Customer ka number likho — WhatsApp chat message ke saath khulegi.')}</p>
                 <Input inputMode="tel" placeholder="98XXXXXXXX" value={phoneVal} onChange={(e) => setPhoneVal(e.target.value)} autoFocus />
                 <Button variant="primary" block onClick={sendToNumber}>{t('Open WhatsApp', 'WhatsApp खोलें', 'WhatsApp kholo')}</Button>
               </div>
