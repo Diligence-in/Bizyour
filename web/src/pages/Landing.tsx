@@ -791,7 +791,7 @@ export default function Landing() {
             </ul>
           </div>
           <ul className="lp-team-members">
-            <li><b>Priyanshu Garg</b><span className="tm-role">{t('Founder · Operations', 'Founder · Operations', 'Founder · Operations')}</span><span>{t('Strategy, operations and execution. IIT Patna.', 'Strategy, operations और execution। IIT Patna।', 'Strategy, operations aur execution. IIT Patna.')}</span></li>
+            <li><b>Priyanshu Garg</b><span className="tm-role">{t('Operations', 'Operations', 'Operations')}</span><span>{t('Strategy, operations and execution. IIT Patna.', 'Strategy, operations और execution। IIT Patna।', 'Strategy, operations aur execution. IIT Patna.')}</span></li>
             <li><b>Aditya Kumar</b><span className="tm-role">Sales</span><span>{t('Client relationships and business growth.', 'Client relationships और business growth।', 'Client relationships aur business growth.')}</span></li>
             <li><b>Vedant Mishra</b><span className="tm-role">Technology</span><span>{t('Builds the systems and AI behind BizYour.', 'BizYour के पीछे के systems और AI बनाता है।', 'BizYour ke peeche ke systems aur AI banata hai.')}</span></li>
             <li><b>Shashank Mehta</b><span className="tm-role">Marketing</span><span>{t('Builds the brand and market presence.', 'Brand और market presence बनाता है।', 'Brand aur market presence banata hai.')}</span></li>
