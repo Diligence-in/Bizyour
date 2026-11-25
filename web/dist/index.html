@@ -36,48 +36,123 @@
     <meta name="twitter:description" content="Billing, stock, udhaar, GST reports and a B2B bazaar for Indian businesses. Business Mart free forever, Workspace free for 30 days." />
     <meta name="twitter:image" content="https://www.bizyour.in/bizyour-mark-512.png" />
     <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
     {
-      "@context": "https://schema.org",
-      "@graph": [
+      "@type": "Organization",
+      "@id": "https://www.bizyour.in/#org",
+      "name": "DILIGENCE",
+      "url": "https://www.bizyour.in/",
+      "logo": "https://www.bizyour.in/bizyour-mark-512.png",
+      "email": "diligence.in@zohomail.in",
+      "telephone": "+91-8506059604",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Delhi",
+        "addressCountry": "IN"
+      },
+      "sameAs": [
+        "https://thediligence.in"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://www.bizyour.in/#app",
+      "name": "BizYour",
+      "url": "https://www.bizyour.in/",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "inLanguage": [
+        "en",
+        "hi"
+      ],
+      "description": "BizYour by DILIGENCE — billing, stock, udhaar, GST reports and a B2B bazaar (Business Mart) for Indian businesses. One app, one login, one data. Business Mart free forever, Workspace free for 30 days.",
+      "publisher": {
+        "@id": "https://www.bizyour.in/#org"
+      },
+      "featureList": "GST billing, stock management, udhaar (credit) ledger, WhatsApp bill sharing, GSTR-1 export, Business Mart B2B wholesale marketplace, staff logins, offline billing, English/Hindi/Hinglish interface"
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://www.bizyour.in/#faq",
+      "mainEntity": [
         {
-          "@type": "Organization",
-          "@id": "https://www.bizyour.in/#org",
-          "name": "DILIGENCE",
-          "url": "https://www.bizyour.in/",
-          "logo": "https://www.bizyour.in/bizyour-mark-512.png",
-          "email": "diligence.in@zohomail.in",
-          "telephone": "+91-8506059604",
-          "address": { "@type": "PostalAddress", "addressLocality": "Delhi", "addressCountry": "IN" }
+          "@type": "Question",
+          "name": "How much does it cost?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Business Mart is free. Workspace is completely free for the first 30 days, with no card needed. After the trial you choose a plan; all your data and work stay exactly as they are."
+          }
         },
         {
-          "@type": "SoftwareApplication",
-          "@id": "https://www.bizyour.in/#app",
-          "name": "BizYour",
-          "url": "https://www.bizyour.in/",
-          "applicationCategory": "BusinessApplication",
-          "operatingSystem": "Web",
-          "inLanguage": ["en", "hi"],
-          "description": "BizYour by DILIGENCE — billing, stock, udhaar, GST reports and a B2B bazaar (Business Mart) for Indian businesses. One app, one login, one data. Business Mart free forever, Workspace free for 30 days.",
-          "publisher": { "@id": "https://www.bizyour.in/#org" },
-          "featureList": "GST billing, stock management, udhaar (credit) ledger, WhatsApp bill sharing, GSTR-1 export, Business Mart B2B wholesale marketplace, staff logins, offline billing, English/Hindi/Hinglish interface"
+          "@type": "Question",
+          "name": "Is Business Mart really free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Business Mart is free for every business, with no trial and no end date. Only Workspace has a 30-day trial and then a paid plan."
+          }
         },
         {
-          "@type": "FAQPage",
-          "@id": "https://www.bizyour.in/#faq",
-          "mainEntity": [
-            { "@type": "Question", "name": "How much does it cost?", "acceptedAnswer": { "@type": "Answer", "text": "Business Mart is free. Workspace is completely free for the first 30 days, with no card needed. After the trial you choose a plan; all your data and work stay exactly as they are." } },
-            { "@type": "Question", "name": "Is Business Mart really free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Business Mart is free for every business, with no trial and no end date. Only Workspace has a 30-day trial and then a paid plan." } },
-            { "@type": "Question", "name": "What happens after the Workspace trial?", "acceptedAnswer": { "@type": "Answer", "text": "You choose a monthly or yearly plan. If you wait, Workspace turns read-only: you can still see and export everything, nothing is deleted. Business Mart keeps working." } },
-            { "@type": "Question", "name": "Is internet necessary?", "acceptedAnswer": { "@type": "Answer", "text": "No. Billing also works offline. Bills keep getting made, and the data syncs when the internet comes back." } },
-            { "@type": "Question", "name": "Does it handle GST?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. GST bills, a full GST report and a ready GSTR-1 file for your CA, all from the same data. Businesses without GST can turn it off." } },
-            { "@type": "Question", "name": "Can my staff use it?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Each staff member gets their own login with role limits, like billing and stock only. Profit and reports stay with the owner." } },
-            { "@type": "Question", "name": "Do I need a computer?", "acceptedAnswer": { "@type": "Answer", "text": "No. It runs in the browser on a phone, tablet or computer. Open bizyour.in and log in." } },
-            { "@type": "Question", "name": "Is my data safe?", "acceptedAnswer": { "@type": "Answer", "text": "Your data is yours. Every business sees only its own data, and you can back up or export it whenever you want. No lock-in." } },
-            { "@type": "Question", "name": "Which languages does it work in?", "acceptedAnswer": { "@type": "Answer", "text": "English, Hindi and Hinglish. Switch any time, whichever feels easy." } }
-          ]
+          "@type": "Question",
+          "name": "What happens after the Workspace trial?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You choose a monthly or yearly plan. If you wait, Workspace turns read-only: you can still see and export everything, nothing is deleted. Business Mart keeps working."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is internet necessary?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Billing also works offline. Bills keep getting made, and the data syncs when the internet comes back."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it handle GST?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. GST bills, a full GST report and a ready GSTR-1 file for your CA, all from the same data. Businesses without GST can turn it off."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can my staff use it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Each staff member gets their own login with role limits, like billing and stock only. Profit and reports stay with the owner."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need a computer?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. It runs in the browser on a phone, tablet or computer. Open bizyour.in and log in."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is my data safe?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Your data is yours. Every business sees only its own data, and you can back up or export it whenever you want. No lock-in."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which languages does it work in?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "English, Hindi and Hinglish. Switch any time, whichever feels easy."
+          }
         }
       ]
     }
+  ]
+}
     </script>
     <script type="module" crossorigin src="/assets/index-DfNTKZER.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-BeSkY3NA.css">
