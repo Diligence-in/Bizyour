@@ -491,7 +491,7 @@ if (sideBarEl) sideBarEl.addEventListener('click', (e) => { if (e.target.closest
 $('logoutBtn').addEventListener('click', async () => {
   try { await api('POST', '/api/auth/logout'); } catch (e) { /* ignore */ }
   token = null; me = null; localStorage.removeItem('bos_token');
-  showLanding();
+  location.href = '/';
 });
 
 // ---------- nav ----------
@@ -1687,7 +1687,7 @@ $('admSettingsForm').addEventListener('submit', async (e) => {
 $('adminLogoutBtn').addEventListener('click', async () => {
   try { await api('POST', '/api/auth/logout'); } catch (e) { /* ignore */ }
   token = null; me = null; localStorage.removeItem('bos_token');
-  showLanding();
+  location.href = '/';
 });
 
 // ---------- Stage 6: data backup download (owner-only card) ----------

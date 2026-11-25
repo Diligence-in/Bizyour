@@ -57,9 +57,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try { await post('/api/auth/logout'); } catch { /* token may already be gone */ }
     setToken(null); qc.clear();
-    // Logged out → the login screen (a clean page load, so no screen from
-    // the old session can flash or redirect on the way out).
-    window.location.replace('/login');
+    // Logged out → the homepage (founder's call: never park a logged-out
+    // visitor on the login page). A clean page load, so no screen from the
+    // old session can flash or redirect on the way out.
+    window.location.replace('/');
   }, [qc]);
 
   const can = useMemo(() => {
