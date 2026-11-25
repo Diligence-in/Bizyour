@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Copy, IndianRupee, Link2, MessageCircle, PencilLine, Phone, Plus, RefreshCw, Unlink } from 'lucide-react';
+import { ArrowLeft, Copy, IndianRupee, Link2, MessageCircle, MessageSquare, PencilLine, Phone, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react';
 import { API_BASE, del, get, post } from '../lib/api';
 import { useI18n } from '../lib/i18n';
-import { dateLabel, daysFromToday, rupees } from '../lib/format';
+import { dateLabel, daysFromToday, rupees, smsUrl } from '../lib/format';
 import type { Customer, Invoice } from '../lib/types';
-import { BillStatusBadge, Button, Drawer, Money, SkelRows, useToast } from '../components/ui';
+import { BillStatusBadge, Button, Drawer, Modal, Money, SkelRows, useToast } from '../components/ui';
 import { usePageTitle } from '../components/shell/AppShell';
 import { PaymentDrawer } from './BillDetail';
 import { CustomerForm } from './Customers';
@@ -26,6 +26,8 @@ export default function CustomerDetailPage() {
   const q = useQuery({ queryKey: ['customer', id], queryFn: () => get<Detail>(`/api/customers/${id}`) });
   const [pay, setPay] = useState(false);
   const [edit, setEdit] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
   const [hisab, setHisab] = useState<string | null>(null);
   const [hisabOpen, setHisabOpen] = useState(false);
   const d = q.data;
@@ -53,6 +55,8 @@ export default function CustomerDetailPage() {
     } catch (e) { toast({ text: err(e), tone: 'error' }); }
   };
 
+  const hisabMsg = hisab ? t(`Hello ${c.name}, you can see your full account here (bills, payments and balance): ${hisab}`, `नमस्ते ${c.name} जी, अपना पूरा हिसाब यहां देखें (बिल, भुगतान और बाकी): ${hisab}`, `Namaste ${c.name} ji, apna poora hisaab yahan dekho (bill, payment aur baaki): ${hisab}`) : '';
+
   return (
     <div className="page">
       <Link to="/customers" className="back-link"><ArrowLeft size={14} /> {t('Customers', 'ग्राहक', 'Customers')}</Link>
@@ -67,6 +71,7 @@ export default function CustomerDetailPage() {
         </div>
         <div className="page-actions">
           <Button icon={<PencilLine size={16} />} onClick={() => setEdit(true)}>{t('Edit', 'बदलें', 'Badlo')}</Button>
+          <Button variant="danger" icon={<Trash2 size={16} />} onClick={() => setDelOpen(true)}>{t('Delete', 'हटाएं', 'Hatao')}</Button>
           <Button variant="primary" icon={<Plus size={16} />} onClick={() => nav('/pos')}>{t('New bill', 'नया बिल', 'Naya bill')}</Button>
         </div>
       </header>
@@ -123,9 +128,14 @@ export default function CustomerDetailPage() {
             <Button size="sm" icon={<Copy size={14} />} onClick={() => { navigator.clipboard?.writeText(hisab || ''); toast({ text: t('Link copied', 'Link copy हुआ', 'Link copy hua') }); }}>{t('Copy', 'कॉपी', 'Copy')}</Button>
           </div>
           {c.phone && hisab && (
-            <a className="btn btn-primary" target="_blank" rel="noopener" href={`https://wa.me/${c.phone.replace(/\D/g, '').replace(/^0/, '').replace(/^(\d{10})$/, '91$1')}?text=${encodeURIComponent(t(`Hello ${c.name}, you can see your full account here (bills, payments and balance): ${hisab}`, `नमस्ते ${c.name} जी, अपना पूरा हिसाब यहां देखें (बिल, भुगतान और बाकी): ${hisab}`, `Namaste ${c.name} ji, apna poora hisaab yahan dekho (bill, payment aur baaki): ${hisab}`))}`}>
-              <MessageCircle size={16} /> {t('Send on WhatsApp', 'WhatsApp पर भेजें', 'WhatsApp pe bhejo')}
-            </a>
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <a className="btn btn-primary" target="_blank" rel="noopener" href={`https://wa.me/${c.phone.replace(/\D/g, '').replace(/^0/, '').replace(/^(\d{10})$/, '91$1')}?text=${encodeURIComponent(hisabMsg)}`}>
+                <MessageCircle size={16} /> {t('Send on WhatsApp', 'WhatsApp पर भेजें', 'WhatsApp pe bhejo')}
+              </a>
+              <a className="btn" href={smsUrl(c.phone, hisabMsg)}>
+                <MessageSquare size={16} /> {t('Send by SMS', 'SMS से भेजें', 'SMS se bhejo')}
+              </a>
+            </div>
           )}
           <div className="row" style={{ gap: 8 }}>
             <Button size="sm" icon={<RefreshCw size={14} />} onClick={() => openHisab(true)}>{t('New link (old one stops)', 'नया link (पुराना बंद)', 'Naya link (purana band)')}</Button>
@@ -133,6 +143,28 @@ export default function CustomerDetailPage() {
           </div>
         </div>
       </Drawer>
+
+      <Modal open={delOpen} onClose={() => setDelOpen(false)} label={t('Delete customer', 'ग्राहक हटाएं', 'Customer hatao')}>
+        <div className="stack" style={{ gap: 12 }}>
+          <p>{t(`Delete ${c.name}? This cannot be undone.`, `${c.name} को हटाएं? यह वापस नहीं होगा।`, `${c.name} ko hatao? Ye wapas nahi hoga.`)}</p>
+          <p className="muted">{t('A customer with any bill — even a cancelled one — cannot be deleted, so past bills and reports stay correct. To remove such a customer, cancel their bills first.', 'जिस ग्राहक का कोई भी बिल बना है — रद्द वाला भी — वह हटाया नहीं जा सकता, ताकि पुराने बिल और रिपोर्ट सही रहें। ऐसे ग्राहक को हटाना है तो पहले उसके बिल रद्द करें।', 'Jis customer ka koi bhi bill bana hai — cancel wala bhi — wo hataya nahi ja sakta, taaki purane bill aur report sahi rahen. Aise customer ko hatana hai to pehle uske bill cancel karo.')}</p>
+          <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+            <Button onClick={() => setDelOpen(false)}>{t('Keep', 'रखें', 'Rakho')}</Button>
+            <Button variant="danger" loading={delBusy} onClick={async () => {
+              setDelBusy(true);
+              try {
+                await del(`/api/customers/${id}`);
+                setDelOpen(false);
+                toast({ text: t(`${c.name} deleted`, `${c.name} हट गया`, `${c.name} hat gaya`) });
+                nav('/customers');
+              } catch (e) {
+                const m = String((e as Error)?.message || '');
+                toast({ text: m.includes('customer_has_invoices') ? t(`${c.name} has bills, so this customer cannot be deleted. Cancel their bills first.`, `${c.name} के बिल हैं, इसलिए यह ग्राहक हटाया नहीं जा सकता। पहले उसके बिल रद्द करें।`, `${c.name} ke bill hain, isliye ye customer hataya nahi ja sakta. Pehle uske bill cancel karo.`) : err(e), tone: 'error' });
+              } finally { setDelBusy(false); }
+            }}>{t('Delete customer', 'ग्राहक हटाएं', 'Customer hatao')}</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

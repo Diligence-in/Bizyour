@@ -3316,6 +3316,7 @@ function showHisabUrl(url) {
   $('cdHisabUrl').value = url;
   $('cdHisabLinkWrap').classList.remove('hidden');
   $('cdHisabWa').classList.remove('hidden');
+  $('cdHisabSms').classList.remove('hidden');
   $('cdHisabRegen').classList.remove('hidden');
   $('cdHisabOff').classList.remove('hidden');
 }
@@ -3341,6 +3342,23 @@ $('cdHisabWa').addEventListener('click', () => {
   const msg = tr(`Hello ${currentCustomer.name}, this is ${me.business.name} — you can see your full account here (bills, payments and balance): ${currentHisabUrl}`, `नमस्ते ${currentCustomer.name} जी, ${me.business.name} की ओर से — आपका पूरा हिसाब यहाँ देख सकते हैं (बिल, पेमेंट और बाकी): ${currentHisabUrl}`, `Namaste ${currentCustomer.name} ji, ${me.business.name} se — aapka poora hisaab yahan dekh sakte hain (bills, payments aur baaki): ${currentHisabUrl}`);
   window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank');
 });
+// SMS with the same hisab message — the phone's SMS app opens with the
+// text already written; the owner just presses send. Android wants
+// ?body=, iOS wants &body=.
+function smsUrl(phone, text) {
+  const p = waNum(phone);
+  if (!p) return '';
+  const sep = /iPad|iPhone|iPod/.test(navigator.userAgent) ? '&' : '?';
+  return 'sms:' + p + sep + 'body=' + encodeURIComponent(text);
+}
+$('cdHisabSms').addEventListener('click', () => {
+  if (!currentHisabUrl) return;
+  const phone = currentCustomer ? waNum(currentCustomer.phone) : '';
+  if (!phone) { showErr('cdHisabErr', tr("The customer has no mobile number — add it first.", "ग्राहक का मोबाइल नंबर नहीं है — पहले नंबर जोड़ो।")); return; }
+  hideErr('cdHisabErr');
+  const msg = tr(`Hello ${currentCustomer.name}, this is ${me.business.name} — you can see your full account here (bills, payments and balance): ${currentHisabUrl}`, `नमस्ते ${currentCustomer.name} जी, ${me.business.name} की ओर से — आपका पूरा हिसाब यहाँ देख सकते हैं (बिल, पेमेंट और बाकी): ${currentHisabUrl}`, `Namaste ${currentCustomer.name} ji, ${me.business.name} se — aapka poora hisaab yahan dekh sakte hain (bills, payments aur baaki): ${currentHisabUrl}`);
+  location.href = smsUrl(currentCustomer.phone, msg);
+});
 $('cdHisabRegen').addEventListener('click', async () => {
   if (!currentCustomerId) return;
   if (!confirm(tr("A new link will be made and the OLD link will stop working at once. Sure?", "नया लिंक बनेगा और पुराना लिंक तुरंत बंद हो जाएगा। पक्का?"))) return;
@@ -3359,6 +3377,7 @@ $('cdHisabOff').addEventListener('click', async () => {
     currentHisabUrl = '';
     $('cdHisabLinkWrap').classList.add('hidden');
     $('cdHisabWa').classList.add('hidden');
+    $('cdHisabSms').classList.add('hidden');
     $('cdHisabRegen').classList.add('hidden');
     $('cdHisabOff').classList.add('hidden');
     if (currentCustomer) currentCustomer.hisab_enabled = false;
@@ -3373,9 +3392,12 @@ function stage4Friendly(err) { return stage3Friendly(err); }
 
 // =====================================================================
 // ---------- Stage 5: WhatsApp click-to-send ----------
-// The server builds a wa.me link with a ready TEXT message (bills cannot
-// attach a PDF through wa.me — Print stays the PDF route). Clicking only
-// OPENS WhatsApp; the owner presses send. Nothing is auto-sent.
+// Bills go out from the shopkeeper's own WhatsApp (their number, their
+// shop's name) — nothing is auto-sent. Where the phone supports sharing
+// files, the bill PDF is ATTACHED through the system share sheet: the
+// shopkeeper picks WhatsApp, the chat opens with the PDF already in it,
+// and they just press send. Where it doesn't (most desktops), the old
+// wa.me text link opens instead and the PDF is downloaded for attaching.
 // =====================================================================
 function stage5Friendly(err) {
   const map = {
@@ -3392,6 +3414,24 @@ async function sendBillWhatsApp(invoiceId, errId, onNeedPhone) {
   hideErr(errId);
   try {
     const r = await api('GET', `/api/invoices/${invoiceId}/whatsapp-link`);
+    // Share sheet first: the bill PDF rides as an attached file, so the
+    // WhatsApp chat opens with the PDF already in it — the owner only
+    // presses send. A cancelled share sheet stays cancelled (no wa.me
+    // popping up behind it); any other failure falls back to wa.me text.
+    let shared = false, cancelled = false;
+    try {
+      const res = await fetch(apiUrl(`/api/invoices/${invoiceId}/pdf`), { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+      if (res.ok) {
+        const blob = await res.blob();
+        const file = new File([blob], `bill-${invoiceId}.pdf`, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+          const msg = (r.message || '') + '\n' + tr('The bill PDF is attached with this message.', 'बिल की PDF इस संदेश के साथ है।', 'Bill ki PDF is message ke saath hai.');
+          await navigator.share({ files: [file], text: msg });
+          shared = true;
+        }
+      }
+    } catch (e) { if (e && e.name === 'AbortError') cancelled = true; }
+    if (shared || cancelled) return;
     window.open(r.url, '_blank');
   } catch (err) {
     if (err.message === 'customer_phone_missing' && onNeedPhone) { onNeedPhone(); return; }

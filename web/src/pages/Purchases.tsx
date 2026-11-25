@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { IndianRupee, Plus, Trash2, Truck } from 'lucide-react';
+import { IndianRupee, Mail, MessageCircle, MessageSquare, Plus, Trash2, Truck } from 'lucide-react';
 import { get, post } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
-import { dateLabel, qty as fmtQty, round2, rupees, todayStr } from '../lib/format';
+import { dateLabel, qty as fmtQty, round2, rupees, smsUrl, todayStr, waPhone } from '../lib/format';
 import type { Product, Purchase, PurchaseItem, Supplier } from '../lib/types';
 import { BillStatusBadge, Button, Drawer, Empty, Field, Input, Money, Segmented, Select, SkelRows, useToast } from '../components/ui';
 import { ExportMenu } from '../components/ExportMenu';
@@ -76,11 +76,21 @@ export default function PurchasesPage() {
 
 function PurchaseDetail({ id, onClose }: { id: number | null; onClose: () => void }) {
   const { t } = useI18n();
+  const { me } = useSession();
   const qc = useQueryClient();
   const toast = useToast();
   const [pay, setPay] = useState(false);
   const q = useQuery({ queryKey: ['purchase', id], queryFn: () => get<{ purchase: Purchase; items: PurchaseItem[] }>(`/api/purchases/${id}`), enabled: !!id });
   const p = q.data?.purchase;
+  const supQ = useQuery({ queryKey: ['suppliers'], queryFn: () => get<{ suppliers: Supplier[] }>('/api/suppliers'), enabled: !!id });
+  const sup = supQ.data?.suppliers.find((s) => s.id === p?.supplier_id);
+  const supPhone = waPhone(sup?.phone || '');
+  const shopName = me?.business?.name || '';
+  const shareMsg = p ? t(
+    `Namaste ${p.supplier_name}, ${shopName ? `this is ${shopName} — ` : ''}purchase ${p.bill_no ? `#${p.bill_no} ` : ''}(${p.date}): Total ${rupees(p.total)} · Paid ${rupees(p.paid_amount)} · Balance ${rupees(p.pending_amount)}${p.due_date ? ` · Pay by ${p.due_date}` : ''}`,
+    `नमस्ते ${p.supplier_name} जी, ${shopName ? `${shopName} की ओर से — ` : ''}खरीद ${p.bill_no ? `#${p.bill_no} ` : ''}(${p.date}): कुल ${rupees(p.total)} · दिया ${rupees(p.paid_amount)} · बाकी ${rupees(p.pending_amount)}${p.due_date ? ` · देना है ${p.due_date}` : ''}`,
+    `Namaste ${p.supplier_name} ji, ${shopName ? `${shopName} se — ` : ''}khareed ${p.bill_no ? `#${p.bill_no} ` : ''}(${p.date}): Kul ${rupees(p.total)} · Diya ${rupees(p.paid_amount)} · Baaki ${rupees(p.pending_amount)}${p.due_date ? ` · Dena hai ${p.due_date}` : ''}`
+  ) : '';
   return (
     <>
       <Drawer open={!!id && !pay} onClose={onClose} title={p ? `${p.supplier_name}${p.bill_no ? ` · ${p.bill_no}` : ''}` : t('Purchase', 'खरीद', 'Khareed')}
@@ -97,6 +107,27 @@ function PurchaseDetail({ id, onClose }: { id: number | null; onClose: () => voi
               <thead><tr><th>{t('Item', 'सामान', 'Saaman')}</th><th className="r">{t('Qty', 'मात्रा', 'Qty')}</th><th className="r">{t('Rate', 'भाव', 'Rate')}</th><th className="r">{t('Amount', 'रकम', 'Rakam')}</th></tr></thead>
               <tbody>{q.data.items.map((i) => <tr key={i.id}><td>{i.product_name}</td><td className="r num">{fmtQty(i.qty)} {i.product_unit}</td><td className="r num">{rupees(i.buy_price)}</td><td className="r num">{rupees(i.amount)}</td></tr>)}</tbody>
             </table>
+            <div>
+              <div className="strip-label" style={{ marginBottom: 8 }}>{t('Share with supplier', 'सप्लायर को भेजें', 'Supplier ko bhejo')}</div>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {supPhone ? (
+                  <>
+                    <a className="btn btn-primary" target="_blank" rel="noopener" href={`https://wa.me/${supPhone}?text=${encodeURIComponent(shareMsg)}`}>
+                      <MessageCircle size={16} /> {t('WhatsApp', 'WhatsApp', 'WhatsApp')}
+                    </a>
+                    <a className="btn" href={smsUrl(sup?.phone || '', shareMsg)}>
+                      <MessageSquare size={16} /> {t('SMS', 'SMS', 'SMS')}
+                    </a>
+                  </>
+                ) : (
+                  <span className="muted" style={{ fontSize: 13 }}>{t('No mobile number saved for this supplier — add it from Suppliers to send on WhatsApp or SMS.', 'इस सप्लायर का मोबाइल नंबर नहीं है — WhatsApp या SMS के लिए Suppliers से नंबर जोड़ें।', 'Is supplier ka mobile number nahi hai — WhatsApp ya SMS ke liye Suppliers se number jodo.')}</span>
+                )}
+                <a className="btn" href={`mailto:?subject=${encodeURIComponent(t(`Purchase ${p!.bill_no ? `#${p!.bill_no} ` : ''}— ${shopName}`, `खरीद ${p!.bill_no ? `#${p!.bill_no} ` : ''}— ${shopName}`, `Khareed ${p!.bill_no ? `#${p!.bill_no} ` : ''}— ${shopName}`))}&body=${encodeURIComponent(shareMsg)}`}>
+                  <Mail size={16} /> {t('Email', 'ईमेल', 'Email')}
+                </a>
+              </div>
+              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>{t('Email opens with the message ready — type the supplier’s email address in To (it is not saved in the app).', 'ईमेल संदेश तैयार के साथ खुलेगा — To में सप्लायर का ईमेल खुद लिखें (ऐप में सेव नहीं होता)।', 'Email message ready ke saath khulega — To me supplier ka email khud likho (app me save nahi hota).')}</p>
+            </div>
           </div>
         )}
       </Drawer>

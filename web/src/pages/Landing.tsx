@@ -791,10 +791,10 @@ export default function Landing() {
             </ul>
           </div>
           <ul className="lp-team-members">
-            <li><b>Priyanshu Garg</b><span className="tm-role">{t('Operations', 'Operations', 'Operations')}</span><span>{t('Strategy, operations and execution. IIT Patna.', 'Strategy, operations और execution। IIT Patna।', 'Strategy, operations aur execution. IIT Patna.')}</span></li>
-            <li><b>Aditya Kumar</b><span className="tm-role">Sales</span><span>{t('Client relationships and business growth.', 'Client relationships और business growth।', 'Client relationships aur business growth.')}</span></li>
-            <li><b>Vedant Mishra</b><span className="tm-role">Technology</span><span>{t('Builds the systems and AI behind BizYour.', 'BizYour के पीछे के systems और AI बनाता है।', 'BizYour ke peeche ke systems aur AI banata hai.')}</span></li>
-            <li><b>Shashank Mehta</b><span className="tm-role">Marketing</span><span>{t('Builds the brand and market presence.', 'Brand और market presence बनाता है।', 'Brand aur market presence banata hai.')}</span></li>
+            <li><span className="tm-role">{t('Operations', 'Operations', 'Operations')}</span><span>{t('Strategy, operations and execution. IIT Patna.', 'Strategy, operations और execution। IIT Patna।', 'Strategy, operations aur execution. IIT Patna.')}</span></li>
+            <li><span className="tm-role">Sales</span><span>{t('Client relationships and business growth.', 'Client relationships और business growth।', 'Client relationships aur business growth.')}</span></li>
+            <li><span className="tm-role">Technology</span><span>{t('Builds the systems and AI behind BizYour.', 'BizYour के पीछे के systems और AI बनाता है।', 'BizYour ke peeche ke systems aur AI banata hai.')}</span></li>
+            <li><span className="tm-role">Marketing</span><span>{t('Builds the brand and market presence.', 'Brand और market presence बनाता है।', 'Brand aur market presence banata hai.')}</span></li>
           </ul>
         </section>
 
@@ -884,7 +884,7 @@ export default function Landing() {
         </div>
         <div className="lp-foot-base">
           <span>© 2026 BizYour by DILIGENCE</span>
-          <span><Link to="/privacy">{t('Privacy Policy', 'प्राइवेसी पॉलिसी', 'Privacy Policy')}</Link> · <a href="/terms.html">{t('Terms of Service', 'नियम व शर्तें', 'Terms of Service')}</a> · {t('BizYour is a product of DILIGENCE.', 'BizYour, DILIGENCE का प्रोडक्ट है।', 'BizYour, DILIGENCE ka product hai.')} <a href="https://thediligence.in" target="_blank" rel="noopener noreferrer">thediligence.in</a></span>
+          <span><Link to="/privacy">{t('Privacy Policy', 'प्राइवेसी पॉलिसी', 'Privacy Policy')}</Link> · <a href="/terms.html">{t('Terms of Service', 'नियम व शर्तें', 'Terms of Service')}</a> · <a href="https://www.instagram.com/bizyour.in" target="_blank" rel="noopener noreferrer">Instagram</a> · {t('BizYour is a product of DILIGENCE.', 'BizYour, DILIGENCE का प्रोडक्ट है।', 'BizYour, DILIGENCE ka product hai.')} <a href="https://thediligence.in" target="_blank" rel="noopener noreferrer">thediligence.in</a></span>
         </div>
       </footer>
     </div>

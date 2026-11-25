@@ -260,7 +260,7 @@ export default function PosPage() {
       <div className="pos-received">
         <Field label={mode === 'Udhaar' ? t('Paid now (optional)', 'अभी दिया (अगर)', 'Abhi diya (agar)') : t('Received', 'मिला', 'Mila')}>
           {(id) => <Input id={id} numeric inputMode="decimal" value={received === null ? (mode === 'Udhaar' ? '' : String(total)) : received} placeholder="0"
-            onChange={(e) => setReceived(e.target.value.replace(/[^\d.]/g, ''))} onFocus={(e) => e.target.select()} />}
+            onChange={(e) => setReceived(e.target.value.replace(/[^\d.]/g, ''))} />}
         </Field>
         {balance > 0 && (
           <Field label={t('Pay by', 'कब तक', 'Kab tak')}>
@@ -366,13 +366,13 @@ export default function PosPage() {
                 </div>
                 <div className="stepper">
                   <button aria-label={t('One less', 'एक कम', 'Ek kam')} onClick={() => setQtyAt(l.product.id, l.qty - 1)}><Minus size={14} /></button>
-                  <input className="num" inputMode="decimal" value={l.qty} aria-label={t('Quantity', 'मात्रा', 'Qty')} onFocus={(e) => e.target.select()}
+                  <input className="num" inputMode="decimal" value={l.qty} aria-label={t('Quantity', 'मात्रा', 'Qty')}
                     onChange={(e) => { const v = Number(e.target.value.replace(/[^\d.]/g, '')); if (Number.isFinite(v)) setLines((ls) => ls.map((x) => (x.product.id === l.product.id ? { ...x, qty: v } : x))); }}
                     onBlur={(e) => { if (!(Number(e.target.value) > 0)) setQtyAt(l.product.id, 0); }} />
                   <button aria-label={t('One more', 'एक और', 'Ek aur')} onClick={() => setQtyAt(l.product.id, l.qty + 1)}><Plus size={14} /></button>
                 </div>
                 <input className="input input-num pos-rate hide-mobile" inputMode="decimal" value={l.price} aria-label={t('Rate', 'भाव', 'Rate')}
-                  onChange={(e) => setPriceAt(l.product.id, Number(e.target.value.replace(/[^\d.]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
+                  onChange={(e) => setPriceAt(l.product.id, Number(e.target.value.replace(/[^\d.]/g, '')) || 0)} />
                 <span className="num sheet-amt">{rupees(round2(l.qty * l.price))}</span>
                 <IconButton size="sm" label={t('Remove', 'हटाएं', 'Hatao')} onClick={() => setQtyAt(l.product.id, 0)}><Trash2 size={15} /></IconButton>
               </div>

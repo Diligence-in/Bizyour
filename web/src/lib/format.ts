@@ -68,3 +68,11 @@ export function waPhone(raw: string): string {
   if (d.length === 10) d = '91' + d;
   return d.length >= 11 ? d : '';
 }
+
+/** sms: link with a prefilled message — Android wants `?body=`, iOS `&body=`. */
+export function smsUrl(raw: string, text: string): string {
+  const phone = waPhone(raw);
+  if (!phone) return '';
+  const sep = /iPad|iPhone|iPod/.test(navigator.userAgent) ? '&' : '?';
+  return `sms:${phone}${sep}body=${encodeURIComponent(text)}`;
+}
