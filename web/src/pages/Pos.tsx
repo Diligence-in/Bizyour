@@ -486,7 +486,8 @@ function CustomerPicker({ open, onClose, customers, onPick }: { open: boolean; o
   const [hi, setHi] = useState(0);
   const [phone, setPhone] = useState('');
   const [adding, setAdding] = useState(false);
-  useEffect(() => { if (open) { setQ(''); setPhone(''); setHi(0); } }, [open]);
+  const [addMode, setAddMode] = useState(false);
+  useEffect(() => { if (open) { setQ(''); setPhone(''); setHi(0); setAddMode(false); } }, [open]);
   const list = useMemo(() => {
     const term = q.trim().toLowerCase();
     return customers.filter((c) => !term || c.name.toLowerCase().includes(term) || (c.phone || '').includes(term)).slice(0, 8);
@@ -520,14 +521,22 @@ function CustomerPicker({ open, onClose, customers, onPick }: { open: boolean; o
             <span className="hint">{c.pending > 0 ? <span className="money-owed">{t('owes', 'बाकी', 'baaki')} {rupees(c.pending)}</span> : c.phone}</span>
           </button>
         ))}
-        {q.trim() && !exact && (
+        {(q.trim() && !exact) || addMode ? (
           <div style={{ padding: 12, borderTop: list.length ? '1px solid var(--line)' : 0, display: 'grid', gap: 10 }}>
-            <div className="muted" style={{ fontSize: 13 }}>{t('New customer', 'नया ग्राहक', 'Naya customer')}: <b style={{ color: 'var(--ink)' }}>{q.trim()}</b></div>
+            <div className="muted" style={{ fontSize: 13 }}>{q.trim()
+              ? <>{t('New customer', 'नया ग्राहक', 'Naya customer')}: <b style={{ color: 'var(--ink)' }}>{q.trim()}</b></>
+              : t('New customer — type the name in the box above', 'नया ग्राहक — ऊपर वाले box में नाम लिखें', 'Naya customer — upar wale box me naam likho')}</div>
             <div className="row">
               <Input placeholder={t('Mobile (for WhatsApp reminders)', 'Mobile (WhatsApp के लिए)', 'Mobile (WhatsApp ke liye)')} inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              <Button variant="primary" onClick={create} loading={adding}>{t('Add', 'जोड़ें', 'Jodo')}</Button>
+              <Button variant="primary" onClick={create} loading={adding} disabled={!q.trim()}>{t('Add', 'जोड़ें', 'Jodo')}</Button>
+              {addMode && <Button onClick={() => setAddMode(false)} disabled={adding}>{t('Cancel', 'रद्द', 'Cancel')}</Button>}
             </div>
           </div>
+        ) : (
+          <button className="cmdk-item" onClick={() => setAddMode(true)}>
+            <Plus size={16} /> <span className="ellipsis">{t('Add new customer', 'नया ग्राहक जोड़ें', 'Naya customer jodo')}</span>
+            <span className="hint">{t('Name + mobile, right here', 'नाम + mobile, यहीं से', 'Naam + mobile, yahin se')}</span>
+          </button>
         )}
       </div>
     </Modal>
