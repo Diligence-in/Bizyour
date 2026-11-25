@@ -1,0 +1,30 @@
+BizYour — Trade Pages + Pricing Pack (25 Nov 2026)
+====================================================
+Is pack me kya hai:
+- 6 naye trade pages (web/dist + web/public dono me, taaki agli build me na udein):
+  kirana-store.html, mobile-shop.html, hardware-shop.html, garment-shop.html,
+  electrical-shop.html, cosmetics-shop.html — har page ~500 shabd asal text,
+  trade ke dard par, 4 sawal-jawab + FAQ schema ke saath.
+- pricing.html — daam wala page (bina number ke: Mart free forever, Workspace
+  30 din free, koi card nahi, koi auto-charge nahi, data kabhi hostage nahi).
+- sitemap.xml — purani 5 URLs + nayi 7 = kul 12 (live sitemap par hi bana hai).
+- llms-full.txt — purani asal content + naye pages ki list aur pricing link.
+
+Push ke steps (hamesha ki tarah):
+  robocopy "%USERPROFILE%\Downloads\BizYour-Update-Trade-Pages" "%USERPROFILE%\Downloads\Bizyour-Repo" /E
+  cd /d "%USERPROFILE%\Downloads\Bizyour-Repo"
+  git add -A
+  git commit -m "Trade pages + pricing page + sitemap/llms update"
+  git push
+
+Push ke baad:
+1. 2-3 minute me Render deploy hoga. Mai khud live check karunga:
+   bizyour.in/kirana-store.html aur bizyour.in/pricing.html khulte hain ya nahi.
+2. Search Console me sitemap dobara submit karne ki zarurat nahi (wahi file
+   update hui hai) — par homepage ka Request Indexing agar abhi tak nahi kiya
+   to kar dena; naye pages ke liye chaaho to unke URL bhi inspect karke
+   Request Indexing kar sakte ho (ek-ek karke, 2 minute ka kaam).
+
+Note: Ye pages abhi site ke menu/footer se link nahi hain — Google/AI ko ye
+sitemap aur llms-full se milenge. Footer me "Shops ke liye" links wala chhota
+pack LinkedIn page banne ke saath ek saath dunga, taaki do baar dist na chhedein.
