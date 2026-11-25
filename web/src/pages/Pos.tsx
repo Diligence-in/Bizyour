@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, Minus, Plus, Printer, Search, Trash2, UserRound, X } from 'lucide-react';
 import { get, post, put } from '../lib/api';
-import { billShareMessage, hasPhone, openBillPdf, openWa } from '../lib/shareBill';
+import { billShareMessage, fetchBillPdfUrl, hasPhone, openBillPdf, openWa } from '../lib/shareBill';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { gstPart, qty as fmtQty, round2, rupees } from '../lib/format';
@@ -412,11 +412,12 @@ export default function PosPage() {
     const [wa, setWa] = useState(false);
     const [askPhone, setAskPhone] = useState(false);
     const [phoneVal, setPhoneVal] = useState('');
-    const infoRef = useRef<{ shop: string; balance: number } | null>(null);
+    const infoRef = useRef<{ shop: string; balance: number; pdfUrl?: string } | null>(null);
 
     // WhatsApp par bill bhejo — seedha customer ki chat khulti hai, message
     // text ready milta hai, bas Send dabana hai. Text-only: wa.me se file
-    // attach nahi ho sakti, PDF alag se Print / PDF button se bhejta hai.
+    // attach nahi ho sakti, isliye message me bill ki public PDF link hoti
+    // hai — customer tap kare to PDF khul jati hai, bina login ke.
     const share = async () => {
       setWa(true);
       try {
@@ -424,8 +425,12 @@ export default function PosPage() {
         const shop = d.business.name || 'BizYour';
         const balance = d.net_pending ?? inv.pending_amount;
         const phone = d.customer?.phone || '';
-        infoRef.current = { shop, balance };
-        const msg = billShareMessage(t, { shop, customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: false });
+        // Public PDF link for the message (best-effort: the share still
+        // works without it if the link fetch fails).
+        let pdfUrl: string | undefined;
+        try { pdfUrl = await fetchBillPdfUrl(inv.id); } catch { pdfUrl = undefined; }
+        infoRef.current = { shop, balance, pdfUrl };
+        const msg = billShareMessage(t, { shop, customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: false, pdfUrl });
         if (hasPhone(phone)) {
           openWa(phone, msg);
         } else {
@@ -436,7 +441,7 @@ export default function PosPage() {
     const sendToNumber = () => {
       const info = infoRef.current;
       if (!info) return;
-      const msg = billShareMessage(t, { shop: info.shop, customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance: info.balance, attached: false });
+      const msg = billShareMessage(t, { shop: info.shop, customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance: info.balance, attached: false, pdfUrl: info.pdfUrl });
       if (openWa(phoneVal, msg)) {
         setAskPhone(false);
       } else {

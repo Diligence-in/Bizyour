@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Ban, FileJson, IndianRupee, PencilLine, Printer, Undo2 } from 'lucide-react';
 import { download, get, post } from '../lib/api';
-import { billShareMessage, hasPhone, openBillPdf, openWa } from '../lib/shareBill';
+import { billShareMessage, fetchBillPdfUrl, hasPhone, openBillPdf, openWa } from '../lib/shareBill';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
 import { dateLabel, qty as fmtQty, rupees, todayStr } from '../lib/format';
@@ -54,17 +54,24 @@ export default function BillDetailPage() {
   const [waBusy, setWaBusy] = useState(false);
   const [askPhone, setAskPhone] = useState(false);
   const [phoneVal, setPhoneVal] = useState('');
+  const pdfUrlRef = useRef<string | undefined>(undefined);
 
   // WhatsApp par bill bhejo — seedha customer ki chat khulti hai, message
   // text ready milta hai, bas Send dabana hai. Text-only: wa.me se file
-  // attach nahi ho sakti, PDF alag se Print / PDF button se bhejta hai.
+  // attach nahi ho sakti, isliye message me bill ki public PDF link hoti
+  // hai — customer tap kare to PDF khul jati hai, bina login ke.
   const whatsapp = async () => {
     if (!d) return;
     setWaBusy(true);
     try {
       const shop = d.business.name || 'BizYour';
       const balance = d.net_pending ?? inv.pending_amount;
-      const msg = billShareMessage(t, { shop, customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: false });
+      // Public PDF link for the message (best-effort: the share still
+      // works without it if the link fetch fails).
+      let pdfUrl: string | undefined;
+      try { pdfUrl = await fetchBillPdfUrl(inv.id); } catch { pdfUrl = undefined; }
+      pdfUrlRef.current = pdfUrl;
+      const msg = billShareMessage(t, { shop, customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: false, pdfUrl });
       if (hasPhone(d.customer?.phone)) {
         openWa(d.customer!.phone!, msg);
       } else {
@@ -75,7 +82,7 @@ export default function BillDetailPage() {
   const sendToNumber = () => {
     if (!d) return;
     const balance = d.net_pending ?? inv.pending_amount;
-    const msg = billShareMessage(t, { shop: d.business.name || 'BizYour', customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: false });
+    const msg = billShareMessage(t, { shop: d.business.name || 'BizYour', customerName: inv.customer_name, billNo: inv.bill_no, total: inv.total, balance, attached: false, pdfUrl: pdfUrlRef.current });
     if (openWa(phoneVal, msg)) {
       setAskPhone(false);
     } else {

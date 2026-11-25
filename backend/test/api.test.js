@@ -388,3 +388,36 @@ test('shop logo and photo are optional, validated, and the logo prints on the bi
   const cleared = await api('PUT', '/api/business', { token: t, body: { logo: '', shop_photo: null } });
   assert.equal(cleared.json.business.logo, null); assert.equal(cleared.json.business.shop_photo, null);
 });
+
+test('bill PDF public link: mint, open without login, bad token 404, WhatsApp message carries it', async () => {
+  const t = await login('demo@businessos.app');
+  const prods = (await api('GET', '/api/billing-products', { token: t })).json.products;
+  const p = prods.find((x) => x.stock_qty >= 3);
+  const made = await api('POST', '/api/invoices', { token: t, body: { items: [{ product_id: p.id, qty: 1, sell_price: p.sell_price }], customer_id: 1, paid_amount: 0 } });
+  assert.equal(made.status, 201, made.text);
+  const id = made.json.invoice.id;
+  // No auth on the mint endpoint: 401.
+  assert.equal((await api('GET', `/api/invoices/${id}/bill-link`)).status, 401);
+  // First mint returns a token + path; second mint returns the same token.
+  const link1 = await api('GET', `/api/invoices/${id}/bill-link`, { token: t });
+  assert.equal(link1.status, 200, link1.text);
+  assert.match(link1.json.token, /^[0-9a-f]{48}$/);
+  assert.equal(link1.json.url_path, `/api/public/bill/${link1.json.token}/pdf`);
+  const link2 = await api('GET', `/api/invoices/${id}/bill-link`, { token: t });
+  assert.equal(link2.json.token, link1.json.token);
+  // The public PDF opens with NO login, as a real PDF.
+  const pub = await fetch(`${BASE}/api/public/bill/${link1.json.token}/pdf`);
+  assert.equal(pub.status, 200);
+  assert.equal(pub.headers.get('content-type'), 'application/pdf');
+  const buf = Buffer.from(await pub.arrayBuffer());
+  assert.equal(buf.slice(0, 4).toString(), '%PDF');
+  assert.ok(buf.length > 5000);
+  // A guessed token gets nothing.
+  const bad = await fetch(`${BASE}/api/public/bill/000000000000000000000000000000000000000000000000/pdf`);
+  assert.equal(bad.status, 404);
+  assert.equal((await bad.json()).error, 'link_not_found');
+  // The WhatsApp text message carries the same public PDF link.
+  const wa = await api('GET', `/api/invoices/${id}/whatsapp-link`, { token: t });
+  assert.equal(wa.status, 200, wa.text);
+  assert.ok(wa.json.message.includes(`Bill PDF: https://www.bizyour.in/api/public/bill/${link1.json.token}/pdf`), wa.json.message);
+});

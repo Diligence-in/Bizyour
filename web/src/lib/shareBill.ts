@@ -1,14 +1,15 @@
-import { fetchBlob } from './api';
+import { fetchBlob, get } from './api';
 import { rupees, waPhone } from './format';
 
 type T = (en: string, hi: string, hg: string) => string;
 
 /** The WhatsApp message — the SHOP's name leads, in the tone of the
     server's existing bill messages. `attached` picks the last line: the
-    PDF rides with the message (share sheet) or was just downloaded for
-    the shopkeeper to attach in the chat (wa.me fallback). */
+    PDF rides with the message (share sheet); otherwise the message
+    carries the bill's public PDF link (`pdfUrl`), or just a thank-you
+    when no link could be minted. */
 export function billShareMessage(t: T, a: {
-  shop: string; customerName: string; billNo: number; total: number; balance: number; attached: boolean;
+  shop: string; customerName: string; billNo: number; total: number; balance: number; attached: boolean; pdfUrl?: string;
 }): string {
   const named = a.customerName && a.customerName.trim().toLowerCase() !== 'walk-in';
   const greet = named
@@ -21,20 +22,27 @@ export function billShareMessage(t: T, a: {
     `${greet}aapka bill tayyar hai.\nKul: ${rupees(a.total)} · Baaki: ${rupees(a.balance)}`);
   const tail = a.attached
     ? t('The bill PDF is attached with this message. Thank you! 🙏', 'बिल की PDF इस संदेश के साथ है। धन्यवाद! 🙏', 'Bill ki PDF is message ke saath hai. Dhanyavaad! 🙏')
-    : t('The bill PDF has downloaded — please attach it in this chat. Thank you! 🙏', 'बिल की PDF डाउनलोड हो गई है — कृपया इसी चैट में जोड़ दें। धन्यवाद! 🙏', 'Bill ki PDF download ho gayi hai — is chat me attach kar dijiye. Dhanyavaad! 🙏');
+    : a.pdfUrl
+      ? t(`Bill PDF: ${a.pdfUrl}\nThank you! 🙏`, `बिल PDF: ${a.pdfUrl}\nधन्यवाद! 🙏`, `Bill PDF: ${a.pdfUrl}\nDhanyavaad! 🙏`)
+      : t('Thank you! 🙏', 'धन्यवाद! 🙏', 'Dhanyavaad! 🙏');
   return `${head}\n${body}\n${tail}`;
 }
 
 // One-tap bill sharing on WhatsApp — always from the SHOPKEEPER's own
 // WhatsApp (their number, their shop's name), never a server-side send:
-//   1. Where the browser supports sharing files (phones), the bill PDF is
-//      ATTACHED through the system share sheet — the shopkeeper picks
-//      WhatsApp and presses send themselves.
-//   2. Where it doesn't (most desktops), the PDF downloads and wa.me opens
-//      with a ready summary message; the shopkeeper attaches the file in
-//      the chat. The message itself says the PDF is downloaded for attach.
-//   3. With no customer phone on the bill, the caller asks for a number
-//      inline ('needs-phone') and then calls openWa().
+// the message is plain text via wa.me and carries the bill's public PDF
+// link, so the customer taps it and the PDF opens — no login, no file to
+// attach. With no customer phone on the bill, the caller asks for a
+// number inline ('needs-phone') and then calls openWa().
+// (The share-sheet + attached-file path still lives in this lib via
+// tryShareFile for callers that want it; the bill flows use text + link.)
+
+/** Mint (on first share) and return the bill's public PDF link as an
+    absolute URL for this page's origin. */
+export async function fetchBillPdfUrl(invoiceId: number | string): Promise<string> {
+  const r = await get<{ token: string; url_path: string }>(`/api/invoices/${invoiceId}/bill-link`);
+  return window.location.origin + r.url_path;
+}
 
 export type ShareFileResult = 'shared' | 'cancelled' | 'unsupported';
 

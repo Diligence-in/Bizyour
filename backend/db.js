@@ -224,6 +224,7 @@ const SCHEMA_SQL = `
     kind TEXT NOT NULL DEFAULT 'sale',
     cancelled_at TEXT,
     cancel_reason TEXT,
+    share_token TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     sync_status TEXT NOT NULL DEFAULT 'local'
@@ -954,6 +955,13 @@ async function init() {
     // bills stay NULL = active. Data untouched.
     if (!invCols.includes('cancelled_at')) sdb.exec("ALTER TABLE invoices ADD COLUMN cancelled_at TEXT");
     if (!invCols.includes('cancel_reason')) sdb.exec("ALTER TABLE invoices ADD COLUMN cancel_reason TEXT");
+    // Bill PDF public link (same idempotent pattern): each bill gets a
+    // secret share token so its PDF opens from a link in a WhatsApp
+    // message without login — the hisab-link pattern, per bill. NULL =
+    // no link minted yet; the token is created lazily the first time the
+    // bill is shared. The unique index only guards real tokens.
+    if (!invCols.includes('share_token')) sdb.exec("ALTER TABLE invoices ADD COLUMN share_token TEXT");
+    sdb.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token)");
     // Payment QR migration (same idempotent pattern): the shop's OWN
     // uploaded UPI QR image (JPEG data URL) for the printed bill —
     // nullable, older local DBs gain it as NULL (no QR on bills).
@@ -1071,6 +1079,10 @@ async function init() {
       // cancellation stamp + reason on invoices; existing bills stay NULL.
       await client.query("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS cancelled_at TEXT");
       await client.query("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS cancel_reason TEXT");
+      // Bill PDF public link (same as the SQLite branch): per-bill secret
+      // token for the public PDF link in WhatsApp messages.
+      await client.query("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS share_token TEXT");
+      await client.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token)");
       // Payment QR migration (same as the SQLite branch): the shop's own
       // uploaded UPI QR image for the printed bill; NULL = no QR shown.
       await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_qr TEXT");

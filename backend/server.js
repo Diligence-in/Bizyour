@@ -2532,6 +2532,19 @@ app.delete('/api/customers/:id/hisab-link', requireAuth, requireBillingAccess, d
 // Public hisab JSON — NO auth, keyed by the share token alone. Returns
 // exactly one customer's data and nothing else; the pending figure uses
 // the same computation as the app's own customer pending (returns incl.).
+// ---------- Bill PDF public link ----------
+// One secret link per bill, minted lazily on first share: anyone holding
+// the link opens ONLY that bill's PDF in the browser — no login, same
+// pattern as the customer hisab link. The token is a credential (48 hex
+// chars, unguessable); a cancelled bill's link stops working.
+app.get('/api/public/bill/:token/pdf', security.limits.publicRead, async (req, res) => {
+  const token = String(req.params.token || '');
+  if (!token) return res.status(404).json({ error: 'link_not_found' });
+  const inv = await db.get('SELECT * FROM invoices WHERE share_token = ?', token);
+  if (!inv || inv.cancelled_at) return res.status(404).json({ error: 'link_not_found' });
+  return sendBillPdfFor(res, inv, inv.business_id);
+});
+
 app.get('/api/public/hisab/:token', security.limits.publicRead, async (req, res) => {
   const token = String(req.params.token || '');
   if (!token) return res.status(404).json({ error: 'link_not_found' });
@@ -3514,6 +3527,13 @@ async function sendBillPdf(req, res) {
   const bizId = req.user.business_id;
   const inv = await getOwnedInvoice(bizId, req.params.id);
   if (!inv) return res.status(404).json({ error: 'invoice not found' });
+  return sendBillPdfFor(res, inv, bizId);
+}
+
+// Shared PDF sender: builds the bill PDF for an already-loaded invoice
+// (any business) and streams it. The authed route loads the bill by id
+// + owner; the public route loads it by share token — both end up here.
+async function sendBillPdfFor(res, inv, bizId) {
   const biz = await getBusiness(bizId);
   const items = await db.all(
     `SELECT ii.*, p.unit AS p_unit, p.hsn_code AS p_hsn
@@ -3919,6 +3939,18 @@ app.get('/api/invoices/:id/whatsapp-link', requireAuth, requireBillingAccess, as
       : hg ? `\nUPI se payment karein: ${biz.upi_id}\n${billPayUri}`
       : `\nPay on UPI: ${biz.upi_id}\n${billPayUri}`;
   }
+  // Bill PDF public link: mint the bill's secret token on first share
+  // (same lazy pattern as the hisab link) and put the PDF link in the
+  // message — the customer taps it and the PDF opens, no login needed.
+  // www.bizyour.in is the canonical public host (sitemap + canonicals).
+  let billToken = inv.share_token || null;
+  if (!billToken) {
+    billToken = newShareToken();
+    await db.run(
+      `UPDATE invoices SET share_token = ? WHERE id = ? AND business_id = ?`
+    , billToken, inv.id, bizId);
+  }
+  msg += `\nBill PDF: https://www.bizyour.in/api/public/bill/${billToken}/pdf`;
   // Updates Stage D: generating a bill's WhatsApp link IS the onboarding
   // WhatsApp step happening for real — mark it done (best-effort only;
   // the link response must never fail because of the checklist).
@@ -3929,6 +3961,25 @@ app.get('/api/invoices/:id/whatsapp-link', requireAuth, requireBillingAccess, as
     , bizId);
   } catch (e) { /* onboarding tick is best-effort */ }
   res.json({ phone, url: 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), message: msg });
+});
+
+// Bill PDF public link (authed): mint the bill's secret token on first
+// share and hand back the public PDF URL path. The React share flows
+// build the absolute URL from the page origin; the server WhatsApp
+// message uses the canonical www host instead.
+app.get('/api/invoices/:id/bill-link', requireAuth, requireBillingAccess, async (req, res) => {
+  const bizId = req.user.business_id;
+  const inv = await getOwnedInvoice(bizId, req.params.id);
+  if (!inv) return res.status(404).json({ error: 'invoice not found' });
+  if (inv.cancelled_at) return res.status(400).json({ error: 'invoice_cancelled' });
+  let token = inv.share_token || null;
+  if (!token) {
+    token = newShareToken();
+    await db.run(
+      `UPDATE invoices SET share_token = ? WHERE id = ? AND business_id = ?`
+    , token, inv.id, bizId);
+  }
+  res.json({ token, url_path: '/api/public/bill/' + token + '/pdf' });
 });
 
 app.get('/api/customers/:id/reminder-link', requireAuth, requireBillingAccess, async (req, res) => {
