@@ -8,7 +8,7 @@ import { useSession } from '../../lib/session';
 import { initials } from '../../lib/format';
 import type { Lang, Subscription } from '../../lib/types';
 import { Button, Drawer, Segmented } from '../ui';
-import { allowed, navGroups, type Mode, type NavItem } from './nav';
+import { allowed, allowedPlan, navGroups, type Mode, type NavItem } from './nav';
 import { lastPath, modeOf, rememberPath } from '../../lib/mode';
 import { CommandPalette } from './CommandPalette';
 
@@ -71,12 +71,12 @@ export function ModeSwitch({ mode, martDot, onSwitch }: { mode: Mode; martDot?: 
 
 function NavList({ onNavigate, badges, mode }: { onNavigate?: () => void; badges?: Badges; mode: Mode }) {
   const { t } = useI18n();
-  const { can } = useSession();
+  const { can, plan } = useSession();
   const groups = navGroups(t).filter((g) => g.mode === 'both' || g.mode === mode);
   return (
     <nav className="nav" aria-label={t('Main', 'मुख्य', 'Main')}>
       {groups.map((g) => {
-        const items = g.items.filter((i) => allowed(i, can));
+        const items = g.items.filter((i) => allowed(i, can) && allowedPlan(i, plan));
         if (!items.length) return null;
         return (
           <div key={g.id} className={`nav-group ${g.tone === 'mart' ? 'nav-group-mart' : ''}`}>
@@ -92,10 +92,13 @@ function NavList({ onNavigate, badges, mode }: { onNavigate?: () => void; badges
 function SubscriptionNote({ mode }: { mode: Mode }) {
   const { t } = useI18n();
   const { can } = useSession();
-  const { data } = useQuery({ queryKey: ['subscription'], queryFn: () => get<{ subscription: Subscription }>('/api/subscription'), enabled: can.owner, staleTime: 300_000 });
+  const { data } = useQuery({ queryKey: ['subscription'], queryFn: () => get<{ subscription: Subscription; plan?: string; plan_tier?: string | null }>('/api/subscription'), enabled: can.owner, staleTime: 300_000 });
   const s = data?.subscription;
   if (!s) return null;
   if (mode === 'mart') return <div className="sub-note sub-note-mart">{t('Business Mart is free, always.', 'Business Mart हमेशा मुफ़्त है।', 'Business Mart hamesha free hai.')}</div>;
+  // Free Udhaar plan after the trial: udhaar stays open, billing & stock
+  // are locked — a note, not the lock overlay (see WorkspaceLock).
+  if (s.read_only && data?.plan_tier === 'free') return <Link className="sub-note" to="/settings?tab=plan">{t('Free Udhaar plan — billing & stock need an upgrade', 'फ्री उधार प्लान — billing और stock के लिए upgrade करें', 'Free Udhaar plan — billing aur stock ke liye upgrade karo')}</Link>;
   if (s.read_only) return <Link className="sub-note sub-note-owed" to="/settings?tab=plan">{t('Workspace plan ended — read-only. Business Mart still works. Renew', 'Workspace plan खत्म — सिर्फ़ देख सकते हैं। Business Mart चालू है। Renew करें', 'Workspace plan khatam — sirf dekh sakte ho. Business Mart chalu hai. Renew karo')}</Link>;
   if (s.status === 'none') return null; // shop setup not done yet — no plan exists to talk about
   if (s.status === 'trial' || s.days_left <= 7) {
@@ -115,7 +118,7 @@ function WorkspaceLock({ mode }: { mode: Mode }) {
   const qc = useQueryClient();
   const { data } = useQuery({
     queryKey: ['subscription'],
-    queryFn: () => get<{ subscription: Subscription }>('/api/subscription'),
+    queryFn: () => get<{ subscription: Subscription; plan?: string; plan_tier?: string | null }>('/api/subscription'),
     enabled: can.owner && mode === 'workspace',
     staleTime: 30_000,
     refetchInterval: (q) => (q.state.data?.subscription?.read_only ? 30_000 : false)
@@ -133,6 +136,10 @@ function WorkspaceLock({ mode }: { mode: Mode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s?.read_only]);
   if (mode !== 'workspace' || !can.owner || !s?.read_only || dismissed) return null;
+  // Free Udhaar plan: the shop keeps udhaar after the trial, so the
+  // expired-plan lock overlay must NOT cover the screen — the sidebar
+  // note (SubscriptionNote) explains the plan instead.
+  if (data?.plan_tier === 'free') return null;
   const dismiss = () => { try { sessionStorage.setItem(key, '1'); } catch { /* */ } setDismissed(true); };
   return (
     <div className="lock-overlay" role="dialog" aria-modal="true" aria-label={t('Plan ended', 'Plan खत्म', 'Plan khatam')}>
@@ -152,7 +159,7 @@ function WorkspaceLock({ mode }: { mode: Mode }) {
 
 export function AppShell() {
   const { t } = useI18n();
-  const { me, logout, can } = useSession();
+  const { me, logout, can, plan } = useSession();
   const nav = useNavigate();
   const loc = useLocation();
   const mobile = useIsMobile();
@@ -188,11 +195,11 @@ export function AppShell() {
         return;
       }
       if (k === 'g') { gPending = Date.now(); return; }
-      if (k === 'n' && can.billing) { e.preventDefault(); nav('/pos'); }
+      if (k === 'n' && can.billing && plan !== 'free') { e.preventDefault(); nav('/pos'); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [nav, loc.pathname, can.billing]);
+  }, [nav, loc.pathname, can.billing, plan]);
 
   const biz = me?.business;
   const fullBleed = loc.pathname === '/pos';
@@ -251,8 +258,8 @@ export function AppShell() {
       {mobile && !fullBleed && mode === 'workspace' && (
         <nav className="bottombar" aria-label={t('Main', 'मुख्य', 'Main')}>
           <BottomLink to="/" icon={<Home size={22} strokeWidth={1.75} />} label={t('Home', 'होम', 'Home')} end />
-          {can.billing && <BottomLink to="/bills" icon={<ReceiptText size={22} strokeWidth={1.75} />} label={t('Bills', 'बिल', 'Bills')} />}
-          {can.billing && (
+          {can.billing && plan !== 'free' && <BottomLink to="/bills" icon={<ReceiptText size={22} strokeWidth={1.75} />} label={t('Bills', 'बिल', 'Bills')} />}
+          {can.billing && plan !== 'free' && (
             <NavLink to="/pos" className="bottom-primary" aria-label={t('New bill', 'नया बिल', 'Naya bill')}>
               <Plus size={26} strokeWidth={2.25} />
             </NavLink>

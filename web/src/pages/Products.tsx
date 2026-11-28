@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Package, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react';
+import { Package, Plus, RotateCcw, Search, ShoppingCart, Trash2, X } from 'lucide-react';
 import { del, get, post, put } from '../lib/api';
 import { useI18n } from '../lib/i18n';
-import { useSession } from '../lib/session';
-import { qty as fmtQty, rupees } from '../lib/format';
+import { usePlan, useSession } from '../lib/session';
+import { initials, qty as fmtQty, rupees } from '../lib/format';
 import type { Product } from '../lib/types';
 import { Button, Drawer, Empty, Field, Input, Select, SkelRows, StockBadge, Tabs, useToast } from '../components/ui';
 import { ExportMenu } from '../components/ExportMenu';
 import { ImportButton } from '../components/ImportData';
 import { PageHeader, useIsMobile, usePageTitle } from '../components/shell/AppShell';
 
-type F = 'all' | 'low' | 'out';
+type F = 'all' | 'low' | 'out' | 'deleted';
 const UNITS = ['piece', 'pack', 'kg', 'gram', 'litre', 'ml', 'box', 'dozen', 'bag', 'bottle', 'metre'];
 const GST_RATES = [0, 5, 12, 18, 28];
 
@@ -28,6 +28,9 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<Product | 'new' | null>(sp.get('new') === '1' ? 'new' : null);
   const p = useQuery({ queryKey: ['products'], queryFn: () => get<{ products: Product[] }>('/api/products') });
   const all = p.data?.products || [];
+  // 12-features pack: soft-deleted products (Deleted tab + restore).
+  const delQ = useQuery({ queryKey: ['products-deleted'], queryFn: () => get<{ products: Product[] }>('/api/products?deleted_only=1'), enabled: tab === 'deleted' });
+  const deleted = delQ.data?.products || [];
 
   useEffect(() => {
     const open = sp.get('open');
@@ -37,13 +40,14 @@ export default function ProductsPage() {
   const cats = useMemo(() => Array.from(new Set(all.map((x) => x.category).filter(Boolean))).sort(), [all]);
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return all.filter((x) => {
+    const src = tab === 'deleted' ? deleted : all;
+    return src.filter((x) => {
       if (tab === 'low' && x.status === 'ok') return false;
       if (tab === 'out' && x.status !== 'out') return false;
-      if (cat && x.category !== cat) return false;
+      if (tab !== 'deleted' && cat && x.category !== cat) return false;
       return !term || x.name.toLowerCase().includes(term) || (x.hsn_code || '').includes(term);
     });
-  }, [all, tab, q, cat]);
+  }, [all, deleted, tab, q, cat]);
   const stockValue = all.reduce((s, x) => s + x.stock_qty * x.buy_price, 0);
   const low = all.filter((x) => x.status !== 'ok').length;
   const out = all.filter((x) => x.status === 'out').length;
@@ -71,21 +75,28 @@ export default function ProductsPage() {
           <Tabs<F> label={t('Filter', 'छांटें', 'Filter')} value={tab} onChange={setTab} tabs={[
             { value: 'all', label: t('All', 'सभी', 'Sab'), count: all.length },
             { value: 'low', label: t('Low or out', 'कम या खत्म', 'Kam ya khatam'), count: low },
-            { value: 'out', label: t('Out of stock', 'खत्म', 'Khatam'), count: out }
+            { value: 'out', label: t('Out of stock', 'खत्म', 'Khatam'), count: out },
+            { value: 'deleted', label: t('Deleted', 'हटाए हुए', 'Deleted'), count: deleted.length }
           ]} />
         </div>
         <div className="toolbar">
           <div className="input-wrap"><Search size={16} /><input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Product name or HSN', 'सामान का नाम या HSN', 'Saaman ka naam ya HSN')} /></div>
           {cats.length > 1 && <Select value={cat} onChange={(e) => setCat(e.target.value)} style={{ width: 180 }} aria-label={t('Category', 'श्रेणी', 'Category')}><option value="">{t('All categories', 'सभी श्रेणी', 'Sab category')}</option>{cats.map((c) => <option key={c}>{c}</option>)}</Select>}
         </div>
-        {p.isLoading ? <SkelRows rows={8} /> : !rows.length ? (
+        {p.isLoading || (tab === 'deleted' && delQ.isLoading) ? <SkelRows rows={8} /> : tab === 'deleted' ? (
+          !rows.length ? (
+            <Empty icon={<Package size={28} />} title={t('No deleted items', 'कोई हटाया सामान नहीं', 'Koi hataya item nahi')} />
+          ) : (
+            <DeletedProductsList rows={rows} />
+          )
+        ) : !rows.length ? (
           <Empty icon={<Package size={28} />} title={all.length ? t('No products match', 'कोई सामान नहीं मिला', 'Koi saaman nahi mila') : t('Add your first product', 'पहला सामान जोड़ें', 'Pehla saaman jodo')}
             body={all.length ? undefined : t('Products you add here appear in billing, with stock going down on every sale.', 'यहां जोड़ा सामान बिलिंग में दिखेगा और हर बिक्री पर stock घटेगा।', 'Yahan joda saaman billing me dikhega aur har bikri pe stock ghatega.')}
             action={!all.length && <Button variant="primary" icon={<Plus size={16} />} onClick={() => setEditing('new')}>{t('Add product', 'सामान जोड़ें', 'Saaman jodo')}</Button>} />
         ) : mobile ? (
           <div className="list">{rows.map((x) => (
             <button key={x.id} className="list-row" onClick={() => setEditing(x)}>
-              <div className="grow" style={{ minWidth: 0 }}><div className="title ellipsis">{x.name}</div><div className="meta">{rupees(x.sell_price)} · {x.category || '—'}</div></div>
+              <div className="grow" style={{ minWidth: 0 }}><div className="title ellipsis">{x.name}</div><div className="meta">{rupees(x.sell_price)}{x.wholesale_price != null ? ` · ${t('wholesale', 'थोक', 'wholesale')} ${rupees(x.wholesale_price)}` : ''} · {x.category || '—'}</div></div>
               <div style={{ textAlign: 'right' }}><div className={`num ${x.status === 'out' ? 'money-owed' : x.status === 'low' ? 'money-warn' : ''}`} style={{ fontWeight: 500 }}>{fmtQty(x.stock_qty)} {x.unit}</div></div>
             </button>
           ))}</div>
@@ -103,7 +114,7 @@ export default function ProductsPage() {
                   <td><span className="primary">{x.name}</span><span className="sub">{[x.category, x.hsn_code && `HSN ${x.hsn_code}`].filter(Boolean).join(' · ') || '—'}</span></td>
                   <td className="r num">{fmtQty(x.stock_qty)} <span className="muted">{x.unit}</span></td>
                   <td className="r num">{rupees(x.buy_price)}</td>
-                  <td className="r num">{rupees(x.sell_price)}</td>
+                  <td className="r num">{rupees(x.sell_price)}{x.wholesale_price != null && <span className="sub">{t('wholesale', 'थोक', 'wholesale')} {rupees(x.wholesale_price)}</span>}</td>
                   <td className={`r num ${margin < 0 ? 'money-owed' : 'muted'}`}>{margin.toFixed(0)}%</td>
                   {me?.business?.gst_enabled && <td className="r num muted">{x.gst_rate}%</td>}
                   <td><StockBadge status={x.status} /></td>
@@ -121,19 +132,23 @@ export default function ProductsPage() {
 function ProductDrawer({ product, onClose, categories }: { product: Product | 'new' | null; onClose: () => void; categories: string[] }) {
   const { t, err } = useI18n();
   const { me } = useSession();
+  const plan = usePlan();
   const qc = useQueryClient();
   const toast = useToast();
   const isNew = product === 'new';
   const p = product && product !== 'new' ? product : null;
-  const blank = { name: '', category: '', unit: 'piece', buy_price: '', sell_price: '', gst_rate: '5', hsn_code: '', stock_qty: '', low_stock_limit: '5' };
+  const blank = { name: '', category: '', unit: 'piece', buy_price: '', sell_price: '', wholesale_price: '', gst_rate: '5', hsn_code: '', stock_qty: '', low_stock_limit: '5' };
   const [f, setF] = useState(blank);
+  // 12-features pack: extra key/value fields for an item (Everything plan).
+  const [customFields, setCustomFields] = useState<{ key: string; value: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirmDel, setConfirmDel] = useState(false);
   useEffect(() => {
     if (!product) return;
     setError(''); setConfirmDel(false);
-    setF(p ? { name: p.name, category: p.category, unit: p.unit, buy_price: String(p.buy_price), sell_price: String(p.sell_price), gst_rate: String(p.gst_rate), hsn_code: p.hsn_code || '', stock_qty: String(p.stock_qty), low_stock_limit: String(p.low_stock_limit) } : blank);
+    setF(p ? { name: p.name, category: p.category, unit: p.unit, buy_price: String(p.buy_price), sell_price: String(p.sell_price), wholesale_price: p.wholesale_price != null ? String(p.wholesale_price) : '', gst_rate: String(p.gst_rate), hsn_code: p.hsn_code || '', stock_qty: String(p.stock_qty), low_stock_limit: String(p.low_stock_limit) } : blank);
+    setCustomFields(p?.custom_fields ? [...p.custom_fields] : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
   const num = (v: string) => (v === '' ? undefined : Number(v));
@@ -142,7 +157,7 @@ function ProductDrawer({ product, onClose, categories }: { product: Product | 'n
   const save = async () => {
     if (!f.name.trim()) { setError(t('Write the product name.', 'सामान का नाम लिखें।', 'Saaman ka naam likho.')); return; }
     setBusy(true); setError('');
-    const body: Record<string, unknown> = { name: f.name.trim(), category: f.category.trim(), unit: f.unit, buy_price: num(f.buy_price) ?? 0, sell_price: num(f.sell_price) ?? 0, gst_rate: num(f.gst_rate) ?? 0, hsn_code: f.hsn_code.trim(), low_stock_limit: num(f.low_stock_limit) ?? 0 };
+    const body: Record<string, unknown> = { name: f.name.trim(), category: f.category.trim(), unit: f.unit, buy_price: num(f.buy_price) ?? 0, sell_price: num(f.sell_price) ?? 0, wholesale_price: f.wholesale_price === '' ? null : num(f.wholesale_price), custom_fields: customFields.filter((cf) => cf.key.trim() && cf.value.trim()).map((cf) => ({ key: cf.key.trim().slice(0, 40), value: cf.value.trim().slice(0, 100) })), gst_rate: num(f.gst_rate) ?? 0, hsn_code: f.hsn_code.trim(), low_stock_limit: num(f.low_stock_limit) ?? 0 };
     if (isNew) body.stock_qty = num(f.stock_qty) ?? 0; // stock changes later only through purchases and bills
     try {
       if (isNew) await post('/api/products', body); else await put(`/api/products/${p!.id}`, body);
@@ -153,7 +168,7 @@ function ProductDrawer({ product, onClose, categories }: { product: Product | 'n
   };
   const remove = async () => {
     setBusy(true);
-    try { await del(`/api/products/${p!.id}`); ['products', 'billing-products'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })); toast({ text: t('Product deleted', 'सामान हटाया', 'Saaman hataya') }); onClose(); }
+    try { await del(`/api/products/${p!.id}`); ['products', 'billing-products', 'products-deleted'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })); toast({ text: t('Product deleted', 'सामान हटाया', 'Saaman hataya') }); onClose(); }
     catch (e) { setError(err(e)); setConfirmDel(false); } finally { setBusy(false); }
   };
   const set = (k: keyof typeof blank) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
@@ -184,6 +199,21 @@ function ProductDrawer({ product, onClose, categories }: { product: Product | 'n
           <Field label={t('Buy price ₹', 'खरीद भाव ₹', 'Khareed bhaav ₹')}>{(id) => <Input id={id} numeric inputMode="decimal" value={f.buy_price} onChange={set('buy_price')} />}</Field>
           <Field label={t('Sell price ₹', 'बिक्री भाव ₹', 'Bikri bhaav ₹')} hint={margin !== null ? t(`${margin.toFixed(0)}% margin`, `${margin.toFixed(0)}% मार्जिन`, `${margin.toFixed(0)}% margin`) : (me?.business?.gst_enabled ? t('Including GST', 'GST सहित', 'GST sahit') : undefined)}>{(id) => <Input id={id} numeric inputMode="decimal" value={f.sell_price} onChange={set('sell_price')} />}</Field>
         </div>
+        <Field label={t('Wholesale price ₹ (optional)', 'थोक भाव ₹ (अगर हो)', 'Wholesale price ₹ (optional)')} hint={t('Bill lines can switch to this rate with the Retail / Wholesale toggle.', 'बिल में Retail / Wholesale बटन से इस भाव पर जा सकते हैं।', 'Bill me Retail / Wholesale button se is bhaav pe ja sakte hain.')}>{(id) => <Input id={id} numeric inputMode="decimal" value={f.wholesale_price} onChange={set('wholesale_price')} />}</Field>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{t('Extra fields', 'अतिरिक्त जानकारी', 'Extra fields')}</div>
+          {plan !== 'everything' && plan !== '' && (
+            <p className="muted" style={{ margin: '0 0 8px', fontSize: 13 }}>{t('Extra fields are part of the Everything plan — saving with any filled here needs an upgrade.', 'अतिरिक्त जानकारी Everything प्लान में है — यहां कुछ भरकर सेव करने पर upgrade मांगेंगे।', 'Extra fields Everything plan me hain — yahan kuch bhar kar save karne par upgrade maangenge.')}</p>
+          )}
+          {customFields.map((cf, i) => (
+            <div key={i} className="row" style={{ gap: 8, marginBottom: 8 }}>
+              <Input placeholder={t('Name, e.g. Size', 'नाम, जैसे Size', 'Naam, jaise Size')} value={cf.key} onChange={(e) => setCustomFields(customFields.map((x, j) => j === i ? { ...x, key: e.target.value } : x))} style={{ flex: 1 }} />
+              <Input placeholder={t('Value', 'मान', 'Value')} value={cf.value} onChange={(e) => setCustomFields(customFields.map((x, j) => j === i ? { ...x, value: e.target.value } : x))} style={{ flex: 1 }} />
+              <button type="button" className="icon-btn" aria-label={t('Remove field', 'फ़ील्ड हटाएं', 'Field hatao')} onClick={() => setCustomFields(customFields.filter((_, j) => j !== i))}><X size={15} /></button>
+            </div>
+          ))}
+          {customFields.length < 20 && <Button variant="ghost" size="sm" icon={<Plus size={14} />} onClick={() => setCustomFields([...customFields, { key: '', value: '' }])}>{t('Add a field', 'फ़ील्ड जोड़ें', 'Field jodo')}</Button>}
+        </div>
         {me?.business?.gst_enabled && (
           <div className="form-2">
             <Field label="GST %">{(id) => <Select id={id} value={f.gst_rate} onChange={set('gst_rate')}>{Array.from(new Set([...GST_RATES, Number(f.gst_rate)])).map((r) => <option key={r} value={r}>{r}%</option>)}</Select>}</Field>
@@ -199,5 +229,30 @@ function ProductDrawer({ product, onClose, categories }: { product: Product | 'n
         <button type="submit" hidden />
       </form>
     </Drawer>
+  );
+}
+
+// 12-features pack: soft-deleted products with a Restore button (the server
+// gates restore to the Everything plan; a 403 shows the upgrade message).
+function DeletedProductsList({ rows }: { rows: Product[] }) {
+  const { t, err } = useI18n();
+  const qc = useQueryClient();
+  const toast = useToast();
+  return (
+    <div className="list">{rows.map((x) => (
+      <div key={x.id} className="list-row">
+        <span className="avatar">{initials(x.name)}</span>
+        <div className="grow" style={{ minWidth: 0 }}><div className="title ellipsis">{x.name}</div><div className="meta">{fmtQty(x.stock_qty)} {x.unit} · {x.category || '—'}</div></div>
+        <span className="money">{rupees(x.sell_price)}</span>
+        <Button size="sm" icon={<RotateCcw size={14} />} onClick={async () => {
+          try {
+            await post(`/api/products/${x.id}/restore`);
+            qc.invalidateQueries({ queryKey: ['products'] });
+            qc.invalidateQueries({ queryKey: ['products-deleted'] });
+            toast({ text: t(`${x.name} restored`, `${x.name} वापस आ गया`, `${x.name} wapas aa gaya`) });
+          } catch (e) { toast({ text: err(e), tone: 'error' }); }
+        }}>{t('Restore', 'वापस लाएं', 'Restore')}</Button>
+      </div>
+    ))}</div>
   );
 }

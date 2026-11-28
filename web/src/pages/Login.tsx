@@ -16,9 +16,11 @@ import { LangSwitch } from '../components/shell/AppShell';
 
 const Landing = lazy(() => import('./Landing'));
 const Privacy = lazy(() => import('./Privacy'));
+const NotFound = lazy(() => import('./NotFound'));
 
 // Logged-out routes: the public home page at "/", the auth screens beside it.
-// Any other path (an old bookmark to /bills, say) asks to log in first.
+// Any other path shows the 404 page — it used to open the login form, so a
+// visitor never knew the page did not exist.
 function setCanonical(href: string) {
   let c = document.querySelector('link[rel="canonical"]');
   if (!c) { c = document.createElement('link'); c.setAttribute('rel', 'canonical'); document.head.appendChild(c); }
@@ -29,12 +31,13 @@ function setCanonical(href: string) {
 export function AuthRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Suspense fallback={<div className="boot"><img src="/bizyour-mark-512.png?v=c" alt="BizYour" width={56} height={56} /></div>}><Landing /></Suspense>} />
+      <Route path="/" element={<Suspense fallback={<div className="boot"><img src="/bizyour-mark-192.png?v=d" alt="BizYour" width={56} height={56} /></div>}><Landing /></Suspense>} />
       <Route path="/signup" element={<AuthLayout><Signup /></AuthLayout>} />
       <Route path="/verify" element={<AuthLayout><Verify /></AuthLayout>} />
       <Route path="/forgot" element={<AuthLayout><Forgot /></AuthLayout>} />
-      <Route path="/privacy" element={<Suspense fallback={<div className="boot"><img src="/bizyour-mark-512.png?v=c" alt="BizYour" width={56} height={56} /></div>}><Privacy /></Suspense>} />
-      <Route path="*" element={<AuthLayout><Login /></AuthLayout>} />
+      <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
+      <Route path="/privacy" element={<Suspense fallback={<div className="boot"><img src="/bizyour-mark-192.png?v=d" alt="BizYour" width={56} height={56} /></div>}><Privacy /></Suspense>} />
+      <Route path="*" element={<Suspense fallback={<div className="boot"><img src="/bizyour-mark-192.png?v=d" alt="BizYour" width={56} height={56} /></div>}><NotFound /></Suspense>} />
     </Routes>
   );
 }
@@ -56,7 +59,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
         <div className="login-card">
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 32 }}>
             <Link to="/" className="row" style={{ gap: 10, color: 'var(--ink)', textDecoration: 'none' }}>
-              <img src="/bizyour-mark-512.png?v=c" alt="" width={32} height={32} />
+              <img src="/bizyour-mark-192.png?v=d" alt="" width={32} height={32} />
               <span style={{ fontWeight: 600, fontSize: 18 }}>BizYour</span>
             </Link>
             <LangSwitch />

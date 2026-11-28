@@ -12,6 +12,8 @@ import { askToPick } from './mode';
 interface SessionCtx {
   me: Me | null;
   loading: boolean;
+  /** Effective workspace plan from /api/me ('free' | 'billing' | 'everything' | ''). '' = not loaded yet — treat as full access, the server enforces. */
+  plan: string;
   login: (identifier: string, password: string) => Promise<void>;
   /** Start a session from a token the server already issued (e.g. after email verification). */
   adopt: (r: { token: string } & Me) => void;
@@ -45,13 +47,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setToken(r.token);
     askToPick();
     setMe({ user: r.user, business: r.business });
-  }, []);
+    // The login response has no effective_plan — pull /api/me so the
+    // plan gates (nav, locks) know the tier right away, not after reload.
+    await refresh();
+  }, [refresh]);
 
   const adopt = useCallback((r: { token: string } & Me) => {
     setToken(r.token);
     askToPick();
     setMe({ user: r.user, business: r.business });
-  }, []);
+    void refresh();
+  }, [refresh]);
   const setBusiness = useCallback((b: Me['business']) => setMe((m) => (m ? { ...m, business: b } : m)), []);
 
   const logout = useCallback(async () => {
@@ -71,7 +77,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return { owner, finance: owner, stock, billing, mart: owner || stock };
   }, [me]);
 
-  const v = useMemo(() => ({ me, loading, login, adopt, setBusiness, logout, refresh, can }), [me, loading, login, adopt, setBusiness, logout, refresh, can]);
+  const v = useMemo(() => ({ me, loading, plan: me?.effective_plan || '', login, adopt, setBusiness, logout, refresh, can }), [me, loading, login, adopt, setBusiness, logout, refresh, can]);
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>;
 }
 
@@ -79,4 +85,9 @@ export function useSession() {
   const c = useContext(Ctx);
   if (!c) throw new Error('SessionProvider missing');
   return c;
+}
+
+/** The shop's effective plan ('free' | 'billing' | 'everything' | ''). */
+export function usePlan(): string {
+  return useSession().plan;
 }

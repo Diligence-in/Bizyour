@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, FileJson, MessageCircle, Printer } from 'lucide-react';
-import { get } from '../lib/api';
+import { ApiError, get } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { qty as fmtQty, rupees, todayStr } from '../lib/format';
 import { EXPENSE_CATS, monthLabel, ymNow } from '../lib/months';
@@ -9,8 +10,9 @@ import { Badge, Button, Input, Money, Panel, Segmented, Skel, SkelRows, Tabs, us
 import { ExportMenu } from '../components/ExportMenu';
 import { Bars, Columns, MonthNav } from '../components/MonthNav';
 import { PageHeader, usePageTitle } from '../components/shell/AppShell';
+import { PlanLockCard } from '../components/PlanLock';
 
-type Tab = 'overview' | 'monthly' | 'gst' | 'gstr1';
+type Tab = 'overview' | 'monthly' | 'accounts' | 'gst' | 'gstr1';
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export default function ReportsPage() {
@@ -23,12 +25,14 @@ export default function ReportsPage() {
       <Tabs label="report" value={tab} onChange={setTab} tabs={[
         { value: 'overview', label: t('Overview', 'ओवरव्यू', 'Overview') },
         { value: 'monthly', label: t('Month by month', 'महीना-दर-महीना', 'Mahina-dar-mahina') },
+        { value: 'accounts', label: t('Accounts', 'हिसाब-किताब', 'Accounts') },
         { value: 'gst', label: 'GST' },
         { value: 'gstr1', label: 'GSTR-1' }
       ]} />
       <div style={{ marginTop: 16 }}>
         {tab === 'overview' && <Overview />}
         {tab === 'monthly' && <Monthly />}
+        {tab === 'accounts' && <Accounts />}
         {tab === 'gst' && <Gst />}
         {tab === 'gstr1' && <Gstr1 />}
       </div>
@@ -198,6 +202,112 @@ function Monthly() {
           )}
         </Panel>
       </div>
+    </div>
+  );
+}
+
+/* ---------- accounts (12-features pack: light "Basic accounts") ---------- */
+interface ExpenseRow { id: number; title: string; category: string; amount: number; date: string; payment_mode: string; notes: string }
+interface BalanceSheet { stock_value: number; receivables: number; payables: number; assets: number; liabilities: number; net: number }
+interface PartyPnl {
+  from: string; to: string;
+  customers: { id: number; name: string; phone: string; sales: number; returns_total: number; cost: number; profit: number; received: number; pending: number }[];
+  suppliers: { id: number; name: string; phone: string; purchases: number; paid: number; pending: number }[];
+}
+
+// Basic accounts: P&L from the existing summary (sales − cost of goods −
+// expenses = net), the month's expenses, a simple balance-sheet snapshot,
+// and partywise P&L. This is NOT a double-entry ledger — it is labelled
+// as basic everywhere it appears. Party P&L + balance sheet are Everything
+// plan; a 403 from the server shows the upgrade card instead.
+function Accounts() {
+  const { t, err } = useI18n();
+  const [ym, setYm] = useState(ymNow());
+  const from = `${ym}-01`;
+  const to = iso(new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0));
+  const qs = `from=${from}&to=${to}`;
+  const sum = useQuery({ queryKey: ['summary', qs], queryFn: () => get<Summary>(`/api/reports/summary?${qs}`) });
+  const exps = useQuery({ queryKey: ['expenses', qs], queryFn: () => get<{ expenses: ExpenseRow[]; total: number }>(`/api/expenses?${qs}`) });
+  const bs = useQuery({ queryKey: ['balance-sheet'], queryFn: () => get<BalanceSheet>('/api/reports/balance-sheet'), retry: false });
+  const pnl = useQuery({ queryKey: ['party-pnl', qs], queryFn: () => get<PartyPnl>(`/api/reports/party-pnl?${qs}`), retry: false });
+  const s = sum.data;
+  const cogs = s ? s.sale_total - s.gross_profit : 0;
+  const bsLocked = bs.error instanceof ApiError && bs.error.status === 403;
+  const pnlLocked = pnl.error instanceof ApiError && pnl.error.status === 403;
+  return (
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="toolbar" style={{ marginBottom: 0 }}>
+        <MonthNav value={ym} onChange={setYm} /><span className="grow" />
+        <span className="muted" style={{ fontSize: 13 }}>{t('Basic accounts — not a full double-entry ledger.', 'बेसिक हिसाब — पूरा double-entry ledger नहीं।', 'Basic hisaab — poora double-entry ledger nahi.')}</span>
+      </div>
+      <Panel title={t('Profit & loss', 'नफ़ा-नुकसान', 'Nafa-nuksaan')}>
+        {sum.isLoading ? <SkelRows rows={4} /> : !s ? <p className="muted" style={{ margin: 0 }}>{err(sum.error)}</p> : (
+          <div className="sum-lines">
+            <Line l={t('Sales', 'बिक्री', 'Bikri')} v={rupees(s.sale_total)} />
+            <Line l={t('Cost of goods', 'माल की लागत', 'Maal ki laagat')} v={rupees(cogs)} />
+            <Line l={t('Gross profit', 'कमाई', 'Kamai')} v={rupees(s.gross_profit)} />
+            <Line l={t('Expenses', 'खर्चा', 'Kharcha')} v={rupees(s.expenses_total)} />
+            <Line l={t('Net profit', 'असली मुनाफ़ा', 'Asli munafa')} v={<span className={s.net_profit < 0 ? 'amt-neg' : 'amt-pos'}>{rupees(s.net_profit)}</span>} total />
+          </div>
+        )}
+      </Panel>
+      <Panel title={t('Expenses this month', 'इस महीने का खर्चा', 'Is mahine ka kharcha')} action={<Link to="/expenses" className="btn btn-sm">{t('Add / manage expenses', 'खर्चा जोड़ें / देखें', 'Kharcha jodo / dekho')}</Link>}>
+        {exps.isLoading ? <SkelRows rows={3} /> : !exps.data?.expenses.length ? (
+          <p className="muted" style={{ margin: 0 }}>{t('No expenses this month.', 'इस महीने कोई खर्चा नहीं।', 'Is mahine koi kharcha nahi.')}</p>
+        ) : (
+          <>
+            <div className="table-wrap"><table className="table table-dense">
+              <thead><tr><th>{t('Date', 'तारीख', 'Date')}</th><th>{t('What', 'क्या', 'Kya')}</th><th>{t('Type', 'प्रकार', 'Type')}</th><th className="r">{t('Amount', 'रकम', 'Rakam')}</th></tr></thead>
+              <tbody>{exps.data.expenses.map((e) => <tr key={e.id}><td>{e.date}</td><td className="primary">{e.title}</td><td className="muted">{e.category}</td><td className="r num">{rupees(e.amount)}</td></tr>)}</tbody>
+            </table></div>
+            <p className="muted" style={{ margin: '8px 0 0' }}>{t('Total', 'कुल', 'Kul')}: {rupees(exps.data.total)}</p>
+          </>
+        )}
+      </Panel>
+      {bsLocked ? (
+        <Panel title={t('Balance sheet (snapshot)', 'बैलेंस शीट (झलक)', 'Balance sheet (snapshot)')}>
+          <div style={{ padding: 16 }}><PlanLockCard need="everything" feature={t('Balance sheet snapshot', 'बैलेंस शीट झलक', 'Balance sheet snapshot')} /></div>
+        </Panel>
+      ) : (
+        <Panel title={t('Balance sheet (snapshot)', 'बैलेंस शीट (झलक)', 'Balance sheet (snapshot)')}>
+          {bs.isLoading ? <SkelRows rows={4} /> : bs.error ? <p className="muted" style={{ margin: 0 }}>{err(bs.error)}</p> : bs.data ? (
+            <>
+              <div className="sum-lines">
+                <Line l={t('Stock value (at buying price)', 'स्टॉक कीमत (खरीद भाव)', 'Stock keemat (khareed bhaav)')} v={rupees(bs.data.stock_value)} />
+                <Line l={t('To collect from customers', 'ग्राहकों से लेना', 'Customers se lena')} v={rupees(bs.data.receivables)} />
+                <Line l={t('Assets', 'संपत्ति', 'Sampatti')} v={rupees(bs.data.assets)} />
+                <Line l={t('To pay suppliers', 'सप्लायर को देना', 'Supplier ko dena')} v={rupees(bs.data.liabilities)} />
+                <Line l={t('Net (assets − liabilities)', 'नेट (संपत्ति − देनदारी)', 'Net (sampatti − dendari)')} v={<span className={bs.data.net < 0 ? 'amt-neg' : 'amt-pos'}>{rupees(bs.data.net)}</span>} total />
+              </div>
+              <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>{t('Simple snapshot — stock + what customers owe, minus what you owe suppliers. Not a full audited balance sheet.', 'साधारण झलक — स्टॉक + ग्राहकों का बाकी, माइनस सप्लायर को देना। पूरी audited बैलेंस शीट नहीं।', 'Simple snapshot — stock + customers ka baaki, minus supplier ko dena. Poori audited balance sheet nahi.')}</p>
+            </>
+          ) : null}
+        </Panel>
+      )}
+      {pnlLocked ? (
+        <Panel title={t('Partywise P&L', 'पार्टी-वार नफ़ा-नुकसान', 'Partywise P&L')}>
+          <div style={{ padding: 16 }}><PlanLockCard need="everything" feature={t('Partywise P&L', 'पार्टी-वार नफ़ा-नुकसान', 'Partywise P&L')} /></div>
+        </Panel>
+      ) : (
+        <Panel title={t('Partywise P&L', 'पार्टी-वार नफ़ा-नुकसान', 'Partywise P&L')} bodyClass="">
+          {pnl.isLoading ? <div className="panel-body"><SkelRows rows={4} /></div> : pnl.error ? <p className="muted panel-body">{err(pnl.error)}</p> : (
+            <>
+              {(pnl.data?.customers || []).length ? (
+                <div className="table-wrap"><table className="table table-dense">
+                  <thead><tr><th>{t('Customer', 'ग्राहक', 'Customer')}</th><th className="r">{t('Sales', 'बिक्री', 'Bikri')}</th><th className="r">{t('Cost', 'लागत', 'Laagat')}</th><th className="r">{t('Profit', 'लाभ', 'Profit')}</th><th className="r">{t('Received', 'मिला', 'Mila')}</th><th className="r">{t('Pending', 'बाकी', 'Baaki')}</th></tr></thead>
+                  <tbody>{pnl.data!.customers.map((c) => <tr key={c.id}><td className="primary">{c.name}</td><td className="r num">{rupees(c.sales)}</td><td className="r num">{rupees(c.cost)}</td><td className={`r num ${c.profit < 0 ? 'amt-neg' : 'amt-pos'}`}>{rupees(c.profit)}</td><td className="r num">{rupees(c.received)}</td><td className="r num">{rupees(c.pending)}</td></tr>)}</tbody>
+                </table></div>
+              ) : <p className="muted panel-body" style={{ margin: 0 }}>{t('No customer sales this month.', 'इस महीने ग्राहकों को कोई बिक्री नहीं।', 'Is mahine customers ko koi bikri nahi.')}</p>}
+              {(pnl.data?.suppliers || []).length ? (
+                <div className="table-wrap" style={{ marginTop: 16 }}><table className="table table-dense">
+                  <thead><tr><th>{t('Supplier', 'सप्लायर', 'Supplier')}</th><th className="r">{t('Purchases', 'खरीद', 'Khareed')}</th><th className="r">{t('Paid', 'दिया', 'Diya')}</th><th className="r">{t('Pending', 'बाकी', 'Baaki')}</th></tr></thead>
+                  <tbody>{pnl.data!.suppliers.map((s2) => <tr key={s2.id}><td className="primary">{s2.name}</td><td className="r num">{rupees(s2.purchases)}</td><td className="r num">{rupees(s2.paid)}</td><td className="r num">{rupees(s2.pending)}</td></tr>)}</tbody>
+                </table></div>
+              ) : null}
+            </>
+          )}
+        </Panel>
+      )}
     </div>
   );
 }

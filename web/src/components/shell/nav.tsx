@@ -15,6 +15,8 @@ export interface NavItem {
   to: string;            // in-app route, or /classic/#go=... for classic screens
   classic?: boolean;
   perm?: Perm;
+  /** Minimum workspace plan that sees this item ('billing' hides it on the free Udhaar plan). Unset = every plan. */
+  minPlan?: 'billing' | 'everything';
   kbd?: string;
   keywords?: string;
   badgeKey?: 'mart-buy' | 'mart-sell' | 'mart-notifs';
@@ -31,21 +33,21 @@ export function navGroups(t: T): NavGroup[] {
       { id: 'home', label: t('Home', 'होम', 'Home'), icon: Home, to: '/', kbd: 'G H', keywords: 'dashboard today' }
     ] },
     { id: 'sell', mode: 'workspace', label: t('Sell', 'बिक्री', 'Bikri'), items: [
-      { id: 'pos', label: t('New bill', 'नया बिल', 'Naya bill'), icon: Receipt, to: '/pos', perm: 'billing', kbd: 'N', keywords: 'invoice sale counter pos bill' },
-      { id: 'bills', label: t('Bills', 'बिल', 'Bills'), icon: ReceiptText, to: '/bills', perm: 'billing', kbd: 'G B', keywords: 'invoices returns' },
-      { id: 'estimates', label: t('Estimates', 'एस्टीमेट', 'Estimate'), icon: Tags, to: '/estimates', perm: 'billing', keywords: 'quotation' }
+      { id: 'pos', label: t('New bill', 'नया बिल', 'Naya bill'), icon: Receipt, to: '/pos', perm: 'billing', minPlan: 'billing', kbd: 'N', keywords: 'invoice sale counter pos bill' },
+      { id: 'bills', label: t('Bills', 'बिल', 'Bills'), icon: ReceiptText, to: '/bills', perm: 'billing', minPlan: 'billing', kbd: 'G B', keywords: 'invoices returns' },
+      { id: 'estimates', label: t('Estimates', 'एस्टीमेट', 'Estimate'), icon: Tags, to: '/estimates', perm: 'billing', minPlan: 'billing', keywords: 'quotation' }
     ] },
     { id: 'collect', mode: 'workspace', label: t('Collect', 'वसूली', 'Vasooli'), items: [
       { id: 'customers', label: t('Customers & udhaar', 'ग्राहक और उधार', 'Customers aur udhaar'), icon: Users, to: '/customers', perm: 'billing', kbd: 'G C', keywords: 'credit khata pending reminder hisab' }
     ] },
     { id: 'stock', mode: 'workspace', label: t('Stock', 'स्टॉक', 'Stock'), items: [
-      { id: 'products', label: t('Products', 'सामान', 'Saaman'), icon: Package, to: '/products', perm: 'stock', kbd: 'G P', keywords: 'items inventory stock' },
-      { id: 'purchases', label: t('Purchases', 'खरीद', 'Khareed'), icon: Truck, to: '/purchases', perm: 'stock', keywords: 'buy stock in' },
-      { id: 'suppliers', label: t('Suppliers', 'सप्लायर', 'Supplier'), icon: Factory, to: '/suppliers', perm: 'stock', keywords: 'vendor payable dena' }
+      { id: 'products', label: t('Products', 'सामान', 'Saaman'), icon: Package, to: '/products', perm: 'stock', minPlan: 'billing', kbd: 'G P', keywords: 'items inventory stock' },
+      { id: 'purchases', label: t('Purchases', 'खरीद', 'Khareed'), icon: Truck, to: '/purchases', perm: 'stock', minPlan: 'billing', keywords: 'buy stock in' },
+      { id: 'suppliers', label: t('Suppliers', 'सप्लायर', 'Supplier'), icon: Factory, to: '/suppliers', perm: 'stock', minPlan: 'billing', keywords: 'vendor payable dena' }
     ] },
     { id: 'money', mode: 'workspace', label: t('Money', 'हिसाब', 'Hisaab'), items: [
-      { id: 'expenses', label: t('Expenses', 'खर्चा', 'Kharcha'), icon: Wallet, to: '/expenses', perm: 'finance', keywords: 'kharcha rent salary' },
-      { id: 'reports', label: t('Reports & GST', 'रिपोर्ट और GST', 'Report aur GST'), icon: BarChart3, to: '/reports', perm: 'finance', keywords: 'profit gst gstr1 monthly day end' }
+      { id: 'expenses', label: t('Expenses', 'खर्चा', 'Kharcha'), icon: Wallet, to: '/expenses', perm: 'finance', minPlan: 'billing', keywords: 'kharcha rent salary' },
+      { id: 'reports', label: t('Reports & GST', 'रिपोर्ट और GST', 'Report aur GST'), icon: BarChart3, to: '/reports', perm: 'finance', minPlan: 'billing', keywords: 'profit gst gstr1 monthly day end' }
     ] },
     { id: 'mart', mode: 'mart', label: '', tone: 'mart', items: [
       { id: 'mart-buy', label: t('Mart home', 'मार्ट होम', 'Mart home'), icon: ShoppingCart, to: '/mart', perm: 'mart', badgeKey: 'mart-buy', kbd: 'G M', keywords: 'inquiry quote wholesaler restock request' },
@@ -66,4 +68,13 @@ export function navGroups(t: T): NavGroup[] {
 
 export function allowed(item: NavItem, can: Record<Perm, boolean>) {
   return !item.perm || can[item.perm];
+}
+
+/** Plan gate for nav: a free-plan (Udhaar) shop does not see billing/stock
+    sections at all — it gets Customers & udhaar, Home, Mart, Settings, Help.
+    An unknown plan ('') passes everything; the server still enforces. */
+export function allowedPlan(item: NavItem, plan: string): boolean {
+  if (!item.minPlan) return true;
+  if (plan === 'free') return false;
+  return true;
 }

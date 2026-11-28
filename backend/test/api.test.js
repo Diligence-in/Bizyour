@@ -425,3 +425,324 @@ test('bill PDF public link: mint, open without login, bad token 404, WhatsApp me
   assert.equal(wa.status, 200, wa.text);
   assert.ok(wa.json.message.includes(`Bill PDF: https://www.bizyour.in/b/${link1.json.token}`), wa.json.message);
 });
+
+// ---------- 12-features pack (28 Nov 2026) ----------
+// One fresh business for the feature tests (own product/customer/bill),
+// plus one business per plan-tier scenario. Each uses ONE login on a
+// fresh identifier — the demo account's 10-logins-per-15-min limit is
+// already fully used by the older suite, so these tests never log in
+// as demo@businessos.app.
+async function makePackBusiness(email, ownerName, phone) {
+  const bcrypt = require('bcryptjs');
+  const hash = bcrypt.hashSync('password123', 10);
+  let bizId;
+  if (PG_URL) {
+    const { Client } = require('pg');
+    const c = new Client({ connectionString: PG_URL });
+    await c.connect();
+    const b = await c.query("INSERT INTO businesses (name, owner_name) VALUES ('', $1) RETURNING id", [ownerName]);
+    bizId = b.rows[0].id;
+    await c.query("INSERT INTO users (business_id, name, email, password_hash, role, access) VALUES ($1, $2, $3, $4, 'owner', 'all')", [bizId, ownerName, email, hash]);
+    await c.end();
+  } else {
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(path.join(DATA, 'business-os.db'));
+    const b = db.prepare("INSERT INTO businesses (name, owner_name) VALUES ('', ?)").run(ownerName);
+    bizId = b.lastInsertRowid;
+    db.prepare("INSERT INTO users (business_id, name, email, password_hash, role, access) VALUES (?, ?, ?, ?, 'owner', 'all')").run(bizId, ownerName, email, hash);
+    db.close();
+  }
+  const t = await login(email, 'password123');
+  const act = await api('POST', '/api/workspace/activate', { token: t, body: { name: 'Pack Kirana', category: 'kirana', phone, address: 'Shop 1, Test Road', pincode: '110001', city: 'Delhi', state: 'Delhi', gst_enabled: false } });
+  assert.equal(act.status, 200, act.text);
+  return { token: t, bizId };
+}
+async function expireTrial(bizId) {
+  await rawSql("UPDATE subscriptions SET trial_ends_at = '2000-01-01 00:00:00', paid_until = NULL WHERE business_id = ?",
+    "UPDATE subscriptions SET trial_ends_at = '2000-01-01 00:00:00', paid_until = NULL WHERE business_id = $1", [bizId]);
+}
+async function setPaidPeriod(bizId, code) {
+  await rawSql("UPDATE subscriptions SET paid_until = '2030-01-01 00:00:00', plan_code = ? WHERE business_id = ?",
+    "UPDATE subscriptions SET paid_until = '2030-01-01 00:00:00', plan_code = $1 WHERE business_id = $2", [code, bizId]);
+}
+let packBiz = null;
+async function packSetup() {
+  if (!packBiz) packBiz = await makePackBusiness('pack12@bizyour.demo', 'Pack Owner', '9812345671');
+  return packBiz;
+}
+
+test('12-pack: credit limit + price tier round-trip, validation', async () => {
+  const { token: t } = await packSetup();
+  const c = await api('POST', '/api/customers', { token: t, body: { name: 'Limit Wala', phone: '9811111111', credit_limit: 5000, price_tier: 'wholesale' } });
+  assert.equal(c.status, 201, c.text);
+  assert.equal(c.json.customer.credit_limit, 5000);
+  assert.equal(c.json.customer.price_tier, 'wholesale');
+  const bad = await api('POST', '/api/customers', { token: t, body: { name: 'Bad Tier', price_tier: 'vip' } });
+  assert.equal(bad.status, 400);
+  const upd = await api('PUT', `/api/customers/${c.json.customer.id}`, { token: t, body: { credit_limit: 6000 } });
+  assert.equal(upd.status, 200, upd.text);
+  assert.equal(upd.json.customer.credit_limit, 6000);
+  const plain = await api('POST', '/api/customers', { token: t, body: { name: 'Limit Plain' } });
+  assert.equal(plain.status, 201, plain.text);
+  assert.equal(plain.json.customer.credit_limit, null);
+  assert.equal(plain.json.customer.price_tier, 'retail');
+});
+
+test('12-pack: wholesale price + custom fields + special rates', async () => {
+  const { token: t } = await packSetup();
+  const p = await api('POST', '/api/products', { token: t, body: { name: 'Test Biscuit 12pk', category: 'Grocery', unit: 'pack', buy_price: 60, sell_price: 100, wholesale_price: 80, stock_qty: 10, custom_fields: [{ key: 'Size', value: '12 pack' }, { key: 'Brand', value: 'Test' }] } });
+  assert.equal(p.status, 201, p.text);
+  assert.equal(p.json.product.wholesale_price, 80);
+  assert.deepEqual(p.json.product.custom_fields, [{ key: 'Size', value: '12 pack' }, { key: 'Brand', value: 'Test' }]);
+  const bad = await api('POST', '/api/products', { token: t, body: { name: 'Bad CF', buy_price: 1, sell_price: 2, custom_fields: [{ key: '', value: 'x' }] } });
+  assert.equal(bad.status, 400);
+  const cust = await api('POST', '/api/customers', { token: t, body: { name: 'Rate Wala' } });
+  assert.equal(cust.status, 201, cust.text);
+  const cid = cust.json.customer.id;
+  const rate = await api('POST', `/api/customers/${cid}/prices`, { token: t, body: { product_id: p.json.product.id, price: 75 } });
+  assert.equal(rate.status, 201, rate.text);
+  assert.equal(rate.json.price.price, 75);
+  const list = await api('GET', `/api/customers/${cid}/prices`, { token: t });
+  assert.equal(list.status, 200, list.text);
+  assert.equal(list.json.prices.length, 1);
+  assert.equal(list.json.prices[0].price, 75);
+  const del = await api('DELETE', `/api/customers/${cid}/prices/${p.json.product.id}`, { token: t });
+  assert.equal(del.status, 200, del.text);
+  const list2 = await api('GET', `/api/customers/${cid}/prices`, { token: t });
+  assert.equal(list2.json.prices.length, 0);
+});
+
+test('12-pack: profit on invoices (detail + list) from buy_price snapshot', async () => {
+  const { token: t } = await packSetup();
+  const prods = (await api('GET', '/api/products?search=Test%20Biscuit', { token: t })).json.products;
+  assert.equal(prods.length, 1, JSON.stringify(prods));
+  const pid = prods[0].id;
+  const cust = await api('POST', '/api/customers', { token: t, body: { name: 'Profit Wala' } });
+  assert.equal(cust.status, 201, cust.text);
+  const bill = await api('POST', '/api/invoices', { token: t, body: { customer_id: cust.json.customer.id, items: [{ product_id: pid, qty: 2, sell_price: 100 }], paid_amount: 200, payment_mode: 'Cash' } });
+  assert.equal(bill.status, 201, bill.text);
+  assert.equal(bill.json.invoice.total, 200);
+  const detail = await api('GET', `/api/invoices/${bill.json.invoice.id}`, { token: t });
+  assert.equal(detail.status, 200, detail.text);
+  // Detail returns profit top-level (with items top-level too — the shape
+  // BillDetail reads), while the list carries profit on each invoice.
+  assert.equal(detail.json.profit, 80, JSON.stringify(detail.json.invoice));
+  assert.equal(detail.json.items[0].profit, 80, JSON.stringify(detail.json.items));
+  const list = await api('GET', '/api/invoices', { token: t });
+  const mine = list.json.invoices.find((i) => i.id === bill.json.invoice.id);
+  assert.equal(mine.profit, 80, JSON.stringify(mine));
+});
+
+test('12-pack: partywise P&L + balance sheet agree with the profit bill', async () => {
+  const { token: t } = await packSetup();
+  const pnl = await api('GET', '/api/reports/party-pnl', { token: t });
+  assert.equal(pnl.status, 200, pnl.text);
+  const row = pnl.json.customers.find((c) => c.name === 'Profit Wala');
+  assert.ok(row, JSON.stringify(pnl.json.customers));
+  assert.equal(row.sales, 200);
+  assert.equal(row.cost, 120);
+  assert.equal(row.profit, 80);
+  assert.equal(row.received, 200);
+  assert.equal(row.pending, 0);
+  const bs = await api('GET', '/api/reports/balance-sheet', { token: t });
+  assert.equal(bs.status, 200, bs.text);
+  assert.equal(bs.json.stock_value, 480, JSON.stringify(bs.json)); // 8 × ₹60 left
+  assert.equal(bs.json.receivables, 0);
+  assert.equal(bs.json.assets, 480);
+  assert.equal(bs.json.liabilities, 0);
+  assert.equal(bs.json.net, 480);
+});
+
+test('12-pack: udhaar reminders list shows pending customers', async () => {
+  const { token: t } = await packSetup();
+  const prods = (await api('GET', '/api/products?search=Test%20Biscuit', { token: t })).json.products;
+  const cust = await api('POST', '/api/customers', { token: t, body: { name: 'Reminder Wala', phone: '9822222222' } });
+  assert.equal(cust.status, 201, cust.text);
+  const bill = await api('POST', '/api/invoices', { token: t, body: { customer_id: cust.json.customer.id, items: [{ product_id: prods[0].id, qty: 1, sell_price: 100 }], paid_amount: 0, payment_mode: 'Cash' } });
+  assert.equal(bill.status, 201, bill.text);
+  const rem = await api('GET', '/api/customers/reminders', { token: t });
+  assert.equal(rem.status, 200, rem.text);
+  const mine = rem.json.reminders.find((r) => r.name === 'Reminder Wala');
+  assert.ok(mine, JSON.stringify(rem.json.reminders));
+  assert.equal(mine.pending, 100);
+  assert.equal(mine.bill_count, 1);
+  assert.ok(rem.json.reminders.every((r) => r.pending > 0), 'every row has pending > 0');
+});
+
+test('12-pack: soft delete + restore for customers and products', async () => {
+  const { token: t } = await packSetup();
+  const cust = await api('POST', '/api/customers', { token: t, body: { name: 'Restore Wala' } });
+  assert.equal(cust.status, 201, cust.text);
+  const cid = cust.json.customer.id;
+  const del = await api('DELETE', `/api/customers/${cid}`, { token: t });
+  assert.equal(del.status, 200, del.text);
+  const list = (await api('GET', '/api/customers', { token: t })).json.customers;
+  assert.equal(list.find((c) => c.id === cid), undefined);
+  const gone = (await api('GET', '/api/customers?deleted_only=1', { token: t })).json.customers;
+  assert.ok(gone.find((c) => c.id === cid), 'deleted customer visible with deleted_only=1');
+  const res = await api('POST', `/api/customers/${cid}/restore`, { token: t });
+  assert.equal(res.status, 200, res.text);
+  const back = (await api('GET', '/api/customers', { token: t })).json.customers;
+  assert.ok(back.find((c) => c.id === cid), 'restored customer is back in the list');
+  // A customer WITH bills still cannot be deleted (old guard unchanged).
+  const all = (await api('GET', '/api/customers', { token: t })).json.customers;
+  const withBills = all.find((c) => c.name === 'Profit Wala');
+  const blocked = await api('DELETE', `/api/customers/${withBills.id}`, { token: t });
+  assert.equal(blocked.status, 400);
+  assert.equal(blocked.json.error, 'customer_has_invoices');
+  // Product soft delete + restore.
+  const prod = await api('POST', '/api/products', { token: t, body: { name: 'Restore Item', buy_price: 10, sell_price: 20, stock_qty: 5 } });
+  assert.equal(prod.status, 201, prod.text);
+  const pid = prod.json.product.id;
+  assert.equal((await api('DELETE', `/api/products/${pid}`, { token: t })).status, 200);
+  const bp = (await api('GET', '/api/billing-products', { token: t })).json.products;
+  assert.equal(bp.find((p) => p.id === pid), undefined);
+  assert.equal((await api('POST', `/api/products/${pid}/restore`, { token: t })).status, 200);
+  const bp2 = (await api('GET', '/api/billing-products', { token: t })).json.products;
+  assert.ok(bp2.find((p) => p.id === pid), 'restored product is billable again');
+});
+
+// ---------- Pricing tiers (LOCKED 28 Nov 2026) ----------
+test('plan: tier picker validates + stores the tier', async () => {
+  const { token: t } = await packSetup(); // trial → full access
+  const bad = await api('POST', '/api/subscription/plan', { token: t, body: { plan: 'vip' } });
+  assert.equal(bad.status, 400);
+  const ok = await api('POST', '/api/subscription/plan', { token: t, body: { plan: 'everything' } });
+  assert.equal(ok.status, 200, ok.text);
+  assert.equal(ok.json.plan, 'everything');
+  const sub = await api('GET', '/api/subscription', { token: t });
+  assert.equal(sub.status, 200, sub.text);
+  assert.equal(sub.json.plan_tier, 'everything');
+  assert.equal(sub.json.plan, 'everything'); // trial = full access
+});
+
+test('plan: free tier after trial — udhaar open, billing locked, 25-customer limit', async () => {
+  const { token: t, bizId } = await makePackBusiness('gatefree@bizyour.demo', 'Free Owner', '9812345672');
+  // Trial-era data: a product + a customer with an unpaid ₹100 bill.
+  const prod = await api('POST', '/api/products', { token: t, body: { name: 'Free Biscuit', buy_price: 60, sell_price: 100, stock_qty: 10 } });
+  assert.equal(prod.status, 201, prod.text);
+  const cust = await api('POST', '/api/customers', { token: t, body: { name: 'Free Udhaar Wala', phone: '9833333333' } });
+  assert.equal(cust.status, 201, cust.text);
+  const cid = cust.json.customer.id;
+  const bill = await api('POST', '/api/invoices', { token: t, body: { customer_id: cid, items: [{ product_id: prod.json.product.id, qty: 1, sell_price: 100 }], paid_amount: 0, payment_mode: 'Cash' } });
+  assert.equal(bill.status, 201, bill.text);
+  // Pick the free tier, then let the trial end.
+  assert.equal((await api('POST', '/api/subscription/plan', { token: t, body: { plan: 'free' } })).status, 200);
+  await expireTrial(bizId);
+  const sub = await api('GET', '/api/subscription', { token: t });
+  assert.equal(sub.json.plan, 'free');
+  assert.equal(sub.json.subscription.read_only, true);
+  // Billing writes are blocked by the expired-trial lock; udhaar stays open.
+  assert.equal((await api('POST', '/api/invoices', { token: t, body: { items: [{ product_id: prod.json.product.id, qty: 1, sell_price: 100 }], paid_amount: 100 } })).json.error, 'subscription_expired');
+  assert.equal((await api('POST', '/api/products', { token: t, body: { name: 'Nope', buy_price: 1, sell_price: 2 } })).json.error, 'subscription_expired');
+  const c2 = await api('POST', '/api/customers', { token: t, body: { name: 'Free Second' } });
+  assert.equal(c2.status, 201, c2.text);
+  const vas = await api('POST', `/api/customers/${cid}/vasuli`, { token: t, body: { amount: 100, mode: 'Cash' } });
+  assert.equal(vas.status, 201, vas.text);
+  // Everything-only reads are plan-gated even for reads.
+  assert.equal((await api('GET', '/api/reports/party-pnl', { token: t })).json.error, 'plan_required');
+  assert.equal((await api('GET', '/api/customers/reminders', { token: t })).json.error, 'plan_required');
+  // A paid tier cannot be picked while expired; free can always be re-picked.
+  assert.equal((await api('POST', '/api/subscription/plan', { token: t, body: { plan: 'billing' } })).status, 403);
+  assert.equal((await api('POST', '/api/subscription/plan', { token: t, body: { plan: 'free' } })).status, 200);
+  // Paid period + free tier: the plan gate itself (not the lock) blocks billing.
+  await setPaidPeriod(bizId, 'monthly');
+  assert.equal((await api('POST', '/api/invoices', { token: t, body: { items: [{ product_id: prod.json.product.id, qty: 1, sell_price: 100 }], paid_amount: 100 } })).json.error, 'plan_required');
+  assert.equal((await api('POST', '/api/products', { token: t, body: { name: 'Nope', buy_price: 1, sell_price: 2 } })).json.error, 'plan_required');
+  // Free customer limit: 25 max (2 exist already — fill to 25, 26th is 403).
+  for (let i = 0; i < 23; i++) {
+    const r = await api('POST', '/api/customers', { token: t, body: { name: `Free Cust ${i}` } });
+    assert.equal(r.status, 201, r.text);
+  }
+  const over = await api('POST', '/api/customers', { token: t, body: { name: 'Twenty Sixth' } });
+  assert.equal(over.status, 403);
+  assert.equal(over.json.error, 'plan_limit');
+});
+
+test('plan: billing tier can bill, everything features stay locked', async () => {
+  const { token: t, bizId } = await makePackBusiness('gatebill@bizyour.demo', 'Bill Owner', '9812345673');
+  assert.equal((await api('POST', '/api/subscription/plan', { token: t, body: { plan: 'billing' } })).status, 200);
+  await setPaidPeriod(bizId, 'monthly');
+  const sub = await api('GET', '/api/subscription', { token: t });
+  assert.equal(sub.json.plan, 'billing');
+  const prod = await api('POST', '/api/products', { token: t, body: { name: 'Bill Biscuit', buy_price: 60, sell_price: 100, stock_qty: 10 } });
+  assert.equal(prod.status, 201, prod.text);
+  const cust = await api('POST', '/api/customers', { token: t, body: { name: 'Bill Wala' } });
+  assert.equal(cust.status, 201, cust.text);
+  const bill = await api('POST', '/api/invoices', { token: t, body: { customer_id: cust.json.customer.id, items: [{ product_id: prod.json.product.id, qty: 1, sell_price: 100 }], paid_amount: 100, payment_mode: 'Cash' } });
+  assert.equal(bill.status, 201, bill.text);
+  // Special rates are Billing; custom fields + P&L + reminders + restore are Everything.
+  assert.equal((await api('POST', `/api/customers/${cust.json.customer.id}/prices`, { token: t, body: { product_id: prod.json.product.id, price: 90 } })).status, 201);
+  assert.equal((await api('POST', '/api/products', { token: t, body: { name: 'CF Blocked', buy_price: 1, sell_price: 2, custom_fields: [{ key: 'X', value: 'y' }] } })).json.error, 'plan_required');
+  assert.equal((await api('GET', '/api/reports/party-pnl', { token: t })).json.error, 'plan_required');
+  assert.equal((await api('GET', '/api/reports/balance-sheet', { token: t })).json.error, 'plan_required');
+  assert.equal((await api('GET', '/api/customers/reminders', { token: t })).json.error, 'plan_required');
+  const delCust = await api('POST', '/api/customers', { token: t, body: { name: 'Bill Delete Me' } });
+  assert.equal(delCust.status, 201, delCust.text);
+  const del = await api('DELETE', `/api/customers/${delCust.json.customer.id}`, { token: t });
+  assert.equal(del.status, 200, del.text); // delete works on Billing…
+  assert.equal((await api('POST', `/api/customers/${delCust.json.customer.id}/restore`, { token: t })).json.error, 'plan_required'); // …restore needs Everything
+});
+
+test('plan: everything tier unlocks all 12-pack features', async () => {
+  const { token: t, bizId } = await makePackBusiness('gateall@bizyour.demo', 'All Owner', '9812345674');
+  assert.equal((await api('POST', '/api/subscription/plan', { token: t, body: { plan: 'everything' } })).status, 200);
+  await setPaidPeriod(bizId, 'yearly');
+  const sub = await api('GET', '/api/subscription', { token: t });
+  assert.equal(sub.json.plan, 'everything');
+  assert.equal((await api('GET', '/api/reports/party-pnl', { token: t })).status, 200);
+  assert.equal((await api('GET', '/api/reports/balance-sheet', { token: t })).status, 200);
+  assert.equal((await api('GET', '/api/customers/reminders', { token: t })).status, 200);
+  const prod = await api('POST', '/api/products', { token: t, body: { name: 'CF Allowed', buy_price: 1, sell_price: 2, stock_qty: 5, custom_fields: [{ key: 'X', value: 'y' }] } });
+  assert.equal(prod.status, 201, prod.text);
+  assert.deepEqual(prod.json.product.custom_fields, [{ key: 'X', value: 'y' }]);
+  const cust = await api('POST', '/api/customers', { token: t, body: { name: 'All Wala' } });
+  assert.equal(cust.status, 201, cust.text);
+  assert.equal((await api('DELETE', `/api/customers/${cust.json.customer.id}`, { token: t })).status, 200);
+  assert.equal((await api('POST', `/api/customers/${cust.json.customer.id}/restore`, { token: t })).status, 200);
+});
+
+test('plan: free khata budget — 100th udhaar entry allowed, 101st blocked', async () => {
+  const { token: t, bizId } = await makePackBusiness('gatetxn@bizyour.demo', 'Txn Owner', '9812345675');
+  const cust = await api('POST', '/api/customers', { token: t, body: { name: 'Txn Wala', phone: '9844444444' } });
+  assert.equal(cust.status, 201, cust.text);
+  const cid = cust.json.customer.id;
+  assert.equal((await api('POST', '/api/subscription/plan', { token: t, body: { plan: 'free' } })).status, 200);
+  await expireTrial(bizId);
+  // 100 manual udhaar entries (kind='opening' invoices) — the 100th is
+  // still allowed; the 101st is blocked with plan_limit.
+  for (let i = 0; i < 100; i++) {
+    const r = await api('POST', `/api/customers/${cid}/khata`, { token: t, body: { amount: 10 } });
+    assert.equal(r.status, 201, `entry ${i + 1}: ${r.text}`);
+  }
+  const over = await api('POST', `/api/customers/${cid}/khata`, { token: t, body: { amount: 10 } });
+  assert.equal(over.status, 403);
+  assert.equal(over.json.error, 'plan_limit');
+  // A payment received is a khata entry too — also blocked at the limit.
+  assert.equal((await api('POST', `/api/customers/${cid}/vasuli`, { token: t, body: { amount: 10, mode: 'Cash' } })).json.error, 'plan_limit');
+  // The usage meter reports the limit.
+  const usage = await api('GET', '/api/customers/khata-usage', { token: t });
+  assert.equal(usage.status, 200, usage.text);
+  assert.equal(usage.json.used, 100);
+  assert.equal(usage.json.limit, 100);
+  assert.equal(usage.json.remaining, 0);
+  // Khata entries are udhaar, not sales: pending shows ₹1,000.
+  const detail = await api('GET', `/api/customers/${cid}`, { token: t });
+  assert.equal(detail.json.customer.pending, 1000);
+});
+
+test('plan: paid plans have unlimited khata entries', async () => {
+  const { token: t } = await packSetup(); // trial → unlimited
+  const cust = await api('POST', '/api/customers', { token: t, body: { name: 'Unlimited Wala' } });
+  assert.equal(cust.status, 201, cust.text);
+  for (let i = 0; i < 3; i++) {
+    const r = await api('POST', `/api/customers/${cust.json.customer.id}/khata`, { token: t, body: { amount: 50 } });
+    assert.equal(r.status, 201, r.text);
+  }
+  const usage = await api('GET', '/api/customers/khata-usage', { token: t });
+  assert.equal(usage.status, 200, usage.text);
+  assert.equal(usage.json.limit, null); // unlimited on trial/paid
+  assert.ok(usage.json.used >= 3, JSON.stringify(usage.json));
+  const bad = await api('POST', `/api/customers/${cust.json.customer.id}/khata`, { token: t, body: { amount: 0 } });
+  assert.equal(bad.status, 400);
+});

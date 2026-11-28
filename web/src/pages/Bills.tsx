@@ -92,6 +92,7 @@ export default function BillsPage() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div className="num" style={{ fontWeight: 500 }}>{rupees(b.total)}</div>
+                {b.profit != null && !b.cancelled && <div className="meta money-ok">{t('Profit', 'लाभ', 'Profit')} {rupees(b.profit)}</div>}
                 {b.pending_amount > 0 && !b.cancelled ? <Money value={b.pending_amount} tone="owed" className="meta" /> : <BillStatusBadge status={b.status} cancelled={b.cancelled} />}
               </div>
             </Link>
@@ -100,7 +101,7 @@ export default function BillsPage() {
           <div className="table-wrap"><table className="table">
             <thead><tr>
               <th style={{ width: 80 }}>{t('Bill', 'बिल', 'Bill')}</th><th>{t('Date', 'तारीख', 'Date')}</th><th>{t('Customer', 'ग्राहक', 'Customer')}</th>
-              <th className="r">{t('Total', 'कुल', 'Kul')}</th><th className="r">{t('Unpaid', 'बाकी', 'Baaki')}</th><th>{t('Status', 'स्थिति', 'Status')}</th>
+              <th className="r">{t('Total', 'कुल', 'Kul')}</th><th className="r">{t('Unpaid', 'बाकी', 'Baaki')}</th><th className="r">{t('Profit', 'लाभ', 'Profit')}</th><th>{t('Status', 'स्थिति', 'Status')}</th>
             </tr></thead>
             <tbody>{rows.map((b) => {
               const overdue = !!b.due_date && b.pending_amount > 0 && daysFromToday(b.due_date) < 0;
@@ -111,6 +112,7 @@ export default function BillsPage() {
                   <td><span className="primary">{b.customer_name}</span>{b.kind === 'opening' && <span className="sub">{t('Opening balance', 'पुराना बाकी', 'Purana baaki')}</span>}</td>
                   <td className="r num">{rupees(b.total)}</td>
                   <td className="r">{b.pending_amount > 0 && !b.cancelled ? <Money value={b.pending_amount} tone="owed" /> : <span className="muted">—</span>}</td>
+                  <td className={`r num ${b.profit != null && b.profit < 0 ? 'money-owed' : 'money-ok'}`}>{b.profit != null && !b.cancelled ? rupees(b.profit) : <span className="muted">—</span>}</td>
                   <td><BillStatusBadge status={b.status} cancelled={b.cancelled} overdue={overdue} /></td>
                 </tr>
               );

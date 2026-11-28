@@ -55,7 +55,10 @@ const ERRORS: Record<string, [string, string, string]> = {
   invalid_logo_image: ['That logo is not a JPG or PNG image.', 'लोगो JPG या PNG तस्वीर नहीं है।', 'Logo JPG ya PNG tasveer nahi hai.'],
   logo_image_too_large: ['That logo is too large. Try a smaller image.', 'लोगो बहुत बड़ा है। छोटी तस्वीर डालें।', 'Logo bahut bada hai. Chhoti tasveer daalo.'],
   invalid_shop_photo_image: ['That shop photo is not a JPG or PNG image.', 'दुकान की फ़ोटो JPG या PNG नहीं है।', 'Dukaan ki photo JPG ya PNG nahi hai.'],
-  shop_photo_image_too_large: ['That shop photo is too large. Try a smaller photo.', 'दुकान की फ़ोटो बहुत बड़ी है। छोटी फ़ोटो डालें।', 'Dukaan ki photo bahut badi hai. Chhoti photo daalo.']
+  shop_photo_image_too_large: ['That shop photo is too large. Try a smaller photo.', 'दुकान की फ़ोटो बहुत बड़ी है। छोटी फ़ोटो डालें।', 'Dukaan ki photo bahut badi hai. Chhoti photo daalo.'],
+  // 12-features pack: plan gates (server still enforces; these are the words).
+  plan_limit: ['Your free Udhaar plan has hit its limit — 25 customers, or 100 udhaar entries this month. Upgrade in Settings → Plan for unlimited.', 'आपके फ्री उधार प्लान की लिमिट पूरी — 25 ग्राहक, या इस महीने 100 उधार entries। Unlimited के लिए Settings → Plan में upgrade करें।', 'Aapke free Udhaar plan ki limit poori — 25 customers, ya is mahine 100 udhaar entries. Unlimited ke liye Settings → Plan me upgrade karo.'],
+  plan_required: ['This needs a higher plan. Upgrade in Settings → Plan.', 'इसके लिए ऊँचा प्लान चाहिए। Settings → Plan में upgrade करें।', 'Iske liye uncha plan chahiye. Settings → Plan me upgrade karo.']
 };
 
 export function I18nProvider({ children, initial }: { children: ReactNode; initial?: Lang }) {

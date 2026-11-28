@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Ban, FileJson, IndianRupee, PencilLine, Printer, Undo2 } from 'lucide-react';
+import { ArrowLeft, Ban, FileJson, IndianRupee, MessageCircle, PencilLine, Printer, Undo2 } from 'lucide-react';
 import { download, get, post } from '../lib/api';
 import { billShareMessage, fetchBillPdfUrl, hasPhone, openBillPdf, openWa } from '../lib/shareBill';
 import { useI18n } from '../lib/i18n';
@@ -11,7 +11,7 @@ import type { Customer, Invoice } from '../lib/types';
 import { BillStatusBadge, Button, Drawer, Field, Input, Money, Segmented, SkelRows, useToast } from '../components/ui';
 import { usePageTitle } from '../components/shell/AppShell';
 
-interface Item { id: number; product_id: number; product_name: string; qty: number; sell_price: number; gst_rate: number; amount: number; hsn_code: string; p_unit: string; returned_qty: number; returnable_qty: number }
+interface Item { id: number; product_id: number; product_name: string; qty: number; sell_price: number; gst_rate: number; amount: number; hsn_code: string; p_unit: string; returned_qty: number; returnable_qty: number; profit?: number }
 interface Detail {
   invoice: Invoice;
   business: { name: string; owner_name: string; phone: string; city: string; gstin: string; gst_enabled: boolean; upi_id: string };
@@ -20,7 +20,7 @@ interface Detail {
   items: Item[];
   payments: { id: number; amount: number; mode: string; date: string }[];
   returns: { id: number; date: string; total: number; reason?: string | null }[];
-  returns_total: number; net_total: number; net_pending: number;
+  returns_total: number; net_total: number; net_pending: number; profit?: number;
 }
 
 const maskGstin = (g: string) => g; // full GSTIN, same as the bill PDF
@@ -36,6 +36,9 @@ export default function BillDetailPage() {
   const [ret, setRet] = useState(false);
   const [cancel, setCancel] = useState(false);
   const [reason, setReason] = useState('');
+  // 12-features pack: one-tap WhatsApp update after a payment or a cancel
+  // (manual wa.me, never auto-sent).
+  const [updateNote, setUpdateNote] = useState<{ kind: 'cancel' | 'payment'; amount: number } | null>(null);
   const d = q.data;
   usePageTitle(d ? `${t('Bill', 'बिल', 'Bill')} #${d.invoice.bill_no}` : t('Bill', 'बिल', 'Bill'));
 
@@ -112,6 +115,24 @@ export default function BillDetailPage() {
         </header>
       </div>
 
+      {updateNote && (
+        <div className="banner banner-info no-print" style={{ marginBottom: 16 }}>
+          <span className="grow">
+            {updateNote.kind === 'payment'
+              ? t(`Payment of ${rupees(updateNote.amount)} recorded for bill #${inv.bill_no}. Balance now ${rupees(pending)}.`, `बिल #${inv.bill_no} पर ${rupees(updateNote.amount)} भुगतान दर्ज। अब बाकी ${rupees(pending)}।`, `Bill #${inv.bill_no} par ${rupees(updateNote.amount)} payment darj. Ab baaki ${rupees(pending)}.`)
+              : t(`Bill #${inv.bill_no} (${rupees(updateNote.amount)}) is cancelled.`, `बिल #${inv.bill_no} (${rupees(updateNote.amount)}) रद्द हुआ।`, `Bill #${inv.bill_no} (${rupees(updateNote.amount)}) cancel hua.`)}
+          </span>
+          <Button size="sm" icon={<MessageCircle size={14} />} disabled={!d.customer?.phone} onClick={() => {
+            const shop = d.business.name || 'BizYour';
+            const msg = updateNote.kind === 'payment'
+              ? t(`Namaste ${inv.customer_name} ji, this is ${shop} — your payment of ${rupees(updateNote.amount)} for bill #${inv.bill_no} is received. Thank you! Balance now: ${rupees(pending)}.`, `नमस्ते ${inv.customer_name} जी, ${shop} की ओर से — बिल #${inv.bill_no} पर आपका ${rupees(updateNote.amount)} भुगतान मिल गया। धन्यवाद! अब बाकी: ${rupees(pending)}।`, `Namaste ${inv.customer_name} ji, ${shop} se — bill #${inv.bill_no} par aapka ${rupees(updateNote.amount)} payment mil gaya. Dhanyavaad! Ab baaki: ${rupees(pending)}.`)
+              : t(`Namaste ${inv.customer_name} ji, this is ${shop} — bill #${inv.bill_no} (${rupees(updateNote.amount)}) is cancelled. Please ignore the earlier bill.`, `नमस्ते ${inv.customer_name} जी, ${shop} की ओर से — बिल #${inv.bill_no} (${rupees(updateNote.amount)}) रद्द हुआ। पुराना बिल भूल जाएं।`, `Namaste ${inv.customer_name} ji, ${shop} se — bill #${inv.bill_no} (${rupees(updateNote.amount)}) cancel hua. Purana bill bhool jao.`);
+            if (!openWa(d.customer!.phone!, msg)) toast({ text: t('No mobile number for this customer', 'इस ग्राहक का mobile number नहीं है', 'Is customer ka mobile number nahi hai'), tone: 'error' });
+          }}>{t('Tell them on WhatsApp', 'WhatsApp पर बताएं', 'WhatsApp pe batao')}</Button>
+          <Button size="sm" variant="ghost" onClick={() => setUpdateNote(null)}>{t('Dismiss', 'हटाएं', 'Hatao')}</Button>
+        </div>
+      )}
+
       <div className="detail-grid">
         <article className="invoice-doc" aria-label={t('Bill', 'बिल', 'Bill')}>
           <header className="doc-head">
@@ -133,7 +154,7 @@ export default function BillDetailPage() {
             {d.customer?.gstin && <div className="doc-muted">GSTIN {maskGstin(d.customer.gstin)}</div>}
           </div>
           <table className="doc-table">
-            <thead><tr><th>{t('Item', 'सामान', 'Saaman')}</th><th className="r">{t('Qty', 'मात्रा', 'Qty')}</th><th className="r">{t('Rate', 'भाव', 'Rate')}</th>{inv.gst_enabled && <th className="r">GST</th>}<th className="r">{t('Amount', 'रकम', 'Rakam')}</th></tr></thead>
+            <thead><tr><th>{t('Item', 'सामान', 'Saaman')}</th><th className="r">{t('Qty', 'मात्रा', 'Qty')}</th><th className="r">{t('Rate', 'भाव', 'Rate')}</th>{inv.gst_enabled && <th className="r">GST</th>}<th className="r">{t('Amount', 'रकम', 'Rakam')}</th>{d.profit != null && <th className="r">{t('Profit', 'लाभ', 'Profit')}</th>}</tr></thead>
             <tbody>{d.items.map((it) => (
               <tr key={it.id}>
                 <td>{it.product_name}{it.hsn_code && <span className="doc-muted"> · HSN {it.hsn_code}</span>}{it.returned_qty > 0 && <span className="doc-muted"> · {fmtQty(it.returned_qty)} {t('returned', 'वापस', 'wapas')}</span>}</td>
@@ -141,6 +162,7 @@ export default function BillDetailPage() {
                 <td className="r num">{rupees(it.sell_price)}</td>
                 {inv.gst_enabled && <td className="r num">{it.gst_rate}%</td>}
                 <td className="r num">{rupees(it.amount)}</td>
+                {d.profit != null && <td className="r num">{it.profit != null ? rupees(it.profit) : '—'}</td>}
               </tr>
             ))}</tbody>
           </table>
@@ -158,6 +180,7 @@ export default function BillDetailPage() {
               {inv.discount > 0 && <div><dt>{t('Discount', 'छूट', 'Discount')}</dt><dd className="num">−{rupees(inv.discount)}</dd></div>}
               {inv.gst_enabled && <div className="doc-muted"><dt>{t('GST included', 'GST शामिल', 'GST shaamil')} (CGST {rupees(inv.gst_amount / 2, { paise: true })} + SGST {rupees(inv.gst_amount / 2, { paise: true })})</dt><dd className="num">{rupees(inv.gst_amount, { paise: true })}</dd></div>}
               <div className="doc-total"><dt>{t('Total', 'कुल', 'Kul')}</dt><dd className="num">{rupees(inv.total)}</dd></div>
+              {d.profit != null && <div className={d.profit < 0 ? 'money-owed' : 'money-ok'}><dt>{t('Profit on this bill', 'इस बिल पर लाभ', 'Is bill par profit')}</dt><dd className="num">{rupees(d.profit)}</dd></div>}
               {d.returns_total > 0 && <div><dt>{t('Returned', 'वापसी', 'Wapsi')}</dt><dd className="num">−{rupees(d.returns_total)}</dd></div>}
               <div><dt>{t('Paid', 'मिला', 'Mila')}</dt><dd className="num">{rupees(inv.paid_amount)}</dd></div>
               <div className={pending > 0 ? 'money-owed' : ''}><dt>{t('Balance', 'बाकी', 'Baaki')}</dt><dd className="num">{rupees(pending)}</dd></div>
@@ -219,13 +242,13 @@ export default function BillDetailPage() {
       </div>
 
       <PaymentDrawer open={pay} onClose={() => setPay(false)} max={pending} title={`${t('Payment for bill', 'बिल का भुगतान', 'Bill ka payment')} #${inv.bill_no}`}
-        onSave={async (amount, mode, date) => { await post(`/api/invoices/${id}/payments`, { amount, mode, date }); toast({ text: t(`${rupees(amount)} recorded`, `${rupees(amount)} दर्ज हुआ`, `${rupees(amount)} likh diya`) }); refresh(); }} />
+        onSave={async (amount, mode, date) => { await post(`/api/invoices/${id}/payments`, { amount, mode, date }); toast({ text: t(`${rupees(amount)} recorded`, `${rupees(amount)} दर्ज हुआ`, `${rupees(amount)} likh diya`) }); setUpdateNote({ kind: 'payment', amount }); refresh(); }} />
 
       <ReturnDrawer open={ret} onClose={() => setRet(false)} items={d.items}
         onSave={async (items, reason) => { await post(`/api/invoices/${id}/returns`, { items, reason }); toast({ text: t('Return saved — stock added back', 'वापसी सेव — stock वापस जुड़ा', 'Wapsi save — stock wapas juda') }); refresh(); }} />
 
       <Drawer open={cancel} onClose={() => setCancel(false)} title={t('Cancel this bill?', 'यह बिल रद्द करें?', 'Ye bill cancel karein?')}
-        footer={<><Button onClick={() => setCancel(false)}>{t('Keep bill', 'बिल रखें', 'Bill rakho')}</Button><CancelBtn id={id!} reason={reason} onDone={() => { setCancel(false); setReason(''); refresh(); }} /></>}>
+        footer={<><Button onClick={() => setCancel(false)}>{t('Keep bill', 'बिल रखें', 'Bill rakho')}</Button><CancelBtn id={id!} reason={reason} onDone={() => { setCancel(false); setReason(''); setUpdateNote({ kind: 'cancel', amount: inv.total }); refresh(); }} /></>}>
         <p className="muted" style={{ marginBottom: 16 }}>{t('Stock goes back and the bill stops counting in sales and udhaar. The bill number stays in your records marked as cancelled.', 'Stock वापस आएगा और बिल बिक्री व उधार में नहीं गिना जाएगा। बिल नंबर रद्द के रूप में रिकॉर्ड में रहेगा।', 'Stock wapas aayega aur bill bikri aur udhaar me nahi ginega. Bill number cancel ke roop me record me rahega.')}</p>
         <Field label={t('Reason', 'कारण', 'Kaaran')}>{(fid) => <Input id={fid} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('e.g. wrong items entered', 'जैसे गलत सामान', 'jaise galat saaman')} autoFocus />}</Field>
       </Drawer>

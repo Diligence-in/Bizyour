@@ -4,6 +4,7 @@
 const $ = (id) => document.getElementById(id);
 let token = localStorage.getItem('bos_token') || null;
 let me = null; // { user, business }
+let subLocked = false; // subscription lock state (trial/plan over) — see showSubLock()
 let setupLang = 'en';
 let setLangSel = 'en';
 
@@ -45,8 +46,48 @@ async function api(method, path, body) {
   hideConnBanner();
   let data = {};
   try { data = await res.json(); } catch (e) { /* empty */ }
-  if (!res.ok) throw Object.assign(new Error(data.error || 'request_failed'), { status: res.status, data });
+  if (!res.ok) {
+    // 2026-11-22 flows, handled centrally so no screen shows a raw error:
+    //  - session_expired (the 30-day LOGIN token): back to login with a
+    //    clear note. This is the ONLY automatic logout in the app.
+    //  - subscription_expired (trial/plan over): NEVER a logout — the
+    //    workspace locks (lock screen), the session and data stay.
+    //  - workspace_not_setup on a workspace API: an account-only user
+    //    who wandered into a workspace screen is sent to the welcome /
+    //    setup flow. Mart calls handle their own 403 (mart.js).
+    if (res.status === 401 && data.error === 'session_expired') handleSessionExpired();
+    else if (res.status === 403 && data.error === 'subscription_expired') showSubLock(true);
+    else if (res.status === 403 && data.error === 'workspace_not_setup'
+      && !String(path).startsWith('/api/mart/')
+      && me && me.business && !me.business.setup_complete) {
+      openWelcome(true);
+    }
+    throw Object.assign(new Error(data.error || 'request_failed'), { status: res.status, data });
+  }
+  // A write SUCCEEDING while the lock is up means the subscription is
+  // active again (e.g. the admin just approved the payment) — lift the
+  // lock and refresh the current view in place, same session, same spot.
+  if (subLocked && method !== 'GET') {
+    hideSubLock();
+    refreshCurrentView();
+  }
   return data;
+}
+
+// The 30-day login session ended → clear the token and ask for a fresh
+// login. (Subscription expiry NEVER comes here — it locks, not logs out.)
+let sessionExpiredBusy = false;
+function handleSessionExpired() {
+  if (sessionExpiredBusy) return;
+  sessionExpiredBusy = true;
+  setTimeout(() => { sessionExpiredBusy = false; }, 1500);
+  token = null; me = null;
+  try { localStorage.removeItem('bos_token'); } catch (e) { /* ignore */ }
+  const inApp = !$('view-app').classList.contains('hidden') || !$('view-admin').classList.contains('hidden');
+  if (inApp) {
+    showView('view-login');
+    showErr('loginErr', tr('Session expired — please log in again.', 'Session ख़त्म हो गया — दोबारा login करो।', 'Session khatm ho gaya — dobara login karo.'));
+  }
 }
 
 function showErr(id, msg) { const e = $(id); if (!e) return; e.textContent = msg; e.style.display = 'block'; }
@@ -90,6 +131,15 @@ function friendly(err) {
     'link_not_found': ['This account link is off or wrong.', 'ये हिसाब लिंक बंद है या गलत है।', 'Ye hisaab link band hai ya galat hai.'],
     'shop_phone_missing': ['The shop phone number is not set in Settings — add it there first.', 'दुकान का फ़ोन नंबर Settings में नहीं है — पहले वहाँ नंबर भरो।', 'Dukaan ka phone number Settings me nahi hai — pehle wahan number bharo.'],
     'account_blocked': ['This account has been blocked by the DILIGENCE admin. Contact support.', 'ये खाता DILIGENCE admin ने block किया है — support से बात करो।', 'Ye khata DILIGENCE admin ne block kiya hai — support se baat karo.'],
+    'too_many_attempts': ['Too many wrong attempts. Wait a few minutes, then try again.', 'बहुत ज़्यादा गलत कोशिशें — कुछ मिनट रुककर फिर कोशिश करो।', 'Bahut zyada galat koshish — kuch minute ruk kar phir try karo.'],
+    'workspace_not_setup': ['Your workspace is not set up yet — fill your shop details first.', 'तुम्हारा workspace अभी setup नहीं है — पहले दुकान की details भरो।', 'Tumhara workspace abhi setup nahi hai — pehle dukaan ki details bharo.'],
+    'shop_name_required': ['Enter your shop name (at least 3 letters).', 'दुकान का नाम डालो (कम से कम 3 अक्षर)।', 'Dukaan ka naam daalo (kam se kam 3 akshar).'],
+    'invalid_category': ['Pick your shop category.', 'दुकान की category चुनो।', 'Dukaan ki category chuno.'],
+    'address_required': ['Enter the full shop address.', 'दुकान का पूरा पता डालो।', 'Dukaan ka pura pata daalo.'],
+    'invalid_pincode': ['PIN code must be 6 digits.', 'PIN code 6 अंकों का होना चाहिए।', 'PIN code 6 digit ka hona chahiye.'],
+    'city_required': ['Enter your city.', 'अपना शहर डालो।', 'Apna sheher daalo.'],
+    'invalid_state': ['Pick your state from the list.', 'List से अपना राज्य चुनो।', 'List se apna rajya chuno.'],
+    'invalid_gstin': ['That GSTIN does not look right — check the 15 characters.', 'GSTIN सही नहीं लग रहा — 15 अक्षर जाँचो।', 'GSTIN sahi nahi lag raha — 15 character check karo.'],
     'last_owner': ['This shop must always keep at least one owner — make another user the owner first.', 'इस दुकान का कम से कम एक owner होना ज़रूरी है — पहले किसी और को owner बनाओ।', 'Is dukaan ka kam se kam ek owner hona zaroori hai — pehle kisi aur ko owner banao.'],
     'user_not_found': ['That user no longer exists.', 'वो user अब नहीं है।', 'Wo user ab nahi hai.'],
     'business_not_found': ['That shop no longer exists.', 'वो दुकान अब नहीं है।', 'Wo dukaan ab nahi hai.'],
@@ -141,7 +191,7 @@ async function setLanguage(lang) {
 
 // ---------- view switching ----------
 function showView(name) {
-  ['view-landing', 'view-login', 'view-signup', 'view-otp', 'view-forgot', 'view-admin', 'view-setup', 'view-app'].forEach((v) => $(v).classList.toggle('hidden', v !== name));
+  ['view-landing', 'view-login', 'view-signup', 'view-otp', 'view-forgot', 'view-admin', 'view-setup', 'view-welcome', 'view-app'].forEach((v) => $(v).classList.toggle('hidden', v !== name));
 }
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.remove('on'));
@@ -296,7 +346,7 @@ async function boot() {
   try {
     me = await api('GET', '/api/me');
     if (me.user.role === 'superadmin') { enterAdmin(); return; }
-    if (!me.business.setup_complete && me.user.role === 'owner') { openSetup(); return; }
+    if (!me.business.setup_complete) { openWelcome(); return; }
     await enterApp();
   } catch (e) {
     token = null; localStorage.removeItem('bos_token'); me = null;
@@ -304,14 +354,101 @@ async function boot() {
   }
 }
 
+// ---------- two-stage workflow: welcome + shop selects ----------
+// Shop categories (codes mirror SHOP_CATEGORIES in backend/server.js)
+// and the Indian states/UTs list (mirrors INDIAN_STATES there — the
+// server re-validates everything; these only fill the <select>s).
+const SHOP_CATEGORIES_UI = [
+  { code: 'kirana', en: 'Kirana / General Store', hi: 'किराना / जनरल स्टोर' },
+  { code: 'electronics', en: 'Electronics', hi: 'इलेक्ट्रॉनिक्स' },
+  { code: 'mobile', en: 'Mobile & Accessories', hi: 'मोबाइल और एक्सेसरीज़' },
+  { code: 'medical', en: 'Medical / Pharmacy', hi: 'मेडिकल / दवाई की दुकान' },
+  { code: 'garments', en: 'Garments / Clothing', hi: 'कपड़ों की दुकान' },
+  { code: 'food', en: 'Food / Restaurant / Bakery', hi: 'खाना / रेस्टोरेंट / बेकरी' },
+  { code: 'hardware', en: 'Hardware / Building Material', hi: 'हार्डवेयर / बिल्डिंग सामान' },
+  { code: 'beauty', en: 'Beauty / Salon / Cosmetics', hi: 'ब्यूटी / सैलून / कॉस्मेटिक्स' },
+  { code: 'services', en: 'Services / Repair', hi: 'सर्विस / रिपेयर' },
+  { code: 'other', en: 'Other', hi: 'अन्य' }
+];
+const INDIAN_STATES_UI = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
+  'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim',
+  'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand',
+  'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh',
+  'Dadra and Nagar Haveli and Daman and Diu', 'Delhi',
+  'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+];
+let shopSelectsFilled = false;
+function fillShopSelects() {
+  if (shopSelectsFilled) return;
+  shopSelectsFilled = true;
+  [['setupCategory', true], ['setCategory', false]].forEach(([id, withPrompt]) => {
+    const sel = $(id);
+    if (!sel) return;
+    sel.innerHTML = (withPrompt ? `<option value="" data-en="Pick a category…" data-hi="Category चुनो…">Pick a category…</option>` : '')
+      + SHOP_CATEGORIES_UI.map((c) => `<option value="${c.code}" data-en="${c.en}" data-hi="${c.hi}">${c.en}</option>`).join('');
+  });
+  [['setupState', true], ['setState', false]].forEach(([id, withPrompt]) => {
+    const sel = $(id);
+    if (!sel) return;
+    sel.innerHTML = (withPrompt ? `<option value="" data-en="Pick your state…" data-hi="राज्य चुनो…">Pick your state…</option>` : `<option value=""></option>`)
+      + INDIAN_STATES_UI.map((s) => `<option value="${s}">${s}</option>`).join('');
+  });
+}
+
+// The welcome / choice screen: account is ready, Mart is open, the
+// workspace waits for the shop details. Shown after login/verify when
+// the business is not workspace-active yet, and whenever a workspace
+// API answers workspace_not_setup (notice=true in that case).
+function openWelcome(notice) {
+  showView('view-welcome');
+  const err = $('welcomeErr');
+  if (notice) {
+    err.textContent = tr('Your workspace is not set up yet — fill your shop details first. Business Mart is open below.', 'तुम्हारा workspace अभी setup नहीं है — पहले दुकान की details भरो। Business Mart नीचे खुला है।', 'Tumhara workspace abhi setup nahi hai — pehle dukaan ki details bharo. Business Mart neeche khula hai.');
+    err.style.display = 'block';
+  } else err.style.display = 'none';
+  if (me && me.business) applyLang(me.business.language || 'en');
+}
+$('welcomeMartBtn').addEventListener('click', () => {
+  // Enter the app shell straight into the Mart — buyer features work
+  // on the account alone; workspace screens stay behind the setup.
+  showView('view-app');
+  renderShellBits();
+  const mb = $('modMart');
+  if (mb) mb.click();
+});
+$('welcomeSetupBtn').addEventListener('click', () => {
+  if (!me || me.user.role !== 'owner') {
+    const err = $('welcomeErr');
+    err.textContent = tr('Only the owner can set up the workspace — ask the owner to fill the shop details.', 'Workspace setup सिर्फ़ owner कर सकता है — owner से दुकान की details भरवाओ।', 'Workspace setup sirf owner kar sakta hai — owner se dukaan ki details bharwao.');
+    err.style.display = 'block';
+    return;
+  }
+  openSetup();
+});
+$('welcomeLogout').addEventListener('click', async () => {
+  try { await api('POST', '/api/auth/logout'); } catch (e) { /* ignore */ }
+  token = null; me = null; localStorage.removeItem('bos_token');
+  showLanding();
+});
+
 // ---------- setup ----------
 function openSetup() {
   showView('view-setup');
+  fillShopSelects();
   const b = me.business;
   $('setupOwner').value = b.owner_name || me.user.name;
   $('setupName').value = b.name || '';
   $('setupPhone').value = b.phone || '';
+  $('setupCategory').value = b.category || '';
+  $('setupAddress').value = b.address || '';
+  $('setupLandmark').value = b.landmark || '';
+  $('setupPincode').value = b.pincode || '';
   $('setupCity').value = b.city || '';
+  $('setupState').value = b.state || '';
   $('setupGst').checked = !!b.gst_enabled;
   $('setupGstin').value = b.gstin || '';
   $('setupGstinWrap').classList.toggle('hidden', !b.gst_enabled);
@@ -328,10 +465,15 @@ document.querySelectorAll('#view-setup .lang-card').forEach((c) => c.addEventLis
 $('setupForm').addEventListener('submit', async (e) => {
   e.preventDefault(); hideErr('setupErr');
   try {
-    const r = await api('PUT', '/api/business', {
+    // Two-stage workflow: the setup form ACTIVATES the workspace via
+    // its own endpoint — that stamp is also what starts the 30-day
+    // trial. (Settings keeps using PUT /api/business afterwards.)
+    const r = await api('POST', '/api/workspace/activate', {
       name: $('setupName').value, owner_name: $('setupOwner').value, phone: $('setupPhone').value,
-      city: $('setupCity').value, gst_enabled: $('setupGst').checked,
-      gstin: $('setupGst').checked ? $('setupGstin').value : '', language: setupLang
+      category: $('setupCategory').value, address: $('setupAddress').value,
+      landmark: $('setupLandmark').value, pincode: $('setupPincode').value,
+      city: $('setupCity').value, state: $('setupState').value,
+      gst_enabled: $('setupGst').checked,
     });
     me.business = r.business;
     await enterApp();
@@ -390,8 +532,13 @@ $('loginForm').addEventListener('submit', async (e) => {
     token = r.token; localStorage.setItem('bos_token', token);
     me = { user: r.user, business: r.business };
     if (me.user.role === 'superadmin') { enterAdmin(); return; }
-    if (!me.business.setup_complete && me.user.role === 'owner') openSetup(); else await enterApp();
+    if (!me.business.setup_complete) openWelcome(); else await enterApp();
   } catch (err) {
+    if (err.message === 'too_many_attempts') {
+      const mins = (err.data && err.data.retry_after_min) || 15;
+      showErr('loginErr', tr(`Too many wrong attempts. Try again after ${mins} minute(s).`, `बहुत ज़्यादा गलत कोशिशें — ${mins} मिनट बाद फिर कोशिश करो।`, `Bahut zyada galat koshish — ${mins} minute baad phir try karo.`));
+      return;
+    }
     // The OTP view is keyed by email — only route there when the user
     // actually typed an email; a mobile identifier just gets the note.
     if (err.message === 'email_not_verified' && $('loginEmail').value.includes('@')) {
@@ -422,7 +569,7 @@ $('otpForm').addEventListener('submit', async (e) => {
     const r = await api('POST', '/api/auth/verify-otp', { email: otpEmail, otp: $('otpCode').value.trim() });
     token = r.token; localStorage.setItem('bos_token', token);
     me = { user: r.user, business: r.business };
-    if (!me.business.setup_complete && me.user.role === 'owner') openSetup(); else await enterApp();
+    if (!me.business.setup_complete) openWelcome(); else await enterApp();
   } catch (err) { showErr('otpErr', friendly(err)); }
 });
 $('otpResend').addEventListener('click', async () => {
@@ -491,7 +638,7 @@ if (sideBarEl) sideBarEl.addEventListener('click', (e) => { if (e.target.closest
 $('logoutBtn').addEventListener('click', async () => {
   try { await api('POST', '/api/auth/logout'); } catch (e) { /* ignore */ }
   token = null; me = null; localStorage.removeItem('bos_token');
-  location.href = '/';
+  showLanding();
 });
 
 // ---------- nav ----------
@@ -621,11 +768,17 @@ async function runGlobalSearch(q) {
 // ---------- settings ----------
 function fillSettings() {
   if (!me) return;
+  fillShopSelects();
   const b = me.business;
   $('setName').value = b.name || '';
   $('setOwner').value = b.owner_name || '';
   $('setPhone').value = b.phone || '';
   $('setCity').value = b.city || '';
+  $('setCategory').value = b.category || '';
+  $('setAddress').value = b.address || '';
+  $('setLandmark').value = b.landmark || '';
+  $('setPincode').value = b.pincode || '';
+  $('setState').value = b.state || '';
   $('setMobile').value = (me.user && me.user.mobile) || '';
   $('setGst').checked = !!b.gst_enabled;
   $('setGstin').value = b.gstin || '';
@@ -637,7 +790,7 @@ function fillSettings() {
   setLangSel = b.language || 'en';
   ['en', 'hi', 'hg'].forEach((l) => { const c = $('setLang' + l[0].toUpperCase() + l[1]); if (c) c.classList.toggle('sel', setLangSel === l); });
   const owner = me.user.role === 'owner';
-  ['setName', 'setOwner', 'setPhone', 'setCity', 'setMobile', 'setGst', 'setGstin', 'setUpiId', 'setUpiName'].forEach((id) => { $(id).disabled = !owner; });
+  ['setName', 'setOwner', 'setPhone', 'setCity', 'setCategory', 'setAddress', 'setLandmark', 'setPincode', 'setState', 'setMobile', 'setGst', 'setGstin', 'setUpiId', 'setUpiName'].forEach((id) => { $(id).disabled = !owner; });
   $('setQrFile').disabled = !owner;
   $('setSaveBtn').disabled = !owner;
   $('staffReadonlyNote').classList.toggle('hidden', owner);
@@ -701,7 +854,9 @@ $('settingsForm').addEventListener('submit', async (e) => {
   try {
     const body = {
       name: $('setName').value, owner_name: $('setOwner').value, phone: $('setPhone').value,
-      city: $('setCity').value, gst_enabled: $('setGst').checked,
+      city: $('setCity').value, category: $('setCategory').value, address: $('setAddress').value,
+      landmark: $('setLandmark').value, pincode: $('setPincode').value, state: $('setState').value,
+      gst_enabled: $('setGst').checked,
       gstin: $('setGst').checked ? $('setGstin').value : '', language: setLangSel,
       upi_id: $('setUpiId').value, upi_payee_name: $('setUpiName').value
     };
@@ -762,7 +917,8 @@ $('staffForm').addEventListener('submit', async (e) => {
 const subStatusLabel = {
   trial: ['Free trial', 'Free trial'], active: ['Active', 'चालू'],
   grace: ['Grace period', 'Grace period'], expired: ['Expired — read-only', 'ख़त्म — सिर्फ़ देख सकते हो'],
-  blocked: ['Blocked — read-only', 'Blocked — सिर्फ़ देख सकते हो']
+  blocked: ['Blocked — read-only', 'Blocked — सिर्फ़ देख सकते हो'],
+  none: ['Not started — set up your shop first', 'शुरू नहीं — पहले दुकान setup करो']
 };
 function fmtDateOnly(ts) { return ts ? String(ts).slice(0, 10) : '—'; }
 
@@ -774,8 +930,62 @@ async function loadSubscription() {
     subCache = r;
     renderSubBanner(r.subscription);
     renderSubCard(r);
+    // Subscription lock (2026-11-22): an expired/blocked subscription
+    // LOCKS the workspace — it never logs the user out. When the state
+    // comes back active (payment approved), the lock lifts and the
+    // current view refreshes in place — same session, same screen.
+    if (r.subscription.read_only) showSubLock(false);
+    else if (subLocked) { hideSubLock(); refreshCurrentView(); }
   } catch (e) { /* banner/card simply stay as-is */ }
 }
+
+// ---------- subscription lock screen ----------
+// withOverlay=true (a write just hit 403 subscription_expired, or first
+// entry into the locked state) → the full lock screen shows. Otherwise
+// only the state is recorded (the red banner from renderSubBanner
+// stays visible) so a dismissed lock does not keep popping up.
+function showSubLock(withOverlay) {
+  const wasLocked = subLocked;
+  subLocked = true;
+  const ov = $('subLock');
+  if (!ov) return;
+  $('subLockTitle').textContent = tr('Trial / plan khatm ho gaya', 'ट्रायल / प्लान ख़त्म हो गया', 'Trial / plan khatm ho gaya');
+  $('subLockText').textContent = tr(
+    'Your data is completely safe. Pay and continue right from where you stopped — no logout, no setup again.',
+    'आपका डेटा पूरी तरह सुरक्षित है। Payment करके वहीं से दोबारा शुरू करो — कोई logout नहीं, कोई दोबारा setup नहीं।',
+    'Aapka data bilkul safe hai. Payment karke wahi se dobara shuru karo — koi logout nahi, koi dobara setup nahi.');
+  const owner = !!(me && me.user.role === 'owner');
+  $('subLockRenew').classList.toggle('hidden', !owner);
+  $('subLockRenew').textContent = tr('💳 See plans & renew', '💳 Plan dekho, renew karo', '💳 Plan dekho, renew karo');
+  $('subLockPeek').textContent = owner
+    ? tr('Just look at my data', 'सिर्फ़ डेटा देखो', 'Sirf data dekho')
+    : tr('OK — just look at the data', 'ठीक है — सिर्फ़ डेटा देखो', 'Thik hai — sirf data dekho');
+  if (withOverlay || !wasLocked) ov.classList.remove('hidden');
+}
+function hideSubLock() {
+  subLocked = false;
+  const ov = $('subLock');
+  if (ov) ov.classList.add('hidden');
+}
+// Re-run whatever the user is looking at (workspace screen or Mart
+// view) so an unlocked app continues exactly where it stopped.
+function refreshCurrentView() {
+  const martOn = $('screen-mart') && $('screen-mart').classList.contains('on');
+  if (martOn && typeof window.BOS_martRefresh === 'function') { window.BOS_martRefresh(); return; }
+  const active = document.querySelector('#nav .nav-item.active');
+  if (active) active.click();
+  else if (typeof loadSubscription === 'function') loadSubscription();
+}
+$('subLockRenew').addEventListener('click', () => {
+  $('subLock').classList.add('hidden'); // state stays locked; the banner remains
+  gotoScreen('settings');
+  loadSubscription();
+  setTimeout(() => { const c = $('subCard'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+});
+$('subLockPeek').addEventListener('click', () => { $('subLock').classList.add('hidden'); });
+// While locked, quietly re-check every 30s (owner): the moment the
+// payment is approved in the admin panel, the lock lifts by itself.
+setInterval(() => { if (subLocked && token && me && me.user.role === 'owner') loadSubscription(); }, 30000);
 function renderSubBanner(s) {
   const b = $('subBanner');
   if (!b) return;
@@ -793,7 +1003,7 @@ function renderSubBanner(s) {
     msg = tr(`⚠️ Your plan has ended — grace period is running. Renew soon or the app becomes read-only. Settings → Subscription & plan.`, `⚠️ Plan ख़त्म हो गया है — grace period चल रहा है। Renew न किया तो app सिर्फ़ देखने के लिए रह जाएगा। Settings → Subscription & plan।`, `⚠️ Plan khatam ho gaya hai — grace period chal raha hai. Jaldi renew karo warna app sirf dekhne ke liye reh jayega. Settings → Subscription & plan.`);
   } else if (s.read_only) {
     show = true; bg = '#fdecea';
-    msg = tr(`🔒 Subscription ended — the app is read-only. You can see old data but cannot add new bills. Renew: Settings → Subscription & plan.`, `🔒 Subscription ख़त्म — app read-only है। पुराना data देख सकते हो, नया bill नहीं बनेगा। Renew: Settings → Subscription & plan।`, `🔒 Subscription khatam — app read-only hai. Purana data dekh sakte ho, naya bill nahi banega. Renew: Settings → Subscription & plan.`);
+    msg = tr(`🔒 Trial/plan khatm ho gaya — your data is safe. The workspace is locked (you can see everything, add nothing). Pay and continue right from where you stopped: Settings → Subscription & plan.`, `🔒 Trial/plan ख़त्म हो गया — तुम्हारा data safe है। Workspace lock है (सब देख सकते हो, कुछ जोड़ नहीं सकते)। Payment करके वहीं से दोबारा शुरू करो: Settings → Subscription & plan।`, `🔒 Trial/plan khatm ho gaya — aapka data safe hai. Workspace lock hai (sab dekh sakte ho, kuch jod nahi sakte). Payment karke wahi se dobara shuru karo: Settings → Subscription & plan.`);
   }
   b.classList.toggle('hidden', !show);
   if (show) { b.style.background = bg; b.textContent = msg; }
@@ -1687,7 +1897,7 @@ $('admSettingsForm').addEventListener('submit', async (e) => {
 $('adminLogoutBtn').addEventListener('click', async () => {
   try { await api('POST', '/api/auth/logout'); } catch (e) { /* ignore */ }
   token = null; me = null; localStorage.removeItem('bos_token');
-  location.href = '/';
+  showLanding();
 });
 
 // ---------- Stage 6: data backup download (owner-only card) ----------
@@ -2507,6 +2717,7 @@ function fillBillCustomerSelect() {
 }
 $('billCustomer').addEventListener('change', () => {
   $('newCustWrap').classList.toggle('hidden', $('billCustomer').value !== '__new__');
+  billRecalc();
 });
 function billProductOptions(sel) {
   sel.innerHTML = `<option value="__new__">${tr('+ Add new item…', '+ नया सामान जोड़ें…', '+ Naya saaman jodo…')}</option>` + billProducts.map((p) =>
@@ -2617,6 +2828,14 @@ function billRecalc() {
   $('sumTotal').textContent = fmt(total);
   const paid = Number($('billPaid').value) || 0;
   $('sumBalance').textContent = fmt(Math.max(total - paid, 0));
+  // 12-features pack: credit-limit soft warning — pending + this bill
+  // over the customer's limit shows a warning, never a block.
+  const cust = billCustomers.find((c) => String(c.id) === $('billCustomer').value);
+  const cw = $('billCreditWarn');
+  if (cw && cust && cust.credit_limit != null && (Number(cust.pending) || 0) + total > Number(cust.credit_limit)) {
+    cw.textContent = tr(`⚠️ Credit limit ${fmt(cust.credit_limit)} crossed — ${cust.name} already owes ${fmt(cust.pending)}. You can still save this bill — the limit is a warning, not a block.`, `⚠️ क्रेडिट लिमिट ${fmt(cust.credit_limit)} पार — ${cust.name} पर पहले से ${fmt(cust.pending)} बाकी है। फिर भी बिल सेव कर सकते हैं — लिमिट सिर्फ़ चेतावनी है, रोक नहीं।`, `⚠️ Credit limit ${fmt(cust.credit_limit)} paar — ${cust.name} par pehle se ${fmt(cust.pending)} baaki hai. Phir bhi bill save kar sakte ho — limit sirf warning hai, rok nahi.`);
+    cw.classList.add('show');
+  } else if (cw) cw.classList.remove('show');
   return { subtotal, total, gst };
 }
 $('billAddItem').addEventListener('click', () => { $('billItems').appendChild(billItemRow()); billRecalc(); });
@@ -2836,7 +3055,7 @@ async function openInvoiceDetail(id) {
     const ib = $('idItems'); ib.innerHTML = '';
     r.items.forEach((it) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td></td><td>${fmtQty(it.qty)}</td><td>${fmt(it.sell_price)}</td><td>${inv.gst_enabled ? Number(it.gst_rate) + '%' : '—'}</td><td>${fmt(it.amount)}</td>`;
+      tr.innerHTML = `<td></td><td>${fmtQty(it.qty)}</td><td>${fmt(it.sell_price)}</td><td>${inv.gst_enabled ? Number(it.gst_rate) + '%' : '—'}</td><td>${fmt(it.amount)}</td><td>${it.profit != null ? fmt(it.profit) : '—'}</td>`;
       tr.children[0].textContent = it.product_name;
       ib.appendChild(tr);
     });
@@ -2845,6 +3064,11 @@ async function openInvoiceDetail(id) {
     $('idGst').textContent = fmt(inv.gst_amount);
     $('idDiscount').textContent = fmt(inv.discount);
     $('idTotal').textContent = fmt(inv.total);
+    // 12-features pack: profit on this bill (buy-price snapshot; old bills
+    // fall back to the product's current buy price — approximate).
+    const profRow = $('idProfitRow');
+    if (r.profit != null) { $('idProfit').textContent = fmt(r.profit); profRow.classList.remove('hidden'); }
+    else profRow.classList.add('hidden');
     const pb = $('idPayments'); pb.innerHTML = '';
     if (!r.payments.length) {
       pb.innerHTML = `<tr><td colspan="3" style="color:var(--muted)">${tr("No payments received yet.", "अभी कोई पेमेंट नहीं मिली।")}</td></tr>`;
@@ -4458,3 +4682,283 @@ if (importCommitBtn) importCommitBtn.addEventListener('click', async () => {
   } catch (e) { showErr('importErr', friendly(e)); }
   importCommitBtn.disabled = false;
 });
+
+// =====================================================================
+// Photo OCR import (25 Nov 2026): diary/register photo -> bill items or
+// udhaar entries. OCR runs ON THE PHONE/BROWSER (Tesseract, self-hosted
+// under /classic/ocr/) — no API key, no server cost, photo never leaves
+// the device except the rows the owner confirms. NOTHING is saved
+// without the review screen: handwriting OCR is imperfect by nature.
+//  - Bill: parsed items are filled into the open bill form (products are
+//    matched by name, or created like the quick-add does), the owner
+//    checks the bill and saves it with the normal Save button.
+//  - Udhaar: parsed rows become a customers CSV (name,phone,opening)
+//    and go through the EXISTING import preview/commit, with its
+//    duplicate checks and automatic safety snapshot. "Jama" lines are
+//    payments — they are shown but NOT imported (record via Vasuli).
+// =====================================================================
+(function () {
+  var OCR_BASE = location.pathname.replace(/[^/]*$/, '');
+  var ocrLibPromise = null;
+
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = src; s.onload = resolve; s.onerror = function () { reject(new Error('load_fail:' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  function ensureOcrLibs() {
+    if (!ocrLibPromise) {
+      ocrLibPromise = Promise.all([
+        loadScript(OCR_BASE + 'ocr/ocr-parse.js'),
+        loadScript(OCR_BASE + 'ocr/tesseract.min.js')
+      ]);
+    }
+    return ocrLibPromise;
+  }
+
+  function preprocess(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var scale = Math.min(2.2, Math.max(1, 2000 / Math.max(1, img.naturalWidth)));
+          var c = document.createElement('canvas');
+          c.width = Math.round(img.naturalWidth * scale);
+          c.height = Math.round(img.naturalHeight * scale);
+          var ctx = c.getContext('2d');
+          try { ctx.filter = 'grayscale(1) contrast(1.25)'; } catch (e) { /* older webview */ }
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          resolve(c);
+        } catch (e) { reject(e); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('image_load_fail')); };
+      img.src = url;
+    });
+  }
+
+  async function runOcr(file, onProgress) {
+    await ensureOcrLibs();
+    var canvas = await preprocess(file);
+    var worker = await Tesseract.createWorker('eng+hin', 1, {
+      workerPath: OCR_BASE + 'ocr/worker.min.js',
+      corePath: OCR_BASE + 'ocr',
+      langPath: OCR_BASE + 'ocr',
+      gzip: true,
+      logger: function (m) {
+        if (m && m.status === 'recognizing text' && onProgress) onProgress(Math.round((m.progress || 0) * 100));
+      }
+    });
+    try {
+      var out = await worker.recognize(canvas);
+      return (out && out.data && out.data.text) || '';
+    } finally {
+      try { await worker.terminate(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  // ---------- review modal ----------
+  function ocrModal(title) {
+    var old = document.getElementById('ocrModal');
+    if (old) old.remove();
+    var wrap = document.createElement('div');
+    wrap.id = 'ocrModal';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,30,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:14px';
+    wrap.innerHTML = '<div class="card" style="background:#fff;max-width:640px;width:100%;margin:auto;padding:18px;border-radius:14px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:17px">' + esc(title) + '</b>'
+      + '<button type="button" class="btn btn-sm" id="ocrClose">✕</button></div>'
+      + '<div id="ocrBody" style="margin-top:10px"></div></div>';
+    document.body.appendChild(wrap);
+    wrap.querySelector('#ocrClose').addEventListener('click', function () { wrap.remove(); });
+    return wrap.querySelector('#ocrBody');
+  }
+
+  function ocrStatus(body, msg, pct) {
+    body.innerHTML = '<div class="hint" style="font-size:15px">' + esc(msg) + '</div>'
+      + (pct !== undefined ? '<div style="background:#E8ECFA;border-radius:8px;height:10px;margin-top:10px"><div style="background:#2B3A8F;height:10px;border-radius:8px;width:' + pct + '%"></div></div>' : '');
+  }
+
+  function pickPhoto() {
+    return new Promise(function (resolve) {
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*';
+      inp.addEventListener('change', function () { resolve(inp.files && inp.files[0]); });
+      inp.click();
+    });
+  }
+
+  // ---------- BILL flow ----------
+  async function ocrBillFlow() {
+    var file = await pickPhoto();
+    if (!file) return;
+    var body = ocrModal(tr('Photo se bill', 'फोटो से बिल'));
+    try {
+      ocrStatus(body, tr('Reading the photo… keep this screen open.', 'फोटो पढ़ रहे हैं… स्क्रीन खुली रखें।'), 0);
+      var text = await runOcr(file, function (p) { ocrStatus(body, tr('Reading the photo…', 'फोटो पढ़ रहे हैं…'), p); });
+      var rows = BizOcrParse.parseBillText(text);
+      if (!rows.length) {
+        ocrStatus(body, tr('No bill lines could be read from this photo. Try a straighter, well-lit photo — or type the items below as usual.', 'इस फोटो से कोई बिल लाइन नहीं पढ़ी गई। सीधी, अच्छी रोशनी वाली फोटो फिर से लें — या नीचे सामान वैसे ही लिखें जैसे हमेशा लिखते हैं।'));
+        return;
+      }
+      renderBillReview(body, rows);
+    } catch (e) {
+      ocrStatus(body, tr('Photo could not be read. Check the internet once (the reading engine loads on first use) and try again.', 'फोटो पढ़ नहीं पाए। एक बार internet देखकर फिर कोशिश करें (रीडिंग इंजन पहली बार लोड होता है)।'));
+    }
+  }
+
+  function renderBillReview(body, rows) {
+    var total = rows.reduce(function (s, r) { return s + r.amount; }, 0);
+    var html = '<div class="hint">' + tr('Check every line — handwriting can be misread. Fix anything wrong, then press the button: the items will be filled into your bill (nothing is saved yet).', 'हर लाइन जाँचें — लिखावट गलत पढ़ी जा सकती है। जो गलत हो सुधारें, फिर बटन दबाएँ: सामान आपके बिल में भर जाएगा (अभी कुछ save नहीं होगा)।') + '</div>';
+    html += '<div style="overflow-x:auto;margin-top:8px"><table style="width:100%"><thead><tr><th>' + tr('Item', 'सामान') + '</th><th>Qty</th><th>' + tr('Rate ₹', 'भाव ₹') + '</th><th>' + tr('Amount ₹', 'रकम ₹') + '</th><th></th></tr></thead><tbody id="ocrRows">';
+    rows.forEach(function (r, i) {
+      html += '<tr data-i="' + i + '"><td><input class="input oc-name" value="' + esc(r.name) + '"></td>'
+        + '<td><input class="input oc-qty" type="number" min="0" step="0.01" value="' + r.qty + '" style="width:70px"></td>'
+        + '<td><input class="input oc-rate" type="number" min="0" step="0.01" value="' + r.rate + '" style="width:90px"></td>'
+        + '<td><input class="input oc-amt" type="number" min="0" step="0.01" value="' + r.amount + '" style="width:95px"></td>'
+        + '<td><button type="button" class="btn btn-danger btn-sm oc-del">✕</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<div style="margin-top:8px">' + tr('Total read', 'कुल पढ़ा गया') + ': <b>₹' + total.toLocaleString('en-IN') + '</b></div>';
+    html += '<button type="button" class="btn btn-primary" id="ocrApplyBill" style="margin-top:12px;width:100%">' + tr('Fill these into my bill', 'इन्हें मेरे बिल में भरो') + '</button>';
+    body.innerHTML = html;
+    body.querySelectorAll('#ocrRows tr').forEach(function (trEl) {
+      var q = trEl.querySelector('.oc-qty'), rt = trEl.querySelector('.oc-rate'), am = trEl.querySelector('.oc-amt');
+      var fromQR = function () { am.value = Math.round((Number(q.value) || 0) * (Number(rt.value) || 0) * 100) / 100; };
+      q.addEventListener('input', fromQR); rt.addEventListener('input', fromQR);
+      am.addEventListener('input', function () { var qq = Number(q.value) || 0; if (qq > 0) rt.value = Math.round((Number(am.value) || 0) / qq * 100) / 100; });
+      trEl.querySelector('.oc-del').addEventListener('click', function () { trEl.remove(); });
+    });
+    body.querySelector('#ocrApplyBill').addEventListener('click', async function () {
+      var btn = this; btn.disabled = true;
+      try {
+        var out = [];
+        body.querySelectorAll('#ocrRows tr').forEach(function (trEl) {
+          var name = trEl.querySelector('.oc-name').value.trim();
+          var qty = Number(trEl.querySelector('.oc-qty').value) || 0;
+          var rate = Number(trEl.querySelector('.oc-rate').value) || 0;
+          if (name && qty > 0 && rate > 0) out.push({ name: name, qty: qty, rate: rate });
+        });
+        if (!out.length) { btn.disabled = false; return; }
+        await applyBillRows(out);
+        document.getElementById('ocrModal').remove();
+      } catch (e) { alert((e && e.message) || 'Error'); btn.disabled = false; }
+    });
+  }
+
+  function normName(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+
+  async function applyBillRows(rows) {
+    var box = $('billItems');
+    if (!box) return;
+    // Drop the single untouched starter row, if that is all there is.
+    if (box.children.length === 1) {
+      var only = box.children[0];
+      var sv = only.querySelector('.bi-search');
+      if (sv && !sv.value.trim()) only.remove();
+    }
+    for (var k = 0; k < rows.length; k++) {
+      var r = rows[k];
+      var prod = null;
+      for (var j = 0; j < billProducts.length; j++) {
+        if (normName(billProducts[j].name) === normName(r.name)) { prod = billProducts[j]; break; }
+      }
+      if (!prod) {
+        var resp = await api('POST', '/api/products', { name: r.name, category: '', unit: 'pack', gst_rate: 0, buy_price: r.rate, sell_price: r.rate, low_stock_limit: 0, hsn_code: '', stock_qty: r.qty });
+        var p = resp.product || {};
+        prod = { id: p.id, name: p.name || r.name, unit: p.unit || 'pack', sell_price: Number(p.sell_price ?? r.rate), gst_rate: Number(p.gst_rate ?? 0), stock_qty: Number(p.stock_qty ?? p.stock ?? r.qty) };
+        billProducts.push(prod);
+        document.querySelectorAll('#billItems .bill-item-row').forEach(function (rw) { refreshBillRowOptions(rw); });
+      }
+      var row = billItemRow();
+      box.appendChild(row);
+      var sel = row.querySelector('.bi-prod');
+      sel.value = String(prod.id);
+      row.querySelector('.bi-search').value = r.name;
+      row.querySelector('.bi-qty').value = r.qty;
+      row.querySelector('.bi-rate').value = r.rate;
+    }
+    billRecalc();
+  }
+
+  // ---------- UDHAAR flow ----------
+  async function ocrUdhaarFlow() {
+    var file = await pickPhoto();
+    if (!file) return;
+    var body = ocrModal(tr('Diary photo se udhaar', 'डायरी फोटो से उधार'));
+    try {
+      ocrStatus(body, tr('Reading the photo… keep this screen open.', 'फोटो पढ़ रहे हैं… स्क्रीन खुली रखें।'), 0);
+      var text = await runOcr(file, function (p) { ocrStatus(body, tr('Reading the photo…', 'फोटो पढ़ रहे हैं…'), p); });
+      var rows = BizOcrParse.parseUdhaarText(text);
+      if (!rows.length) {
+        ocrStatus(body, tr('No udhaar lines could be read from this photo. Try a straighter, well-lit photo.', 'इस फोटो से कोई उधार लाइन नहीं पढ़ी गई। सीधी, अच्छी रोशनी वाली फोटो फिर से लें।'));
+        return;
+      }
+      renderUdhaarReview(body, rows);
+    } catch (e) {
+      ocrStatus(body, tr('Photo could not be read. Check the internet once (the reading engine loads on first use) and try again.', 'फोटो पढ़ नहीं पाए। एक बार internet देखकर फिर कोशिश करें (रीडिंग इंजन पहली बार लोड होता है)।'));
+    }
+  }
+
+  function csvCell(v) {
+    var s = String(v === undefined || v === null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function renderUdhaarReview(body, rows) {
+    var jamaCount = rows.filter(function (r) { return r.kind === 'jama'; }).length;
+    var html = '<div class="hint">' + tr('Check every line — handwriting can be misread. These will go through the normal Import preview next, with duplicate checks and an automatic safety backup.', 'हर लाइन जाँचें — लिखावट गलत पढ़ी जा सकती है। ये आगे सामान्य Import preview से जाएँगे — duplicate जाँच और अपने-आप बनने वाले safety backup के साथ।') + '</div>';
+    if (jamaCount) html += '<div class="hint" style="margin-top:6px">' + tr('Lines marked JAMA are payments — they are NOT imported here. Record them from the customer page with Vasuli.', 'JAMA वाली लाइनें भुगतान हैं — वे यहाँ import नहीं होंगी। उन्हें ग्राहक वाले पेज से Vasuli में डालें।') + '</div>';
+    html += '<div style="overflow-x:auto;margin-top:8px"><table style="width:100%"><thead><tr><th>' + tr('Name', 'नाम') + '</th><th>' + tr('Phone', 'फोन') + '</th><th>' + tr('Amount ₹', 'रकम ₹') + '</th><th>' + tr('Type', 'प्रकार') + '</th><th></th></tr></thead><tbody id="ocrRows">';
+    rows.forEach(function (r) {
+      html += '<tr><td><input class="input oc-name" value="' + esc(r.name) + '"></td>'
+        + '<td><input class="input oc-phone" value="' + esc(r.phone) + '" style="width:115px"></td>'
+        + '<td><input class="input oc-amt" type="number" min="0" step="0.01" value="' + r.amount + '" style="width:95px"></td>'
+        + '<td>' + (r.kind === 'jama' ? '<span class="pend-amt">JAMA</span>' : tr('Udhaar', 'उधार')) + '<input type="hidden" class="oc-kind" value="' + r.kind + '"></td>'
+        + '<td><button type="button" class="btn btn-danger btn-sm oc-del">✕</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<button type="button" class="btn btn-primary" id="ocrApplyUdhaar" style="margin-top:12px;width:100%">' + tr('Send to Import preview', 'Import preview में भेजो') + '</button>';
+    body.innerHTML = html;
+    body.querySelectorAll('.oc-del').forEach(function (b) {
+      b.addEventListener('click', function () { b.closest('tr').remove(); });
+    });
+    body.querySelector('#ocrApplyUdhaar').addEventListener('click', async function () {
+      var btn = this; btn.disabled = true;
+      try {
+        var lines = ['name,phone,opening'];
+        body.querySelectorAll('#ocrRows tr').forEach(function (trEl) {
+          if (trEl.querySelector('.oc-kind').value === 'jama') return;
+          var name = trEl.querySelector('.oc-name').value.trim();
+          var phone = trEl.querySelector('.oc-phone').value.trim();
+          var amt = Number(trEl.querySelector('.oc-amt').value) || 0;
+          if (name && amt > 0) lines.push([csvCell(name), csvCell(phone), amt].join(','));
+        });
+        if (lines.length < 2) { btn.disabled = false; return; }
+        var csv = lines.join('\n');
+        var typeSel = $('importType'); if (typeSel) typeSel.value = 'customers';
+        var r = await api('POST', '/api/import/customers/preview', { content: csv, duplicate: importDupStrategy() });
+        importPreviewState = { type: 'customers', content: csv, duplicate: importDupStrategy() };
+        renderImportPreview(r);
+        var commitBtn = $('importCommitBtn'); if (commitBtn) commitBtn.classList.remove('hidden');
+        document.getElementById('ocrModal').remove();
+        var res = $('importResult'); if (res && res.scrollIntoView) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) { alert((e && e.message) || 'Error'); btn.disabled = false; }
+    });
+  }
+
+  // ---------- buttons ----------
+  function addBtn(afterEl, id, label, onClick) {
+    if (!afterEl || document.getElementById(id)) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = id; b.className = 'btn btn-sm';
+    b.style.marginLeft = '8px';
+    b.textContent = label;
+    b.addEventListener('click', onClick);
+    afterEl.insertAdjacentElement('afterend', b);
+  }
+  addBtn($('billAddItem'), 'ocrBillBtn', '📷 ' + tr('Photo bill', 'फोटो बिल'), ocrBillFlow);
+  addBtn($('importPreviewBtn'), 'ocrUdhaarBtn', '📷 ' + tr('Diary photo udhaar', 'डायरी फोटो उधार'), ocrUdhaarFlow);
+})();

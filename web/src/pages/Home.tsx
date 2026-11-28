@@ -133,15 +133,23 @@ export function HomePage() {
 }
 
 function QuickActions() {
-  const { t } = useI18n();
+  const { t, err } = useI18n();
   const { can } = useSession();
-  const items: { to: string; icon: React.ReactNode; label: string; tone?: string; show: boolean }[] = [
+  const toast = useToast();
+  // 12-features pack: day-end summary on WhatsApp — opens wa.me to the
+  // shop's own number with today's numbers ready (manual, never auto-sent).
+  const dayEnd = async () => {
+    try { const r = await get<{ url: string }>('/api/reports/day-end/whatsapp-link'); window.open(r.url, '_blank', 'noopener'); }
+    catch (e) { toast({ text: err(e), tone: 'error' }); }
+  };
+  const items: { to?: string; action?: () => void; icon: React.ReactNode; label: string; tone?: string; show: boolean }[] = [
     { to: '/pos', icon: <ReceiptText size={18} />, label: t('New bill', 'नया बिल', 'Naya bill'), show: can.billing },
     { to: '/customers?filter=owes', icon: <HandCoins size={18} />, label: t('Record payment', 'भुगतान दर्ज करें', 'Payment likho'), show: can.billing },
     { to: '/products?new=1', icon: <PackagePlus size={18} />, label: t('Add product', 'सामान जोड़ें', 'Saaman jodo'), show: can.stock },
     { to: '/expenses', icon: <Wallet size={18} />, label: t('Add expense', 'खर्चा जोड़ें', 'Kharcha jodo'), show: can.finance },
     { to: '/products?import=1', icon: <Upload size={18} />, label: t('Import data', 'डेटा import करें', 'Data import karo'), show: can.owner },
-    { to: '/mart', icon: <ShoppingCart size={18} />, label: t('Buy on Mart', 'Mart से खरीदें', 'Mart se khareedo'), tone: 'mart', show: can.mart }
+    { to: '/mart', icon: <ShoppingCart size={18} />, label: t('Buy on Mart', 'Mart से खरीदें', 'Mart se khareedo'), tone: 'mart', show: can.mart },
+    { action: dayEnd, icon: <MessageCircle size={18} />, label: t('Day summary on WhatsApp', 'दिन का हिसाब WhatsApp पर', 'Din ka hisab WhatsApp par'), show: can.finance }
   ];
   const shown = items.filter((i) => i.show);
   if (!shown.length) return null;
@@ -149,10 +157,14 @@ function QuickActions() {
     <section className="panel">
       <header className="panel-head"><h2>{t('Quick actions', 'जल्दी के काम', 'Jaldi ke kaam')}</h2></header>
       <div className="qa-grid">
-        {shown.map((i) => (
+        {shown.map((i) => i.to ? (
           <Link key={i.to} to={i.to} className={`qa ${i.tone === 'mart' ? 'qa-mart' : ''}`}>
             <span className="qa-ic">{i.icon}</span><span>{i.label}</span>
           </Link>
+        ) : (
+          <button key={i.label} type="button" className="qa" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={i.action}>
+            <span className="qa-ic">{i.icon}</span><span>{i.label}</span>
+          </button>
         ))}
       </div>
     </section>

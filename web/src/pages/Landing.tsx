@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, ArrowUpRight, Bell, BookOpenText, Calculator, Check, ChevronDown, CircleCheck, DatabaseBackup,
-  Languages, MessageCircle, Moon, Package, Receipt, RotateCcw, Shirt, ShoppingCart, Smartphone, Store,
+  Languages, Menu, MessageCircle, Moon, Package, Receipt, RotateCcw, Shirt, ShoppingCart, Smartphone, Store,
   Sun, Sunrise, Sunset, Upload, Users, Warehouse, WifiOff, Wrench, X
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
@@ -100,7 +100,7 @@ function Intro({ onDone }: { onDone: () => void }) {
   return (
     <div className={`intro ${leaving ? 'intro-out' : ''}`} onClick={() => { setLeaving(true); window.setTimeout(onDone, 500); }} data-testid="intro" aria-hidden>
       <div className="intro-lock">
-        <img src="/bizyour-mark-512.png?v=c" alt="" className="intro-mark" width={96} height={96} />
+        <img src="/bizyour-mark-192.png?v=d" alt="" className="intro-mark" width={96} height={96} />
         <div className="intro-word">Biz<span>Your</span></div>
         <div className="intro-rule" />
         <div className="intro-by">by DILIGENCE</div>
@@ -147,7 +147,7 @@ function IPhone({ children, className = '', label }: { children: ReactNode; clas
 function PhoneBar({ title, sub, mart }: { title: string; sub?: string; mart?: boolean }) {
   return (
     <div className={`pb ${mart ? 'pb-mart' : ''}`}>
-      <img src="/bizyour-mark-512.png?v=c" alt="" width={20} height={20} />
+      <img src="/bizyour-mark-192.png?v=d" alt="" width={20} height={20} />
       <div><b>{title}</b>{sub && <small>{sub}</small>}</div>
     </div>
   );
@@ -180,7 +180,7 @@ function HeroStage() {
   return (
     <div className="hero-stage" ref={ref}>
       <MacBook label={t('BizYour home screen on a laptop', 'लैपटॉप पर BizYour होम स्क्रीन', 'Laptop pe BizYour home screen')}>
-        <img src="/landing/home.webp?v=c" alt={t('The Workspace home screen: today’s sale, udhaar to collect and low stock', 'Workspace होम: आज की बिक्री, वसूली और कम स्टॉक', 'Workspace home: aaj ki bikri, vasooli aur kam stock')} width={1400} height={875} />
+        <img src="/landing/home.webp?v=d" alt={t('The Workspace home screen: today’s sale, udhaar to collect and low stock', 'Workspace होम: आज की बिक्री, वसूली और कम स्टॉक', 'Workspace home: aaj ki bikri, vasooli aur kam stock')} width={1120} height={700} />
       </MacBook>
 
       <IPhone className="hero-phone" label={t('A bill being made on a phone', 'फ़ोन पर बनता हुआ बिल', 'Phone pe banta hua bill')}>
@@ -251,7 +251,7 @@ function MergeDemo() {
           ))}
         </ul>
         <div className="merge-one" aria-hidden={!together}>
-          <img src="/bizyour-mark-512.png?v=c" alt="" width={48} height={48} />
+          <img src="/bizyour-mark-192.png?v=d" alt="" width={48} height={48} />
           <div>
             <b>{t('BizYour — everything in one app', 'BizYour — सब कुछ एक ऐप में', 'BizYour — sab kuch ek app me')}</b>
             <ul className="merge-mods">{mods.map((m) => <li key={m}><Check size={13} aria-hidden /> {m}</li>)}</ul>
@@ -276,7 +276,7 @@ function WorkspaceTour() {
   const { i, pick } = useAutoStep(3, 6500, inView);
   const tabs: { key: string; label: string; img: string; alt: string; cap: string; items: [string, string][] }[] = [
     {
-      key: 'counter', label: t('The counter', 'काउंटर', 'Counter'), img: '/landing/pos.webp?v=c',
+      key: 'counter', label: t('The counter', 'काउंटर', 'Counter'), img: '/landing/pos.webp?v=d',
       alt: t('The billing counter with items added', 'बिलिंग काउंटर', 'Billing counter'),
       cap: t('New bill: add items, GST applies itself, UPI QR on the bill. Keyboard shortcuts for speed.', 'नया बिल: सामान जोड़ें, GST अपने आप, बिल पर UPI QR। तेज़ी के लिए keyboard shortcut।', 'New bill: item jodo, GST khud lagega, bill pe UPI QR. Speed ke liye keyboard shortcut.'),
       items: [
@@ -287,7 +287,7 @@ function WorkspaceTour() {
       ]
     },
     {
-      key: 'udhaar', label: t('Udhaar', 'उधार', 'Udhaar'), img: '/landing/customer.webp?v=c',
+      key: 'udhaar', label: t('Udhaar', 'उधार', 'Udhaar'), img: '/landing/customer.webp?v=d',
       alt: t('A customer’s udhaar account', 'ग्राहक का उधार खाता', 'Customer ka udhaar khata'),
       cap: t('Every customer’s khata, with a reminder one tap away.', 'हर ग्राहक का खाता, reminder एक tap पर।', 'Har customer ka khata, reminder ek tap pe.'),
       items: [
@@ -296,7 +296,7 @@ function WorkspaceTour() {
       ]
     },
     {
-      key: 'day', label: t('Day and stock', 'दिन और स्टॉक', 'Din aur stock'), img: '/landing/home.webp?v=c',
+      key: 'day', label: t('Day and stock', 'दिन और स्टॉक', 'Din aur stock'), img: '/landing/home.webp?v=d',
       alt: t('The Workspace home screen', 'Workspace होम स्क्रीन', 'Workspace home screen'),
       cap: t('Your whole business on one screen: today’s sale, credit still to collect, low-stock alerts and the day-end summary.', 'पूरा बिज़नेस एक स्क्रीन पर: आज की बिक्री, बाकी उधार, कम स्टॉक alert और दिन का हिसाब।', 'Poora business ek screen pe: aaj ki sale, baaki udhaar, low-stock alert aur day-end summary.'),
       items: [
@@ -323,7 +323,7 @@ function WorkspaceTour() {
       </div>
       <div className="tour-device">
         <MacBook label={tab.alt}>
-          {tabs.map((x, k) => <img key={x.key} src={x.img} alt={k === i ? x.alt : ''} className={k === i ? 'on' : ''} loading="lazy" width={1400} height={875} />)}
+          {tabs.map((x, k) => <img key={x.key} src={x.img} alt={k === i ? x.alt : ''} className={k === i ? 'on' : ''} loading="lazy" width={1120} height={700} />)}
         </MacBook>
         <p className="tour-cap" aria-live="polite">{tab.cap}</p>
       </div>
@@ -480,7 +480,7 @@ function MartTour() {
       </ol>
       <div className="mart-stage">
         <MacBook label={t('Comparing wholesaler quotes side by side', 'थोक वालों के quote की तुलना', 'Wholesaler quotes ki tulna')}>
-          <img src="/landing/mart-compare.webp?v=c" alt={t('Quotes compared on landed cost, delivery days and the seller’s record', 'पूरी लागत, delivery और seller के रिकॉर्ड पर तुलना', 'Poori laagat, delivery aur seller ke record pe tulna')} loading="lazy" width={1400} height={875} />
+          <img src="/landing/mart-compare.webp?v=d" alt={t('Quotes compared on landed cost, delivery days and the seller’s record', 'पूरी लागत, delivery और seller के रिकॉर्ड पर तुलना', 'Poori laagat, delivery aur seller ke record pe tulna')} loading="lazy" width={1120} height={700} />
         </MacBook>
         <IPhone className="mart-phone" label={steps[i][0]}><div className="ps-swap" key={i}><MartPhone i={i} /></div></IPhone>
       </div>
@@ -504,6 +504,13 @@ export default function Landing() {
   const { t } = useI18n();
   const intro = useIntro();
   const navTone = useNavTone();
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
   useEffect(() => {
     document.title = 'BizYour — billing, stock, udhaar and a B2B bazaar for your business';
     const c = document.querySelector('link[rel="canonical"]'); if (c) c.setAttribute('href', 'https://www.bizyour.in/');
@@ -550,7 +557,7 @@ export default function Landing() {
       <header className={`lp-nav-wrap ${navTone.scrolled ? 'is-scrolled' : ''} ${navTone.dark ? 'is-dark' : ''}`}>
       <div className="lp-nav">
         <Link to="/" className="lp-logo" aria-label="BizYour">
-          <img src="/bizyour-mark-512.png?v=c" alt="" width={30} height={30} />
+          <img src="/bizyour-mark-192.png?v=d" alt="" width={30} height={30} />
           <span><b>BizYour</b><small>by DILIGENCE</small></span>
         </Link>
         <nav className="lp-links" aria-label={t('Sections', 'हिस्से', 'Sections')}>
@@ -560,11 +567,24 @@ export default function Landing() {
           <a href="#faq">{t('Questions', 'सवाल', 'Sawaal')}</a>
         </nav>
         <div className="lp-nav-end">
+          <button type="button" className="lp-menu-btn" aria-expanded={menuOpen} aria-controls="lp-mobile-menu" aria-label={menuOpen ? t('Close menu', 'मेनू बंद करें', 'Menu band karo') : t('Open menu', 'मेनू खोलें', 'Menu kholo')} onClick={() => setMenuOpen((v) => !v)}>
+            {menuOpen ? <X size={22} aria-hidden /> : <Menu size={22} aria-hidden />}
+          </button>
           <LangSwitch />
           <Link to="/login" className="btn btn-ghost">{t('Log in', 'लॉग इन', 'Log in')}</Link>
           <Link to="/signup" className="btn btn-primary lp-nav-cta">{t('Create free account', 'मुफ़्त account बनाएं', 'Free account banao')}</Link>
         </div>
       </div>
+      {menuOpen && (
+        <nav id="lp-mobile-menu" className="lp-mobile-menu" aria-label={t('Sections', 'हिस्से', 'Sections')}>
+          <a href="#workspace" onClick={() => setMenuOpen(false)}>Workspace</a>
+          <a href="#mart" onClick={() => setMenuOpen(false)}>Business Mart</a>
+          <a href="#pricing" onClick={() => setMenuOpen(false)}>{t('Pricing', 'कीमत', 'Pricing')}</a>
+          <a href="#faq" onClick={() => setMenuOpen(false)}>{t('Questions', 'सवाल', 'Sawaal')}</a>
+          <Link to="/login" onClick={() => setMenuOpen(false)}>{t('Log in', 'लॉग इन', 'Log in')}</Link>
+          <Link to="/signup" onClick={() => setMenuOpen(false)} className="lp-mobile-cta">{t('Create free account', 'मुफ़्त account बनाएं', 'Free account banao')}</Link>
+        </nav>
+      )}
       </header>
 
       <main>
@@ -681,7 +701,7 @@ export default function Landing() {
               <div className="lp-cmp-row lp-cmp-head" role="row">
                 <span role="columnheader">{t('Job', 'काम', 'Kaam')}</span>
                 <span role="columnheader">{t('Separate apps', 'अलग-अलग ऐप', 'Alag-alag apps')}</span>
-                <span role="columnheader" className="lp-cmp-us"><img src="/bizyour-mark-512.png?v=c" alt="" width={18} height={18} /> BizYour</span>
+                <span role="columnheader" className="lp-cmp-us"><img src="/bizyour-mark-192.png?v=d" alt="" width={18} height={18} /> BizYour</span>
               </div>
               {compare.map(([job, them, us]) => (
                 <div className="lp-cmp-row" role="row" key={job}>
@@ -739,17 +759,52 @@ export default function Landing() {
           </Reveal>
           <div className="lp-price">
             <Reveal className="lp-price-col lp-price-mart">
-              <h3><ShoppingCart size={16} aria-hidden /> Business Mart</h3>
-              <div className="lp-price-big">{t('Free', 'मुफ़्त', 'Free')}</div>
-              <p>{t('For every business, always. Post requests, send quotes, place and receive orders. Even if your Workspace plan ends.', 'हर बिज़नेस के लिए, हमेशा। Request, quote, order — Workspace plan खत्म होने पर भी।', 'Har business ke liye, hamesha. Request, quote, order — Workspace plan khatam hone pe bhi.')}</p>
+              <h3><Users size={16} aria-hidden /> {t('Udhaar', 'उधार', 'Udhaar')}</h3>
+              <div className="lp-price-big">{t('FREE', 'मुफ़्त', 'FREE')}</div>
+              <p className="lp-price-per">{t('forever', 'हमेशा के लिए', 'hamesha ke liye')}</p>
+              <ul className="lp-price-list">
+                <li><Check size={14} aria-hidden />{t('Udhaar / khata — give and track credit', 'उधार / खाता — उधार दें और हिसाब रखें', 'Udhaar / khata — udhaar do aur hisaab rakho')}</li>
+                <li><Check size={14} aria-hidden />{t('Business Mart buying', 'Business Mart से खरीदारी', 'Business Mart buying')}</li>
+                <li><Check size={14} aria-hidden />{t('Up to 25 customers', '25 customers तक', '25 customers tak')}</li>
+                <li><Check size={14} aria-hidden />{t('Up to 100 transactions/month', '100 transactions/महीना तक', '100 transactions/month tak')}</li>
+                <li><Check size={14} aria-hidden />{t('Limited reminders/month', 'सीमित reminders/महीना', 'Limited reminders/month')}</li>
+              </ul>
+              <Link to="/signup" className="btn btn-secondary">{t('Start free', 'फ्री शुरू करें', 'Free shuru karo')}</Link>
             </Reveal>
             <Reveal className="lp-price-col lp-price-ws" delay={120}>
-              <h3><BookOpenText size={16} aria-hidden /> Workspace</h3>
-              <div className="lp-price-big">{t('30 days free', '30 दिन मुफ़्त', '30 din free')}</div>
-              <p>{t('Every feature open, no card needed. After 30 days choose a monthly or yearly plan in Settings. If you don’t, your data stays safe and readable, and you can renew any time.', 'हर feature खुला, कोई card नहीं। 30 दिन बाद Settings में महीने या साल का plan लें। न लें तो भी डेटा सुरक्षित और दिखता रहेगा, कभी भी renew करें।', 'Har feature khula, koi card nahi. 30 din baad Settings me monthly ya yearly plan lo. Na lo to bhi data safe aur dikhta rahega, kabhi bhi renew karo.')}</p>
+              <h3><BookOpenText size={16} aria-hidden /> {t('Billing + Stock', 'बिलिंग + स्टॉक', 'Billing + Stock')}</h3>
+              <div className="lp-price-big">₹149</div>
+              <p className="lp-price-per">{t('/month', '/महीना', '/month')} · {t('₹1,499/year', '₹1,499/साल', '₹1,499/year')}</p>
+              <p className="lp-price-gst">{t('GST included', 'GST शामिल', 'GST included')}</p>
+              <ul className="lp-price-list">
+                <li><Check size={14} aria-hidden />{t('Everything in Udhaar, plus:', 'Udhaar का सब कुछ, और:', 'Udhaar ka sab kuch, aur:')}</li>
+                <li><Check size={14} aria-hidden />{t('Billing, stock, estimates & expenses', 'Billing, stock, estimates और expenses', 'Billing, stock, estimates aur expenses')}</li>
+                <li><Check size={14} aria-hidden />{t('GST reports', 'GST reports', 'GST reports')}</li>
+                <li><Check size={14} aria-hidden />{t('Credit limit & profit on invoices', 'Credit limit और invoice पर profit', 'Credit limit aur invoice par profit')}</li>
+                <li><Check size={14} aria-hidden />{t('Multiple pricing & party-wise rates', 'Multiple pricing और party-wise rates', 'Multiple pricing aur party-wise rates')}</li>
+                <li><Check size={14} aria-hidden />{t('Message on update & day-end summary', 'Update पर message और day-end summary', 'Update par message aur day-end summary')}</li>
+              </ul>
+              <Link to="/signup" className="btn btn-secondary">{t('Start the free trial', 'फ्री ट्रायल शुरू करें', 'Free trial shuru karo')}</Link>
+            </Reveal>
+            <Reveal className="lp-price-col lp-price-hero" delay={240}>
+              <span className="lp-price-badge">{t('Most popular', 'सबसे लोकप्रिय', 'Sabse popular')}</span>
+              <h3><Store size={16} aria-hidden /> {t('Everything', 'सब कुछ', 'Everything')}</h3>
+              <div className="lp-price-big">₹199</div>
+              <p className="lp-price-per">{t('/month', '/महीना', '/month')} · {t('₹1,999/year', '₹1,999/साल', '₹1,999/year')}</p>
+              <p className="lp-price-gst">{t('GST included', 'GST शामिल', 'GST included')}</p>
+              <ul className="lp-price-list">
+                <li><Check size={14} aria-hidden />{t('Everything in Billing + Stock, plus:', 'Billing + Stock का सब कुछ, और:', 'Billing + Stock ka sab kuch, aur:')}</li>
+                <li><Check size={14} aria-hidden />{t('Partywise P&L', 'Partywise P&L', 'Partywise P&L')}</li>
+                <li><Check size={14} aria-hidden />{t('Restore deleted transactions', 'Deleted transactions वापस लाएँ', 'Deleted transactions wapas lao')}</li>
+                <li><Check size={14} aria-hidden />{t('Balance sheet snapshot', 'Balance sheet snapshot', 'Balance sheet snapshot')}</li>
+                <li><Check size={14} aria-hidden />{t('Custom fields for items', 'Items के लिए custom fields', 'Items ke liye custom fields')}</li>
+                <li><Check size={14} aria-hidden />{t('Semi-auto payment reminders — due list + one-tap, no auto-send', 'Semi-auto payment reminders — due list + one-tap, auto-send नहीं', 'Semi-auto payment reminders — due list + one-tap, no auto-send')}</li>
+                <li><Check size={14} aria-hidden />{t('Basic accounts — light accounting', 'Basic accounts — हल्का accounting', 'Basic accounts — halka accounting')}</li>
+              </ul>
               <Link to="/signup" className="btn btn-primary">{t('Start the free trial', 'फ्री ट्रायल शुरू करें', 'Free trial shuru karo')}</Link>
             </Reveal>
           </div>
+          <p className="lp-price-mart-note">{t('Business Mart stays free for every business — buying and selling in the Mart never needs a plan.', 'Business Mart हर बिज़नेस के लिए मुफ़्त रहता है — Mart में खरीदने-बेचने के लिए कभी plan नहीं चाहिए।', 'Business Mart har business ke liye free rehta hai — Mart me khareedne-bechne ke liye kabhi plan nahi chahiye.')}</p>
           <p className="lp-price-more"><a href="/pricing.html">{t('See the full pricing page — what is free, what is paid, and what happens after the trial', 'पूरी pricing देखें — क्या मुफ़्त है, क्या paid है, और trial के बाद क्या होता है', 'Poori pricing dekho — kya free hai, kya paid hai, aur trial ke baad kya hota hai')} →</a></p>
         </section>
 
@@ -778,7 +833,7 @@ export default function Landing() {
         <section className="lp-team" aria-labelledby="team-h" data-nav-tone="dark">
           <div className="lp-team-in">
             <div className="lp-team-copy">
-              <img src="/bizyour-mark-512.png?v=c" alt="" width={52} height={52} />
+              <img src="/bizyour-mark-192.png?v=d" alt="" width={52} height={52} />
               <span className="lp-team-eyebrow">TEAM DILIGENCE</span>
               <h2 id="team-h">{t('Proudly built by IITians at DILIGENCE', 'DILIGENCE के IITians ने गर्व से बनाया', 'DILIGENCE ke IITians ne garv se banaya')}</h2>
               <p>{t('BizYour is not a faceless corporate product. It is built line by line by Team DILIGENCE, IITians who understand how India’s businesses actually run.', 'BizYour कोई बेनाम कॉर्पोरेट प्रोडक्ट नहीं। इसे Team DILIGENCE के IITians लाइन-दर-लाइन बनाते हैं, जो जानते हैं कि भारत के बिज़नेस असल में कैसे चलते हैं।', 'BizYour koi benaam corporate product nahi. Ise Team DILIGENCE ke IITians line-by-line banate hain, jo jaante hain ki India ke businesses asal me kaise chalte hain.')}</p>
@@ -842,7 +897,7 @@ export default function Landing() {
         <div className="lp-foot-grid">
           <div className="lp-foot-about">
             <div className="lp-logo">
-              <img src="/bizyour-mark-512.png?v=c" alt="" width={34} height={34} />
+              <img src="/bizyour-mark-192.png?v=d" alt="" width={34} height={34} />
               <span><b>BizYour</b><small>by DILIGENCE</small></span>
             </div>
             <p>{t('Made for business owners, from billing to the bazaar.', 'बिज़नेस वालों के लिए बना, बिलिंग से लेकर बाज़ार तक।', 'Business walon ke liye bana, billing se lekar bazaar tak.')}</p>

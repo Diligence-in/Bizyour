@@ -26,7 +26,8 @@ import { useIsMobile, usePageTitle } from '../components/shell/AppShell';
 
 type Mode = 'Cash' | 'UPI' | 'Bank' | 'Udhaar';
 const UNITS = ['piece', 'pack', 'kg', 'gram', 'litre', 'ml', 'box', 'dozen', 'bag', 'bottle', 'metre'];
-interface Line { product: BillingProduct; qty: number; price: number }
+type Tier = 'retail' | 'wholesale';
+interface Line { product: BillingProduct; qty: number; price: number; tier: Tier }
 
 function addDays(n: number) {
   const d = new Date(); d.setDate(d.getDate() + n);
@@ -68,6 +69,27 @@ export default function PosPage() {
   const [payOpen, setPayOpen] = useState(false); // mobile payment sheet
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // 12-features pack: per-customer special rates (override) + the
+  // customer's default price tier. Bill rate resolution, everywhere on
+  // this screen: special rate → tier price → sell price.
+  const specials = useQuery({
+    queryKey: ['special-rates', customer?.id],
+    queryFn: () => get<{ prices: { product_id: number; price: number }[] }>(`/api/customers/${customer!.id}/prices`),
+    enabled: !!customer
+  });
+  const specialMap = useMemo(() => {
+    const m = new Map<number, number>();
+    (specials.data?.prices || []).forEach((p) => m.set(p.product_id, Number(p.price)));
+    return m;
+  }, [specials.data]);
+  const resolveRate = useCallback((p: BillingProduct, tier: Tier) => {
+    const sp = specialMap.get(p.id);
+    if (sp !== undefined) return sp;
+    if (tier === 'wholesale' && p.wholesale_price != null) return p.wholesale_price;
+    return p.sell_price;
+  }, [specialMap]);
+  const setTierAt = (id: number, tier: Tier) => setLines((ls) => ls.map((l) => (l.product.id === id ? { ...l, tier, price: resolveRate(l.product, tier) } : l)));
+
   const gstOn = !!me?.business?.gst_enabled;
   // While editing, the quantities already on this bill are back in stock.
   const origQty = useMemo(() => {
@@ -86,8 +108,8 @@ export default function PosPage() {
     for (const it of d.items) {
       const i = merged.findIndex((l) => l.product.id === it.product_id);
       if (i >= 0) { merged[i] = { ...merged[i], qty: merged[i].qty + Number(it.qty) }; continue; }
-      const p = all.find((x) => x.id === it.product_id) || { id: it.product_id, name: it.product_name, unit: it.p_unit || '', sell_price: it.sell_price, gst_rate: it.gst_rate, stock_qty: Number(it.qty) };
-      merged.push({ product: p, qty: Number(it.qty), price: Number(it.sell_price) });
+      const p = all.find((x) => x.id === it.product_id) || { id: it.product_id, name: it.product_name, unit: it.p_unit || '', sell_price: it.sell_price, wholesale_price: null, gst_rate: it.gst_rate, stock_qty: Number(it.qty) };
+      merged.push({ product: p, qty: Number(it.qty), price: Number(it.sell_price), tier: (p.wholesale_price != null && Number(it.sell_price) === Number(p.wholesale_price)) ? 'wholesale' : 'retail' });
     }
     setLines(merged);
     setCustomer(inv.customer_id ? (customers.data.customers.find((c) => c.id === inv.customer_id) || d.customer) : null);
@@ -124,11 +146,12 @@ export default function PosPage() {
     setLines((ls) => {
       const i = ls.findIndex((l) => l.product.id === p.id);
       if (i >= 0) { const c = ls.slice(); c[i] = { ...c[i], qty: c[i].qty + n }; return c; }
-      return [...ls, { product: p, qty: n, price: p.sell_price }];
+      const tier: Tier = (customer?.price_tier || 'retail') as Tier;
+      return [...ls, { product: p, qty: n, price: resolveRate(p, tier), tier }];
     });
     setQ('');
     searchRef.current?.focus();
-  }, []);
+  }, [customer, resolveRate]);
   const setQtyAt = (id: number, v: number) => setLines((ls) => ls.flatMap((l) => (l.product.id !== id ? [l] : v <= 0 ? [] : [{ ...l, qty: v }])));
   const setPriceAt = (id: number, v: number) => setLines((ls) => ls.map((l) => (l.product.id === id ? { ...l, price: v } : l)));
 
@@ -277,6 +300,12 @@ export default function PosPage() {
         </div>
       )}
 
+      {customer && customer.credit_limit != null && custPending + total > customer.credit_limit && (
+        <div className="banner banner-warn" role="alert" style={{ fontSize: 13 }}>
+          {t(`Credit limit ${rupees(customer.credit_limit)} crossed — ${customer.name} already owes ${rupees(custPending)}; with this bill it becomes ${rupees(custPending + total)}. You can still save this bill — the limit is a warning, not a block.`, `क्रेडिट लिमिट ${rupees(customer.credit_limit)} पार — ${customer.name} का पहले से ${rupees(custPending)} बाकी है; इस बिल के साथ ${rupees(custPending + total)} हो जाएगा। फिर भी बिल सेव कर सकते हो — लिमिट चेतावनी है, रोक नहीं।`, `Credit limit ${rupees(customer.credit_limit)} paar — ${customer.name} ka pehle se ${rupees(custPending)} baaki hai; is bill ke saath ${rupees(custPending + total)} ho jayega. Phir bhi bill save kar sakte ho — limit warning hai, rok nahi.`)}
+        </div>
+      )}
+
       <Button variant="primary" size="xl" block onClick={save} loading={saving} disabled={!lines.length || editBlocked}>
         <Check size={20} /> {editId ? t('Save changes', 'बदलाव सेव करें', 'Badlav save karo') : balance > 0 && paid === 0 ? t('Save on udhaar', 'उधार में सेव करें', 'Udhaar me save karo') : t('Save bill', 'बिल सेव करें', 'Bill save karo')} · {rupees(total)}
       </Button>
@@ -313,7 +342,7 @@ export default function PosPage() {
                   <button key={p.id} role="option" aria-selected={i === hi} className="pos-result" onMouseMove={() => setHi(i)} onClick={() => add(p)} disabled={left <= 0}>
                     <span className="grow ellipsis">{p.name}</span>
                     <span className={`num ${left <= 0 ? 'money-owed' : 'muted'}`} style={{ fontSize: 13 }}>{left <= 0 ? t('out of stock', 'खत्म', 'khatam') : `${fmtQty(left)} ${p.unit}`}</span>
-                    <span className="num" style={{ width: 80, textAlign: 'right', fontWeight: 500 }}>{rupees(p.sell_price)}</span>
+                    <span className="num" style={{ width: 80, textAlign: 'right', fontWeight: 500 }}>{rupees(resolveRate(p, (customer?.price_tier || 'retail') as Tier))}</span>
                   </button>
                 );
               })}
@@ -362,6 +391,16 @@ export default function PosPage() {
                   <div className="muted" style={{ fontSize: 12 }}>
                     {l.qty > l.product.stock_qty ? <span className="money-owed">{t(`only ${l.product.stock_qty} in stock`, `सिर्फ़ ${l.product.stock_qty} स्टॉक में`, `sirf ${l.product.stock_qty} stock me`)}</span> : `${fmtQty(l.product.stock_qty - l.qty)} ${l.product.unit} ${t('left after this', 'बचेगा', 'bachega')}`}
                     {gstOn && l.product.gst_rate > 0 ? ` · GST ${l.product.gst_rate}%` : ''}
+                    {specialMap.has(l.product.id)
+                      ? <span style={{ marginLeft: 8 }}>{t('Special rate', 'खास भाव', 'Special rate')} {rupees(specialMap.get(l.product.id)!)}</span>
+                      : l.product.wholesale_price != null && (
+                        <span style={{ marginLeft: 8, verticalAlign: 'middle' }}>
+                          <Segmented<Tier> label={t('Price tier — retail or wholesale', 'भाव — खुदरा या थोक', 'Price tier — retail ya wholesale')} value={l.tier} onChange={(v) => setTierAt(l.product.id, v)} options={[
+                            { value: 'retail', label: rupees(l.product.sell_price), title: t('Retail price', 'खुदरा भाव', 'Retail price') },
+                            { value: 'wholesale', label: rupees(l.product.wholesale_price), title: t('Wholesale price', 'थोक भाव', 'Wholesale price') }
+                          ]} />
+                        </span>
+                      )}
                   </div>
                 </div>
                 <div className="stepper">
@@ -570,7 +609,7 @@ function QuickAddItem({ open, initialName, onClose, onCreated }: { open: boolean
       toast({ text: t(`${name.trim()} saved to stock and added to this bill.`, `${name.trim()} stock में save होकर बिल में जुड़ गया।`, `${name.trim()} stock me save hokar bill me jud gaya.`) });
       onCreated({
         id: Number(p.id), name: String(p.name || name.trim()), unit: String(p.unit || unit),
-        sell_price: Number(p.sell_price ?? sellN), gst_rate: Number(p.gst_rate ?? 0),
+        sell_price: Number(p.sell_price ?? sellN), wholesale_price: null, gst_rate: Number(p.gst_rate ?? 0),
         stock_qty: Number((p.stock_qty as number) ?? (p.stock as number) ?? stockVal)
       });
     } catch (e) { toast({ text: err(e), tone: 'error' }); } finally { setBusy(false); }

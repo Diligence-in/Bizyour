@@ -13,17 +13,21 @@ export interface Business {
   logo: string | null; shop_photo: string | null;
   language: Lang; setup_complete: boolean;
 }
-export interface Me { user: User; business: Business | null }
+export interface Me { user: User; business: Business | null; effective_plan?: string }
 
 export interface Product {
   id: number; name: string; category: string; unit: string; buy_price: number; sell_price: number;
+  wholesale_price: number | null; custom_fields?: { key: string; value: string }[];
   gst_rate: number; hsn_code: string; stock_qty: number; low_stock_limit: number; status: 'ok' | 'low' | 'out';
+  deleted_at?: string | null;
 }
-export interface BillingProduct { id: number; name: string; unit: string; sell_price: number; gst_rate: number; stock_qty: number }
+export interface BillingProduct { id: number; name: string; unit: string; sell_price: number; wholesale_price: number | null; gst_rate: number; stock_qty: number }
 
 export interface Customer {
   id: number; name: string; phone: string; city: string; gstin: string;
+  credit_limit: number | null; price_tier: 'retail' | 'wholesale';
   total_billed: number; total_received: number; total_returns: number; pending: number; hisab_enabled: boolean;
+  deleted_at?: string | null;
 }
 export interface Supplier { id: number; name: string; phone: string; city: string; total_purchased: number; total_paid: number; pending: number }
 
@@ -33,8 +37,9 @@ export interface Invoice {
   subtotal: number; discount: number; gst_enabled: boolean; gst_amount: number; total: number;
   paid_amount: number; pending_amount: number; status: BillStatus; payment_mode: string | null;
   due_date: string | null; kind: 'sale' | 'opening'; cancelled: boolean; cancel_reason: string | null;
+  profit?: number; // per-bill profit from the buy_price snapshot (12-features pack)
 }
-export interface InvoiceItem { id: number; product_id: number; product_name?: string; name?: string; qty: number; sell_price: number; amount: number; gst_rate: number; unit?: string }
+export interface InvoiceItem { id: number; product_id: number; product_name?: string; name?: string; qty: number; sell_price: number; buy_price?: number; profit?: number; amount: number; gst_rate: number; unit?: string }
 export interface Payment { id?: number; date: string; amount: number; mode: string; note?: string }
 
 export interface Purchase {

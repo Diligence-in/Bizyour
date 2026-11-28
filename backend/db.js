@@ -44,6 +44,8 @@ const TABLES = [
   // Features 1–2 (2026-11-20): estimates/quotations and sales returns /
   // credit notes travel with the per-business backup export too.
   'estimates', 'estimate_items', 'returns', 'return_items',
+  // 12-features pack (28 Nov 2026): per-customer special rates.
+  'customer_prices',
   // SaaS Stage 2: business-scoped SaaS data travels with backup / migration.
   // Platform tables (plans, app_settings, email_otps, pending_signups,
   // platform_admins, admin_sessions) are deliberately NOT here — they are
@@ -74,6 +76,7 @@ const SCHEMA_SQL = `
     logo TEXT,
     shop_photo TEXT,
     language TEXT NOT NULL DEFAULT 'en',
+    plan TEXT NOT NULL DEFAULT '', -- 12-features pack + pricing (28 Nov 2026): workspace tier — '' (not chosen) | 'free' (Udhaar) | 'billing' (Billing + Stock) | 'everything'
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     sync_status TEXT NOT NULL DEFAULT 'local'
@@ -112,6 +115,9 @@ const SCHEMA_SQL = `
     unit TEXT NOT NULL DEFAULT 'piece',
     buy_price REAL NOT NULL DEFAULT 0,
     sell_price REAL NOT NULL DEFAULT 0,
+    wholesale_price REAL,
+    custom_fields TEXT NOT NULL DEFAULT '',
+    deleted_at TEXT,
     gst_rate REAL NOT NULL DEFAULT 0,
     hsn_code TEXT NOT NULL DEFAULT '',
     stock_qty REAL NOT NULL DEFAULT 0,
@@ -201,10 +207,30 @@ const SCHEMA_SQL = `
     city TEXT NOT NULL DEFAULT '',
     gstin TEXT NOT NULL DEFAULT '',
     share_token TEXT,
+    credit_limit REAL,
+    price_tier TEXT NOT NULL DEFAULT 'retail',
+    deleted_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     sync_status TEXT NOT NULL DEFAULT 'local'
   );
+
+  -- 12-features pack (28 Nov 2026): per-customer-per-product special
+  -- rates ("different rates for each party"). One row per (customer,
+  -- product); the bill rate resolves override → tier price → sell price.
+  CREATE TABLE IF NOT EXISTS customer_prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    business_id INTEGER NOT NULL REFERENCES businesses(id),
+    customer_id INTEGER NOT NULL REFERENCES customers(id),
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    price REAL NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sync_status TEXT NOT NULL DEFAULT 'local',
+    UNIQUE(business_id, customer_id, product_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_customer_prices_customer ON customer_prices(customer_id);
 
   CREATE TABLE IF NOT EXISTS invoices (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -962,6 +988,21 @@ async function init() {
     // bill is shared. The unique index only guards real tokens.
     if (!invCols.includes('share_token')) sdb.exec("ALTER TABLE invoices ADD COLUMN share_token TEXT");
     sdb.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token)");
+    // 12-features pack (28 Nov 2026, same idempotent pattern): credit
+    // limit + price tier on customers, wholesale price + custom fields +
+    // soft delete on products. All nullable/empty defaults — old rows gain
+    // the columns with no behaviour change until the owner sets a value.
+    // (The customer_prices table comes from SCHEMA_SQL above.)
+    if (!custCols.includes('credit_limit')) sdb.exec("ALTER TABLE customers ADD COLUMN credit_limit REAL");
+    if (!custCols.includes('price_tier')) sdb.exec("ALTER TABLE customers ADD COLUMN price_tier TEXT NOT NULL DEFAULT 'retail'");
+    if (!custCols.includes('deleted_at')) sdb.exec("ALTER TABLE customers ADD COLUMN deleted_at TEXT");
+    if (!prodCols.includes('wholesale_price')) sdb.exec("ALTER TABLE products ADD COLUMN wholesale_price REAL");
+    if (!prodCols.includes('custom_fields')) sdb.exec("ALTER TABLE products ADD COLUMN custom_fields TEXT NOT NULL DEFAULT ''");
+    if (!prodCols.includes('deleted_at')) sdb.exec("ALTER TABLE products ADD COLUMN deleted_at TEXT");
+    // Pricing (28 Nov 2026, locked): workspace tier on businesses —
+    // '' = not chosen (legacy: trial keeps full access, expired stays
+    // locked as today), 'free' | 'billing' | 'everything'.
+    if (!bizCols.includes('plan')) sdb.exec("ALTER TABLE businesses ADD COLUMN plan TEXT NOT NULL DEFAULT ''");
     // Payment QR migration (same idempotent pattern): the shop's OWN
     // uploaded UPI QR image (JPEG data URL) for the printed bill —
     // nullable, older local DBs gain it as NULL (no QR on bills).
@@ -1083,6 +1124,17 @@ async function init() {
       // token for the public PDF link in WhatsApp messages.
       await client.query("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS share_token TEXT");
       await client.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token)");
+      // 12-features pack (28 Nov 2026, same as the SQLite branch):
+      // credit limit + price tier on customers, wholesale price + custom
+      // fields + soft delete on products — all nullable/empty defaults.
+      await client.query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_limit DOUBLE PRECISION");
+      await client.query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS price_tier TEXT NOT NULL DEFAULT 'retail'");
+      await client.query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS deleted_at TEXT");
+      await client.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS wholesale_price DOUBLE PRECISION");
+      await client.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS custom_fields TEXT NOT NULL DEFAULT ''");
+      await client.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS deleted_at TEXT");
+      // Pricing (28 Nov 2026, locked): workspace tier on businesses.
+      await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT ''");
       // Payment QR migration (same as the SQLite branch): the shop's own
       // uploaded UPI QR image for the printed bill; NULL = no QR shown.
       await client.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_qr TEXT");

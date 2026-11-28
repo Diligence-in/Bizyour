@@ -28,6 +28,7 @@ const ReportsPage = lazy(() => import('./pages/Reports'));
 const HistoryPage = lazy(() => import('./pages/History'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 const HelpPage = lazy(() => import('./pages/Help'));
+const NotFoundPage = lazy(() => import('./pages/NotFound'));
 const PrivacyPage = lazy(() => import('./pages/Privacy'));
 const WelcomePage = lazy(() => import('./pages/Welcome'));
 const MartHome = lazy(() => import('./pages/mart/MartHome'));
@@ -55,10 +56,15 @@ function SetupPending() {
   );
 }
 
-function Guard({ perm, ws, children }: { perm?: Perm; ws?: boolean; children: ReactNode }) {
-  const { can, me } = useSession();
+function Guard({ perm, ws, plan: needPlan, children }: { perm?: Perm; ws?: boolean; plan?: 'billing' | 'everything'; children: ReactNode }) {
+  const { can, me, plan } = useSession();
   const loc = useLocation();
   if (perm && !can[perm]) return <Navigate to="/" replace />;
+  // Plan gate (12-features pack): a free-plan (Udhaar) shop opening a
+  // billing/stock URL directly is sent to the plan picker instead of a
+  // dead screen. Unknown plan ('', before /api/me answers) passes
+  // through — the server still enforces every gate.
+  if (needPlan && plan === 'free') return <Navigate to="/settings?tab=plan" replace />;
   // Two-stage workflow: Workspace routes need an ACTIVE workspace. The
   // owner is sent to the setup flow; staff see the pending notice.
   if (ws && me?.business && !me.business.workspace_active) {
@@ -81,7 +87,7 @@ export function App() {
       nav('/setup', { state: { from: window.location.pathname } });
     }
   }), [nav, toast, err]);
-  if (loading) return <div className="boot"><img src="/bizyour-mark-512.png?v=c" alt="BizYour" width={56} height={56} /></div>;
+  if (loading) return <div className="boot"><img src="/bizyour-mark-192.png?v=d" alt="BizYour" width={56} height={56} /></div>;
   if (!me) return <AuthRoutes />;
   // Super admin uses the classic admin panel (unchanged).
   if (me.user.role === 'superadmin') { window.location.replace('/classic/'); return null; }
@@ -94,17 +100,17 @@ export function App() {
       <Route path="privacy" element={<PrivacyPage />} />
       <Route element={<AppShell />}>
         <Route index element={<Guard ws><HomePage /></Guard>} />
-        <Route path="pos" element={<Guard ws perm="billing"><PosPage /></Guard>} />
-        <Route path="bills" element={<Guard ws perm="billing"><BillsPage /></Guard>} />
-        <Route path="bills/:id" element={<Guard ws perm="billing"><BillDetailPage /></Guard>} />
+        <Route path="pos" element={<Guard ws perm="billing" plan="billing"><PosPage /></Guard>} />
+        <Route path="bills" element={<Guard ws perm="billing" plan="billing"><BillsPage /></Guard>} />
+        <Route path="bills/:id" element={<Guard ws perm="billing" plan="billing"><BillDetailPage /></Guard>} />
         <Route path="customers" element={<Guard ws perm="billing"><CustomersPage /></Guard>} />
         <Route path="customers/:id" element={<Guard ws perm="billing"><CustomerDetailPage /></Guard>} />
-        <Route path="products" element={<Guard ws perm="stock"><ProductsPage /></Guard>} />
-        <Route path="purchases" element={<Guard ws perm="stock"><PurchasesPage /></Guard>} />
-        <Route path="suppliers" element={<Guard ws perm="stock"><SuppliersPage /></Guard>} />
-        <Route path="estimates" element={<Guard ws perm="billing"><EstimatesPage /></Guard>} />
-        <Route path="expenses" element={<Guard ws perm="finance"><ExpensesPage /></Guard>} />
-        <Route path="reports" element={<Guard ws perm="finance"><ReportsPage /></Guard>} />
+        <Route path="products" element={<Guard ws perm="stock" plan="billing"><ProductsPage /></Guard>} />
+        <Route path="purchases" element={<Guard ws perm="stock" plan="billing"><PurchasesPage /></Guard>} />
+        <Route path="suppliers" element={<Guard ws perm="stock" plan="billing"><SuppliersPage /></Guard>} />
+        <Route path="estimates" element={<Guard ws perm="billing" plan="billing"><EstimatesPage /></Guard>} />
+        <Route path="expenses" element={<Guard ws perm="finance" plan="billing"><ExpensesPage /></Guard>} />
+        <Route path="reports" element={<Guard ws perm="finance" plan="billing"><ReportsPage /></Guard>} />
         <Route path="history" element={<Guard ws perm="owner"><HistoryPage /></Guard>} />
         <Route path="settings" element={<Guard><SettingsPage /></Guard>} />
         <Route path="help" element={<Guard><HelpPage /></Guard>} />
@@ -116,7 +122,7 @@ export function App() {
         <Route path="mart/sellers/:id" element={<Guard perm="mart"><MartSeller /></Guard>} />
         <Route path="mart/notifications" element={<Guard perm="mart"><MartNotifs /></Guard>} />
         <Route path="mart/chat/:id" element={<Guard perm="mart"><MartChat /></Guard>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   );

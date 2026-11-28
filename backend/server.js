@@ -248,6 +248,7 @@ function publicBusiness(b) {
     pincode: b.pincode || '', state: b.state || '',
     workspace_active: workspaceActive,
     workspace_activated_at: b.workspace_activated_at || null,
+    plan: b.plan || '', // workspace tier: '' (not chosen) | 'free' | 'billing' | 'everything'
     gst_enabled: !!b.gst_enabled, gstin: b.gstin,
     upi_id: b.upi_id || '', upi_payee_name: b.upi_payee_name || '',
     payment_qr: b.payment_qr || null,
@@ -582,7 +583,7 @@ app.post('/api/auth/logout', requireAuth, async (req, res) => {
 app.get('/api/me', requireAuth, async (req, res) => {
   if (req.isAdmin) return res.json({ user: publicUser(req.user), business: null });
   const b = await getBusiness(req.user.business_id);
-  res.json({ user: publicUser(req.user), business: publicBusiness(b) });
+  res.json({ user: publicUser(req.user), business: publicBusiness(b), effective_plan: await effectivePlan(req.user.business_id) });
 });
 
 // Set/update the signed-in user's OWN login mobile (the owner Settings
@@ -749,6 +750,80 @@ function publicPlan(p) {
     price: round2(p.price), grace_days: Number(p.grace_days), is_active: !!p.is_active
   };
 }
+
+// ---------- workspace plan tiers (pricing LOCKED 28 Nov 2026) ----------
+// Tiers (founder, 28 Nov): 'free' = Udhaar FREE (udhaar/khata + Mart
+// buying only, max 25 customers); 'billing' = Billing + Stock ₹149/mo or
+// ₹1,499/yr (udhaar included + credit limit, profit on invoices, multiple
+// pricing, party-wise rates, update messages, day-end summary); 'everything'
+// = ₹199/mo or ₹1,999/yr HERO (Billing + partywise P&L, restore deleted,
+// balance-sheet snapshot, custom fields, semi-auto reminders, light
+// accounting). Prices are GST-inclusive. The tier lives on businesses.plan
+// ('' = not chosen). The DURATION plans (monthly/yearly in the plans table)
+// are a separate axis — how long a paid period lasts — and are untouched.
+// Effective plan: trial = full access, exactly as today; a paid period
+// uses the stored tier (legacy paid shops with no tier set default to
+// 'billing'); an expired shop keeps its stored tier (so a free-plan shop
+// can still use udhaar after the trial) and '' means "locked as today".
+const PLAN_TIERS = ['free', 'billing', 'everything'];
+const FREE_CUSTOMER_LIMIT = 25; // founder, 28 Nov 07:20 — was 50, cut to 25
+const FREE_TXN_LIMIT = 100; // founder, 28 Nov 07:21 — free Udhaar plan: max 100 khata transactions/month
+// Free-plan khata budget (28 Nov 2026): a "transaction" is one khata
+// line in the CURRENT calendar month — a bill to a named customer
+// (kind 'sale' or 'opening', i.e. credit given) plus one line per
+// payment received (customer_payments rows). A bill paid on the spot
+// counts twice (bill + payment), because the khata shows both lines.
+// Walk-in cash bills (no customer) are not khata, so they never count.
+// Paid plans are unlimited; the trial counts as unlimited too (it
+// resolves to 'everything'). Month boundaries follow the stored
+// YYYY-MM-DD dates (UTC, as the rest of the app stores them).
+async function khataTxnCount(bizId) {
+  const from = new Date().toISOString().slice(0, 8) + '01'; // YYYY-MM-01
+  const credit = await db.get(
+    `SELECT COUNT(*) AS c FROM invoices WHERE business_id = ? AND customer_id IS NOT NULL AND kind IN ('sale', 'opening') AND date >= ? AND cancelled_at IS NULL`
+  , bizId, from);
+  const pays = await db.get(
+    `SELECT COUNT(*) AS c FROM customer_payments WHERE business_id = ? AND date >= ?`
+  , bizId, from);
+  return Number(credit.c || 0) + Number(pays.c || 0);
+}
+async function khataBudgetBlocked(bizId) {
+  if ((await effectivePlan(bizId)) !== 'free') return false;
+  return (await khataTxnCount(bizId)) >= FREE_TXN_LIMIT;
+}
+function planLimitTxnMessage() {
+  return `Free Udhaar plan me is mahine ke ${FREE_TXN_LIMIT} udhaar entries poore ho gaye. Upgrade karke unlimited udhaar likho.`;
+}
+function planRank(p) { return p === 'everything' ? 3 : p === 'billing' ? 2 : p === 'free' ? 1 : 0; }
+async function effectivePlan(bizId) {
+  const biz = await getBusiness(bizId);
+  const state = await getSubscriptionState(bizId);
+  if (state.status === 'trial') return 'everything';
+  if (state.status === 'active' || state.status === 'grace') return (biz && biz.plan) || 'billing';
+  return (biz && biz.plan) || '';
+}
+function requirePlan(minTier) {
+  return async (req, res, next) => {
+    const plan = await effectivePlan(req.user.business_id);
+    if (planRank(plan) < planRank(minTier)) {
+      return res.status(403).json({
+        error: 'plan_required', required_plan: minTier, plan: plan || null,
+        message: minTier === 'everything'
+          ? 'Ye feature Everything plan me hai. Upgrade karne par khul jayega.'
+          : 'Billing aur stock Billing + Stock plan se shuru hote hain. Upgrade karne par khul jayega.'
+      });
+    }
+    next();
+  };
+}
+// Udhaar writes a free-plan shop may still make after its trial ends
+// (the subscription guard otherwise locks every write when read-only).
+function isUdhaarWritePath(p) {
+  if (p === '/api/customers') return true;
+  if (/^\/api\/customers\/\d+$/.test(p)) return true; // create handled above; edit/delete
+  if (/^\/api\/customers\/\d+\/(vasuli|khata|hisab-link|hisab-link\/regenerate|hisab-link\/disable)$/.test(p)) return true;
+  return false;
+}
 function publicSubPayment(p) {
   return {
     id: p.id, business_id: p.business_id, plan_code: p.plan_code,
@@ -834,13 +909,36 @@ app.get('/api/subscription', requireAuth, requireOwner, async (req, res) => {
   const payments = await db.all(
     'SELECT * FROM subscription_payments WHERE business_id = ? ORDER BY id DESC LIMIT 20'
   , bizId);
+  const biz = await getBusiness(bizId);
   res.json({
     subscription: state,
+    plan: await effectivePlan(bizId), // what the shop can actually use now
+    plan_tier: (biz && biz.plan) || null, // stored tier ('' = not chosen)
     plans: plans.map(publicPlan),
     payments: payments.map(publicSubPayment),
     gateway_configured: razorpayConfigured(),
     mail_configured: mailConfig().configured
   });
+});
+
+// Workspace tier picker (pricing LOCKED 28 Nov 2026). 'free' is a
+// downgrade anyone can take, even after the trial ends — it is how an
+// expired shop keeps udhaar. 'billing'/'everything' need a live trial or
+// paid period: without payment the trial ends and the lock returns, so
+// picking a paid tier alone buys nothing; the amount↔tier check lives in
+// the admin claim approval until the Cashfree checkout pack lands.
+app.post('/api/subscription/plan', requireAuth, requireOwner, async (req, res) => {
+  const plan = String((req.body || {}).plan || '').trim().toLowerCase();
+  if (!PLAN_TIERS.includes(plan)) return res.status(400).json({ error: 'plan must be free, billing or everything' });
+  const state = await getSubscriptionState(req.user.business_id);
+  if (plan !== 'free' && !['trial', 'active', 'grace'].includes(state.status)) {
+    return res.status(403).json({ error: 'subscription_expired', message: 'Pehle payment karke plan active karo, phir tier chuno.' });
+  }
+  await db.run(
+    `UPDATE businesses SET plan = ?, updated_at = datetime('now') WHERE id = ?`
+  , plan, req.user.business_id);
+  await auditLog(req, 'update', 'subscription', req.user.business_id, `Plan tier chuna: ${plan}`);
+  res.json({ ok: true, plan, subscription: state });
 });
 
 // Manual/UPI payment claim: owner says "I paid" → pending → super admin
@@ -1413,7 +1511,21 @@ app.post('/api/account/delete', requireAuth, requireOwner, async (req, res) => {
 app.post('/api/admin/businesses/:id/plan', requireAuth, requireSuperAdmin, async (req, res) => {
   const biz = await getBusiness(req.params.id);
   if (!biz) return res.status(404).json({ error: 'business_not_found' });
-  const plan = await db.get('SELECT * FROM plans WHERE code = ?', String((req.body || {}).plan_code || ''));
+  // Optional tier (pricing, 28 Nov 2026): the admin sets the workspace
+  // tier when approving a payment claim — the tier is what the gates read.
+  const tier = String((req.body || {}).tier || '').trim().toLowerCase();
+  if (tier && !PLAN_TIERS.includes(tier)) return res.status(400).json({ error: 'tier must be free, billing or everything' });
+  if (tier) {
+    await db.run(`UPDATE businesses SET plan = ?, updated_at = datetime('now') WHERE id = ?`, tier, biz.id);
+  }
+  const planCode = String((req.body || {}).plan_code || '');
+  if (!planCode) {
+    // Tier-only change (no duration plan touched): grant the tier and stop.
+    await adminAudit(req, biz.id, 'update', 'subscription', biz.id,
+      `Admin ne plan tier badla: ${tier} · shop ${biz.name || '(no name)'}`);
+    return res.json({ ok: true, plan_tier: tier, subscription: await getSubscriptionState(biz.id) });
+  }
+  const plan = await db.get('SELECT * FROM plans WHERE code = ?', planCode);
   if (!plan) return res.status(400).json({ error: 'plan_not_found' });
   await ensureSubscription(biz.id);
   const now = fmtTs(new Date());
@@ -1823,6 +1935,15 @@ async function subscriptionGuard(req, res, next) {
   if (!row) return next(); // admin token or unknown — routes decide
   const state = await getSubscriptionState(row.business_id);
   if (state.read_only) {
+    const p = String(req.originalUrl || '').split('?')[0];
+    // Choosing a plan is always allowed — an expired shop must be able to
+    // pick the free Udhaar plan (or renew) from the lock screen itself.
+    if (p === '/api/subscription/plan') return next();
+    // Free (Udhaar) plan keeps udhaar writable after the trial ends: a
+    // shop on the free plan can still record customers and payments.
+    // Billing/stock writes stay blocked (the plan gates below 403 them).
+    const biz = await getBusiness(row.business_id);
+    if (biz && biz.plan === 'free' && isUdhaarWritePath(p)) return next();
     return res.status(403).json({ error: 'subscription_expired', subscription_status: state.status });
   }
   next();
@@ -2037,12 +2158,37 @@ function productStatus(p) {
   if (Number(p.stock_qty) <= Number(p.low_stock_limit)) return 'low';
   return 'ok';
 }
+// 12-features pack: custom fields ride as a JSON string in the DB and a
+// parsed [{key, value}] list over the API. Bad/old data degrades to [].
+function parseCustomFields(raw) {
+  if (!raw) return [];
+  let v = raw;
+  if (typeof raw === 'string') {
+    try { v = JSON.parse(raw); } catch { return []; }
+  }
+  if (!Array.isArray(v)) return [];
+  return v.filter((f) => f && typeof f.key === 'string' && f.key.trim()).slice(0, 20)
+    .map((f) => ({ key: String(f.key).trim().slice(0, 40), value: String(f.value ?? '').slice(0, 100) }));
+}
+function validCustomFields(v) {
+  if (v === undefined || v === null) return null; // not provided
+  if (!Array.isArray(v) || v.length > 20) return 'custom_fields must be a list of at most 20 key/value pairs';
+  for (const f of v) {
+    if (!f || typeof f.key !== 'string' || !f.key.trim() || f.key.trim().length > 40) return 'each custom field needs a short key (max 40 chars)';
+    if (f.value !== undefined && String(f.value).length > 100) return 'custom field values are at most 100 chars';
+  }
+  return null;
+}
 function publicProduct(p) {
   return {
     id: p.id, business_id: p.business_id, name: p.name, category: p.category, unit: p.unit,
-    buy_price: p.buy_price, sell_price: p.sell_price, gst_rate: p.gst_rate,
+    buy_price: p.buy_price, sell_price: p.sell_price,
+    wholesale_price: p.wholesale_price === null || p.wholesale_price === undefined ? null : Number(p.wholesale_price),
+    custom_fields: parseCustomFields(p.custom_fields),
+    gst_rate: p.gst_rate,
     hsn_code: p.hsn_code || '',
     stock_qty: p.stock_qty, low_stock_limit: p.low_stock_limit, status: productStatus(p),
+    deleted: !!p.deleted_at,
     updated_at: p.updated_at, sync_status: p.sync_status
   };
 }
@@ -2070,22 +2216,35 @@ function publicPurchase(p) {
 // ---------- products ----------
 app.get('/api/products', requireAuth, requireStockAccess, async (req, res) => {
   const search = (req.query.search || '').toString().trim();
+  // 12-features pack: soft-deleted products stay out of every list
+  // unless the caller asks for them (?deleted_only=1 / ?include_deleted=1).
+  const delFilter = req.query.deleted_only === '1' ? ' AND deleted_at IS NOT NULL'
+    : req.query.include_deleted === '1' ? '' : ' AND deleted_at IS NULL';
   let rows;
   if (search) {
     rows = await db.all(
-      `SELECT * FROM products WHERE business_id = ? AND (name LIKE ? OR category LIKE ?) ORDER BY name ASC`
+      `SELECT * FROM products WHERE business_id = ?${delFilter} AND (name LIKE ? OR category LIKE ?) ORDER BY name ASC`
     , req.user.business_id, `%${search}%`, `%${search}%`);
   } else {
-    rows = await db.all('SELECT * FROM products WHERE business_id = ? ORDER BY name ASC', req.user.business_id);
+    rows = await db.all(`SELECT * FROM products WHERE business_id = ?${delFilter} ORDER BY name ASC`, req.user.business_id);
   }
   res.json({ products: rows.map(publicProduct) });
 });
 
-app.post('/api/products', requireAuth, requireStockAccess, async (req, res) => {
+app.post('/api/products', requireAuth, requireStockAccess, requirePlan('billing'), async (req, res) => {
   const b = req.body || {};
   if (!b.name || !String(b.name).trim()) return res.status(400).json({ error: 'product name is required' });
   if (b.buy_price !== undefined && (!validNum(b.buy_price) || Number(b.buy_price) < 0)) return res.status(400).json({ error: 'buy_price must be a number >= 0' });
   if (b.sell_price !== undefined && (!validNum(b.sell_price) || Number(b.sell_price) < 0)) return res.status(400).json({ error: 'sell_price must be a number >= 0' });
+  if (b.wholesale_price !== undefined && b.wholesale_price !== null && (!validNum(b.wholesale_price) || Number(b.wholesale_price) < 0)) return res.status(400).json({ error: 'wholesale_price must be a number >= 0' });
+  const cfErr = validCustomFields(b.custom_fields);
+  if (cfErr) return res.status(400).json({ error: cfErr });
+  // Custom fields are an Everything-plan feature: writing any is a 403
+  // below that tier (reading them back stays open — data stays visible).
+  if (Array.isArray(b.custom_fields) && b.custom_fields.length > 0
+      && (await effectivePlan(req.user.business_id)) !== 'everything') {
+    return res.status(403).json({ error: 'plan_required', required_plan: 'everything', message: 'Custom fields (extra details) Everything plan me hain. Upgrade karne par khul jayega.' });
+  }
   if (b.gst_rate !== undefined && (!validNum(b.gst_rate) || Number(b.gst_rate) < 0)) return res.status(400).json({ error: 'gst_rate must be a number >= 0' });
   if (b.low_stock_limit !== undefined && (!validNum(b.low_stock_limit) || Number(b.low_stock_limit) < 0)) return res.status(400).json({ error: 'low_stock_limit must be a number >= 0' });
   if (b.stock_qty !== undefined && (!validNum(b.stock_qty) || Number(b.stock_qty) < 0)) return res.status(400).json({ error: 'stock_qty must be a number >= 0' });
@@ -2094,12 +2253,14 @@ app.post('/api/products', requireAuth, requireStockAccess, async (req, res) => {
   const tx = await db.begin();
   try {
     const r = await tx.run(
-      `INSERT INTO products (business_id, name, category, unit, buy_price, sell_price, gst_rate, hsn_code, stock_qty, low_stock_limit)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO products (business_id, name, category, unit, buy_price, sell_price, wholesale_price, custom_fields, gst_rate, hsn_code, stock_qty, low_stock_limit)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     , req.user.business_id, String(b.name).trim(), String(b.category || '').trim(),
       String(b.unit || 'piece').trim() || 'piece',
       b.buy_price !== undefined ? Number(b.buy_price) : 0,
       b.sell_price !== undefined ? Number(b.sell_price) : 0,
+      b.wholesale_price !== undefined && b.wholesale_price !== null && b.wholesale_price !== '' ? Number(b.wholesale_price) : null,
+      b.custom_fields !== undefined ? JSON.stringify(parseCustomFields(b.custom_fields)) : '',
       b.gst_rate !== undefined ? Number(b.gst_rate) : 0,
       String(b.hsn_code || '').trim(),
       opening, b.low_stock_limit !== undefined ? Number(b.low_stock_limit) : 5);
@@ -2119,7 +2280,7 @@ app.post('/api/products', requireAuth, requireStockAccess, async (req, res) => {
   }
 });
 
-app.put('/api/products/:id', requireAuth, requireStockAccess, async (req, res) => {
+app.put('/api/products/:id', requireAuth, requireStockAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const cur = await getOwnedProduct(bizId, req.params.id);
   if (!cur) return res.status(404).json({ error: 'product not found' });
@@ -2128,15 +2289,25 @@ app.put('/api/products/:id', requireAuth, requireStockAccess, async (req, res) =
   for (const f of ['buy_price', 'sell_price', 'gst_rate', 'low_stock_limit']) {
     if (b[f] !== undefined && (!validNum(b[f]) || Number(b[f]) < 0)) return res.status(400).json({ error: `${f} must be a number >= 0` });
   }
+  if (b.wholesale_price !== undefined && b.wholesale_price !== null && b.wholesale_price !== '' && (!validNum(b.wholesale_price) || Number(b.wholesale_price) < 0)) return res.status(400).json({ error: 'wholesale_price must be a number >= 0' });
+  const cfErr = validCustomFields(b.custom_fields);
+  if (cfErr) return res.status(400).json({ error: cfErr });
+  // Custom fields are an Everything-plan feature (see POST /api/products).
+  if (Array.isArray(b.custom_fields) && b.custom_fields.length > 0
+      && (await effectivePlan(req.user.business_id)) !== 'everything') {
+    return res.status(403).json({ error: 'plan_required', required_plan: 'everything', message: 'Custom fields (extra details) Everything plan me hain. Upgrade karne par khul jayega.' });
+  }
   // Note: stock_qty is NOT editable here — stock changes only via purchases/movements.
   await db.run(
-    `UPDATE products SET name=?, category=?, unit=?, buy_price=?, sell_price=?, gst_rate=?, hsn_code=?, low_stock_limit=?,
+    `UPDATE products SET name=?, category=?, unit=?, buy_price=?, sell_price=?, wholesale_price=?, custom_fields=?, gst_rate=?, hsn_code=?, low_stock_limit=?,
        updated_at=datetime('now'), sync_status='local' WHERE id=? AND business_id=?`
   , b.name !== undefined ? String(b.name).trim() : cur.name,
     b.category !== undefined ? String(b.category).trim() : cur.category,
     b.unit !== undefined ? (String(b.unit).trim() || 'piece') : cur.unit,
     b.buy_price !== undefined ? Number(b.buy_price) : cur.buy_price,
     b.sell_price !== undefined ? Number(b.sell_price) : cur.sell_price,
+    b.wholesale_price !== undefined ? (b.wholesale_price === null || b.wholesale_price === '' ? null : Number(b.wholesale_price)) : (cur.wholesale_price === null || cur.wholesale_price === undefined ? null : Number(cur.wholesale_price)),
+    b.custom_fields !== undefined ? JSON.stringify(parseCustomFields(b.custom_fields)) : (cur.custom_fields || ''),
     b.gst_rate !== undefined ? Number(b.gst_rate) : cur.gst_rate,
     b.hsn_code !== undefined ? String(b.hsn_code).trim() : (cur.hsn_code || ''),
     b.low_stock_limit !== undefined ? Number(b.low_stock_limit) : cur.low_stock_limit,
@@ -2146,30 +2317,42 @@ app.put('/api/products/:id', requireAuth, requireStockAccess, async (req, res) =
   res.json({ product: publicProduct(updProduct) });
 });
 
-app.delete('/api/products/:id', requireAuth, requireStockAccess, async (req, res) => {
+app.delete('/api/products/:id', requireAuth, requireStockAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const cur = await getOwnedProduct(bizId, req.params.id);
   if (!cur) return res.status(404).json({ error: 'product not found' });
   const used = await db.get('SELECT COUNT(*) AS c FROM purchase_items WHERE product_id = ? AND business_id = ?', cur.id, bizId);
   if (used.c > 0) return res.status(400).json({ error: 'product_used_in_purchases' });
+  // 12-features pack: soft delete — the row stays (stock movements and
+  // history intact) and can be restored; the tombstone keeps today's
+  // sync behaviour (other devices drop it) — cross-device restore
+  // propagation is a sync-engine follow-up.
   await recordTombstone(bizId, 'products', cur.id);
-  const tx = await db.begin();
-  try {
-    await tx.run('DELETE FROM stock_movements WHERE product_id = ? AND business_id = ?', cur.id, bizId);
-    await tx.run('DELETE FROM products WHERE id = ? AND business_id = ?', cur.id, bizId);
-    await tx.commit();
-  } catch (e) {
-    await tx.rollback();
-    return res.status(500).json({ error: 'could not delete product' });
-  }
+  await db.run(
+    `UPDATE products SET deleted_at = datetime('now'), updated_at = datetime('now'), sync_status = 'local' WHERE id = ? AND business_id = ?`
+  , cur.id, bizId);
   await auditLog(req, 'delete', 'product', cur.id, `Product delete kiya: ${cur.name}`);
   res.json({ ok: true });
+});
+
+// 12-features pack: bring a soft-deleted product back.
+app.post('/api/products/:id/restore', requireAuth, requireStockAccess, requirePlan('everything'), async (req, res) => {
+  const bizId = req.user.business_id;
+  const cur = await getOwnedProduct(bizId, req.params.id);
+  if (!cur) return res.status(404).json({ error: 'product not found' });
+  if (!cur.deleted_at) return res.status(400).json({ error: 'product_not_deleted' });
+  await db.run(
+    `UPDATE products SET deleted_at = NULL, updated_at = datetime('now'), sync_status = 'local' WHERE id = ? AND business_id = ?`
+  , cur.id, bizId);
+  const restored = await getOwnedProduct(bizId, cur.id);
+  await auditLog(req, 'restore', 'product', cur.id, `Product wapas laya: ${restored.name}`);
+  res.json({ product: publicProduct(restored) });
 });
 
 // ---------- low stock ----------
 app.get('/api/low-stock', requireAuth, requireStockAccess, async (req, res) => {
   const rows = await db.all(
-    `SELECT * FROM products WHERE business_id = ? AND stock_qty <= low_stock_limit ORDER BY stock_qty ASC, name ASC`
+    `SELECT * FROM products WHERE business_id = ? AND deleted_at IS NULL AND stock_qty <= low_stock_limit ORDER BY stock_qty ASC, name ASC`
   , req.user.business_id);
   res.json({ products: rows.map(publicProduct) });
 });
@@ -2269,7 +2452,7 @@ app.get('/api/purchases/:id', requireAuth, requireStockAccess, async (req, res) 
   res.json({ purchase: publicPurchase(p), items, payments });
 });
 
-app.post('/api/purchases', requireAuth, requireStockAccess, async (req, res) => {
+app.post('/api/purchases', requireAuth, requireStockAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const b = req.body || {};
   if (!b.supplier_id) return res.status(400).json({ error: 'supplier_id is required' });
@@ -2336,7 +2519,7 @@ app.post('/api/purchases', requireAuth, requireStockAccess, async (req, res) => 
   }
 });
 
-app.post('/api/purchases/:id/payments', requireAuth, requireStockAccess, async (req, res) => {
+app.post('/api/purchases/:id/payments', requireAuth, requireStockAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const p = await db.get('SELECT * FROM purchases WHERE id = ? AND business_id = ?', req.params.id, bizId);
   if (!p) return res.status(404).json({ error: 'purchase not found' });
@@ -2372,7 +2555,7 @@ app.post('/api/purchases/:id/payments', requireAuth, requireStockAccess, async (
 });
 
 // Feature 5: set / change / clear a purchase's due date after creation.
-app.post('/api/purchases/:id/due-date', requireAuth, requireStockAccess, async (req, res) => {
+app.post('/api/purchases/:id/due-date', requireAuth, requireStockAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const p = await db.get('SELECT * FROM purchases WHERE id = ? AND business_id = ?', req.params.id, bizId);
   if (!p) return res.status(404).json({ error: 'purchase not found' });
@@ -2407,6 +2590,9 @@ function publicCustomer(c) {
   return {
     id: c.id, business_id: c.business_id, name: c.name, phone: c.phone, city: c.city,
     gstin: c.gstin || '',
+    credit_limit: c.credit_limit === null || c.credit_limit === undefined ? null : Number(c.credit_limit),
+    price_tier: c.price_tier || 'retail',
+    deleted: !!c.deleted_at,
     total_billed: round2(c.total_billed || 0), total_received: round2(c.total_received || 0),
     // Feature 2: sales returns net out of pending EVERYWHERE pending is
     // shown — pending = billed − received − returns. A customer whose
@@ -2434,22 +2620,109 @@ async function customerRow(bizId, id) {
 }
 
 app.get('/api/customers', requireAuth, requireBillingAccess, async (req, res) => {
+  // 12-features pack: soft-deleted customers stay out of every list
+  // unless the caller asks for them (?deleted_only=1 / ?include_deleted=1).
+  const delFilter = req.query.deleted_only === '1' ? ' AND c.deleted_at IS NOT NULL'
+    : req.query.include_deleted === '1' ? '' : ' AND c.deleted_at IS NULL';
   const rows = await db.all(
     `SELECT c.*, COALESCE(SUM(i.total),0) AS total_billed, COALESCE(SUM(i.paid_amount),0) AS total_received,
        ${CUSTOMER_RETURNS_SQL}
      FROM customers c LEFT JOIN invoices i ON i.customer_id = c.id AND i.business_id = c.business_id AND i.cancelled_at IS NULL
-     WHERE c.business_id = ? GROUP BY c.id ORDER BY c.name ASC`
+     WHERE c.business_id = ?${delFilter} GROUP BY c.id ORDER BY c.name ASC`
   , req.user.business_id);
   res.json({ customers: rows.map(publicCustomer) });
+});
+
+// 12-features pack: udhaar reminders list — every customer with pending
+// credit, oldest due date first (no due date sorts last), then biggest
+// pending first. One-tap WhatsApp/SMS per row in the UI; nothing is
+// auto-sent — each reminder opens wa.me / sms: with the text ready.
+app.get('/api/customers/reminders', requireAuth, requireBillingAccess, requirePlan('everything'), async (req, res) => {
+  const bizId = req.user.business_id;
+  const rows = await db.all(
+    `SELECT c.id AS id, c.name AS name, c.phone AS phone,
+       COALESCE(SUM(i.total - i.paid_amount), 0) - COALESCE(rt.total_returns, 0) AS pending,
+       MIN(i.due_date) AS oldest_due_date, COUNT(i.id) AS bill_count
+     FROM customers c
+     LEFT JOIN invoices i ON i.customer_id = c.id AND i.business_id = c.business_id AND i.cancelled_at IS NULL AND i.paid_amount < i.total
+     LEFT JOIN (SELECT customer_id, SUM(total_amount) AS total_returns FROM returns WHERE business_id = ? GROUP BY customer_id) rt ON rt.customer_id = c.id
+     WHERE c.business_id = ? AND c.deleted_at IS NULL
+     GROUP BY c.id, c.name, c.phone, rt.total_returns
+     HAVING COALESCE(SUM(i.total - i.paid_amount), 0) - COALESCE(rt.total_returns, 0) > 0
+     ORDER BY oldest_due_date ASC NULLS LAST, pending DESC`
+  , bizId, bizId);
+  res.json({
+    reminders: rows.map((r) => ({
+      id: r.id, name: r.name, phone: r.phone || '', pending: round2(r.pending),
+      oldest_due_date: r.oldest_due_date || null, bill_count: Number(r.bill_count)
+    }))
+  });
+});
+
+// 12-features pack + pricing: this month's khata usage for the free-plan
+// meter in the Customers view ("67/100 udhaar entries this month").
+// Paid plans (and trial) are unlimited — limit is null for them.
+app.get('/api/customers/khata-usage', requireAuth, requireBillingAccess, async (req, res) => {
+  const plan = await effectivePlan(req.user.business_id);
+  const used = await khataTxnCount(req.user.business_id);
+  res.json({
+    month: new Date().toISOString().slice(0, 7),
+    used, limit: plan === 'free' ? FREE_TXN_LIMIT : null, plan,
+    remaining: plan === 'free' ? Math.max(0, FREE_TXN_LIMIT - used) : null
+  });
+});
+
+// Manual khata entry — "udhaar diya" without a bill. This is the free
+// (Udhaar) plan's way to record credit: it writes exactly the row the
+// XLSX import writes for an opening balance — a kind='opening' invoice
+// with no items, no stock movement, no GST — so it shows up in every
+// pending total automatically and is payable via the normal vasuli /
+// bill-payment flow, while kind='sale' filters keep it out of sales,
+// profit, GST and GSTR-1. Payments are recorded via vasuli, not here.
+app.post('/api/customers/:id/khata', requireAuth, requireBillingAccess, async (req, res) => {
+  const bizId = req.user.business_id;
+  const cust = await db.get('SELECT * FROM customers WHERE id = ? AND business_id = ?', req.params.id, bizId);
+  if (!cust) return res.status(404).json({ error: 'customer not found' });
+  const b = req.body || {};
+  const amount = Number(b.amount);
+  if (!validNum(amount) || amount <= 0) return res.status(400).json({ error: 'amount must be greater than 0' });
+  const rawDate = String(b.date || '').trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && !Number.isNaN(Date.parse(rawDate))
+    ? rawDate : new Date().toISOString().slice(0, 10);
+  // Free-plan monthly transaction budget (100/month).
+  if (await khataBudgetBlocked(bizId)) {
+    return res.status(403).json({ error: 'plan_limit', message: planLimitTxnMessage() });
+  }
+  const r = await db.run(
+    `INSERT INTO invoices (business_id, bill_no, customer_id, customer_name, date, subtotal, discount,
+       gst_enabled, gst_amount, total, paid_amount, payment_mode, kind)
+     VALUES (?, 0, ?, ?, ?, ?, 0, 0, 0, ?, 0, NULL, 'opening')`
+  , bizId, cust.id, cust.name, date, round2(amount), round2(amount));
+  const inv = await getOwnedInvoice(bizId, r.lastInsertRowid);
+  await auditLog(req, 'create', 'invoice', r.lastInsertRowid, `Khata me udhaar diya: ${cust.name} · ${fmtAuditAmt(amount)}`);
+  queueSync();
+  res.status(201).json({ invoice: publicInvoice(inv), usage: await khataTxnCount(bizId) });
 });
 
 app.post('/api/customers', requireAuth, requireBillingAccess, async (req, res) => {
   const b = req.body || {};
   if (!b.name || !String(b.name).trim()) return res.status(400).json({ error: 'customer name is required' });
+  if (b.credit_limit !== undefined && b.credit_limit !== null && b.credit_limit !== '' && (!validNum(b.credit_limit) || Number(b.credit_limit) < 0)) return res.status(400).json({ error: 'credit_limit must be a number >= 0' });
+  if (b.price_tier !== undefined && !['retail', 'wholesale'].includes(b.price_tier)) return res.status(400).json({ error: 'price_tier must be retail or wholesale' });
+  // Free Udhaar plan limit (pricing, 28 Nov 2026 — founder cut 50 to 25 on 28 Nov 07:20): max 25 customers.
+  // Trial users have full access, so this only bites on the free tier.
+  if ((await effectivePlan(req.user.business_id)) === 'free') {
+    const cnt = await db.get(`SELECT COUNT(*) AS c FROM customers WHERE business_id = ? AND deleted_at IS NULL`, req.user.business_id);
+    if (Number(cnt.c) >= FREE_CUSTOMER_LIMIT) {
+      return res.status(403).json({ error: 'plan_limit', message: `Free Udhaar plan me max ${FREE_CUSTOMER_LIMIT} customers. Upgrade karke aur jodo.` });
+    }
+  }
   const r = await db.run(
-    `INSERT INTO customers (business_id, name, phone, city, gstin) VALUES (?, ?, ?, ?, ?)`
+    `INSERT INTO customers (business_id, name, phone, city, gstin, credit_limit, price_tier) VALUES (?, ?, ?, ?, ?, ?, ?)`
   , req.user.business_id, String(b.name).trim(), String(b.phone || '').trim(), String(b.city || '').trim(),
-    String(b.gstin || '').trim().toUpperCase());
+    String(b.gstin || '').trim().toUpperCase(),
+    b.credit_limit !== undefined && b.credit_limit !== null && b.credit_limit !== '' ? Number(b.credit_limit) : null,
+    b.price_tier || 'retail');
   const newCustomer = await customerRow(req.user.business_id, r.lastInsertRowid);
   await auditLog(req, 'create', 'customer', r.lastInsertRowid, `Customer banaya: ${newCustomer.name}`);
   res.status(201).json({ customer: publicCustomer(newCustomer) });
@@ -2601,12 +2874,16 @@ app.put('/api/customers/:id', requireAuth, requireBillingAccess, async (req, res
   if (!cur) return res.status(404).json({ error: 'customer not found' });
   const b = req.body || {};
   if (b.name !== undefined && !String(b.name).trim()) return res.status(400).json({ error: 'customer name cannot be empty' });
+  if (b.credit_limit !== undefined && b.credit_limit !== null && b.credit_limit !== '' && (!validNum(b.credit_limit) || Number(b.credit_limit) < 0)) return res.status(400).json({ error: 'credit_limit must be a number >= 0' });
+  if (b.price_tier !== undefined && !['retail', 'wholesale'].includes(b.price_tier)) return res.status(400).json({ error: 'price_tier must be retail or wholesale' });
   await db.run(
-    `UPDATE customers SET name=?, phone=?, city=?, gstin=?, updated_at=datetime('now'), sync_status='local' WHERE id=? AND business_id=?`
+    `UPDATE customers SET name=?, phone=?, city=?, gstin=?, credit_limit=?, price_tier=?, updated_at=datetime('now'), sync_status='local' WHERE id=? AND business_id=?`
   , b.name !== undefined ? String(b.name).trim() : cur.name,
     b.phone !== undefined ? String(b.phone).trim() : cur.phone,
     b.city !== undefined ? String(b.city).trim() : cur.city,
     b.gstin !== undefined ? String(b.gstin).trim().toUpperCase() : (cur.gstin || ''),
+    b.credit_limit !== undefined ? (b.credit_limit === null || b.credit_limit === '' ? null : Number(b.credit_limit)) : (cur.credit_limit === null || cur.credit_limit === undefined ? null : Number(cur.credit_limit)),
+    b.price_tier !== undefined ? b.price_tier : (cur.price_tier || 'retail'),
     cur.id, bizId);
   const updCustomer = await customerRow(bizId, cur.id);
   await auditLog(req, 'update', 'customer', cur.id, `Customer badla: ${updCustomer.name}`);
@@ -2619,9 +2896,76 @@ app.delete('/api/customers/:id', requireAuth, requireBillingAccess, async (req, 
   if (!cur) return res.status(404).json({ error: 'customer not found' });
   const used = await db.get('SELECT COUNT(*) AS c FROM invoices WHERE customer_id = ? AND business_id = ?', cur.id, bizId);
   if (used.c > 0) return res.status(400).json({ error: 'customer_has_invoices' });
+  // 12-features pack: soft delete — the row stays (bills already block
+  // the delete above, so this is for bill-less customers) and can be
+  // restored from Customers → Deleted. Tombstone keeps today's sync
+  // behaviour; cross-device restore propagation is a sync follow-up.
   await recordTombstone(bizId, 'customers', cur.id);
-  await db.run('DELETE FROM customers WHERE id = ? AND business_id = ?', cur.id, bizId);
+  await db.run(
+    `UPDATE customers SET deleted_at = datetime('now'), updated_at = datetime('now'), sync_status = 'local' WHERE id = ? AND business_id = ?`
+  , cur.id, bizId);
   await auditLog(req, 'delete', 'customer', cur.id, `Customer delete kiya: ${cur.name}`);
+  res.json({ ok: true });
+});
+
+// 12-features pack: bring a soft-deleted customer back.
+app.post('/api/customers/:id/restore', requireAuth, requireBillingAccess, requirePlan('everything'), async (req, res) => {
+  const bizId = req.user.business_id;
+  const cur = await db.get('SELECT * FROM customers WHERE id = ? AND business_id = ?', req.params.id, bizId);
+  if (!cur) return res.status(404).json({ error: 'customer not found' });
+  if (!cur.deleted_at) return res.status(400).json({ error: 'customer_not_deleted' });
+  await db.run(
+    `UPDATE customers SET deleted_at = NULL, updated_at = datetime('now'), sync_status = 'local' WHERE id = ? AND business_id = ?`
+  , cur.id, bizId);
+  const restored = await customerRow(bizId, cur.id);
+  await auditLog(req, 'restore', 'customer', cur.id, `Customer wapas laya: ${restored.name}`);
+  res.json({ customer: publicCustomer(restored) });
+});
+
+// ---------- 12-features pack: per-customer special rates ----------
+// One price per (customer, product); the bill resolves override → tier
+// price → sell price. Rates are set from the customer page.
+app.get('/api/customers/:id/prices', requireAuth, requireBillingAccess, async (req, res) => {
+  const bizId = req.user.business_id;
+  const c = await db.get('SELECT * FROM customers WHERE id = ? AND business_id = ?', req.params.id, bizId);
+  if (!c) return res.status(404).json({ error: 'customer not found' });
+  const rows = await db.all(
+    `SELECT cp.*, p.name AS product_name FROM customer_prices cp
+     LEFT JOIN products p ON p.id = cp.product_id AND p.business_id = cp.business_id
+     WHERE cp.customer_id = ? AND cp.business_id = ? ORDER BY p.name ASC`
+  , c.id, bizId);
+  res.json({ prices: rows.map((r) => ({ product_id: r.product_id, product_name: r.product_name || '', price: round2(r.price) })) });
+});
+
+app.post('/api/customers/:id/prices', requireAuth, requireBillingAccess, requirePlan('billing'), async (req, res) => {
+  const bizId = req.user.business_id;
+  const c = await db.get('SELECT * FROM customers WHERE id = ? AND business_id = ?', req.params.id, bizId);
+  if (!c) return res.status(404).json({ error: 'customer not found' });
+  const b = req.body || {};
+  const prod = await getOwnedProduct(bizId, b.product_id);
+  if (!prod || prod.deleted_at) return res.status(404).json({ error: 'product not found' });
+  if (!validNum(b.price) || Number(b.price) < 0) return res.status(400).json({ error: 'price must be a number >= 0' });
+  const ex = await db.get(
+    'SELECT * FROM customer_prices WHERE customer_id = ? AND product_id = ? AND business_id = ?', c.id, prod.id, bizId);
+  if (ex) {
+    await db.run(
+      `UPDATE customer_prices SET price = ?, updated_at = datetime('now'), sync_status = 'local' WHERE id = ? AND business_id = ?`
+    , Number(b.price), ex.id, bizId);
+  } else {
+    await db.run(
+      `INSERT INTO customer_prices (business_id, customer_id, product_id, price) VALUES (?, ?, ?, ?)`
+    , bizId, c.id, prod.id, Number(b.price));
+  }
+  await auditLog(req, 'update', 'customer_price', c.id, `${c.name} ke liye ${prod.name} ka khaas bhaav: ${fmtAuditAmt(Number(b.price))}`);
+  res.status(201).json({ price: { product_id: prod.id, product_name: prod.name, price: round2(Number(b.price)) } });
+});
+
+app.delete('/api/customers/:id/prices/:productId', requireAuth, requireBillingAccess, requirePlan('billing'), async (req, res) => {
+  const bizId = req.user.business_id;
+  const c = await db.get('SELECT * FROM customers WHERE id = ? AND business_id = ?', req.params.id, bizId);
+  if (!c) return res.status(404).json({ error: 'customer not found' });
+  await db.run(
+    'DELETE FROM customer_prices WHERE customer_id = ? AND product_id = ? AND business_id = ?', c.id, req.params.productId, bizId);
   res.json({ ok: true });
 });
 
@@ -2655,7 +2999,7 @@ function publicReturn(r) {
 }
 
 function publicInvoice(inv) {
-  return {
+  const out = {
     id: inv.id, business_id: inv.business_id, bill_no: inv.bill_no,
     customer_id: inv.customer_id, customer_name: inv.customer_name, date: inv.date,
     subtotal: inv.subtotal, discount: inv.discount,
@@ -2670,6 +3014,10 @@ function publicInvoice(inv) {
     cancel_reason: inv.cancel_reason || null,
     updated_at: inv.updated_at, sync_status: inv.sync_status
   };
+  // 12-features pack: profit is attached only by the endpoints that
+  // compute it (list + detail) — never faked as 0 elsewhere.
+  if (inv.profit !== undefined && inv.profit !== null) out.profit = round2(inv.profit);
+  return out;
 }
 async function getOwnedInvoice(bizId, id) {
   return await db.get('SELECT * FROM invoices WHERE id = ? AND business_id = ?', id, bizId);
@@ -2704,14 +3052,20 @@ function upiQrFor(biz, amount, billNo) {
 // stock-gated (Stage 2 rule), so billing users get their own read-only list.
 app.get('/api/billing-products', requireAuth, requireBillingAccess, async (req, res) => {
   const rows = await db.all(
-    `SELECT id, name, unit, sell_price, gst_rate, stock_qty FROM products WHERE business_id = ? ORDER BY name ASC`
+    `SELECT id, name, unit, sell_price, wholesale_price, gst_rate, stock_qty FROM products WHERE business_id = ? AND deleted_at IS NULL ORDER BY name ASC`
   , req.user.business_id);
   res.json({ products: rows });
 });
 
 app.get('/api/invoices', requireAuth, requireBillingAccess, async (req, res) => {
+  // 12-features pack: profit per bill from the buy_price snapshot on
+  // each line; a 0 snapshot (very old bills) falls back to the product's
+  // current buy price, and to 0 when the product is gone.
   const rows = await db.all(
-    `SELECT * FROM invoices WHERE business_id = ? ORDER BY id DESC`
+    `SELECT i.*, COALESCE((SELECT SUM((ii.sell_price - COALESCE(NULLIF(ii.buy_price, 0), p.buy_price, 0)) * ii.qty)
+       FROM invoice_items ii LEFT JOIN products p ON p.id = ii.product_id AND p.business_id = ii.business_id
+       WHERE ii.invoice_id = i.id AND ii.business_id = i.business_id), 0) AS profit
+     FROM invoices i WHERE i.business_id = ? ORDER BY i.id DESC`
   , req.user.business_id);
   res.json({ invoices: rows.map(publicInvoice) });
 });
@@ -2754,7 +3108,7 @@ app.get('/api/invoices/:id', requireAuth, requireBillingAccess, async (req, res)
   if (!inv) return res.status(404).json({ error: 'invoice not found' });
   const biz = await getBusiness(bizId);
   const items = await db.all(
-    `SELECT ii.*, p.hsn_code AS hsn_code, p.unit AS p_unit
+    `SELECT ii.*, p.hsn_code AS hsn_code, p.unit AS p_unit, p.buy_price AS p_buy_price
      FROM invoice_items ii
      LEFT JOIN products p ON p.id = ii.product_id AND p.business_id = ii.business_id
      WHERE ii.invoice_id = ? AND ii.business_id = ? ORDER BY ii.id ASC`
@@ -2777,7 +3131,13 @@ app.get('/api/invoices/:id', requireAuth, requireBillingAccess, async (req, res)
   items.forEach((it) => {
     it.returned_qty = retQtyByItem.get(Number(it.id)) || 0;
     it.returnable_qty = round2(Number(it.qty) - it.returned_qty);
+    // 12-features pack: profit per line from the buy_price snapshot;
+    // a 0 snapshot (very old bills) falls back to the product's current
+    // buy price, and to 0 when the product is gone.
+    const buy = Number(it.buy_price) || Number(it.p_buy_price) || 0;
+    it.profit = round2((Number(it.sell_price) - buy) * Number(it.qty));
   });
+  const profit = round2(items.reduce((s, it) => s + Number(it.profit || 0), 0));
   const returnsTotal = round2(invReturns.reduce((s, r) => s + Number(r.total_amount), 0));
   const netTotal = round2(Number(inv.total) - returnsTotal);
   const netPending = round2(netTotal - Number(inv.paid_amount));
@@ -2818,6 +3178,8 @@ app.get('/api/invoices/:id', requireAuth, requireBillingAccess, async (req, res)
     returns_total: returnsTotal,
     net_total: netTotal,
     net_pending: netPending,
+    // 12-features pack: profit on this bill (sale − cost of goods).
+    profit,
     items, payments
   });
 });
@@ -3054,7 +3416,7 @@ async function createSaleInvoice(bizId, opts) {
   }
 }
 
-app.post('/api/invoices', requireAuth, requireBillingAccess, async (req, res) => {
+app.post('/api/invoices', requireAuth, requireBillingAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const b = req.body || {};
   if (!Array.isArray(b.items) || b.items.length === 0) return res.status(400).json({ error: 'at least one item is required' });
@@ -3105,7 +3467,7 @@ app.post('/api/invoices', requireAuth, requireBillingAccess, async (req, res) =>
 });
 
 // Feature 5: set / change / clear a bill's due date after creation.
-app.post('/api/invoices/:id/due-date', requireAuth, requireBillingAccess, async (req, res) => {
+app.post('/api/invoices/:id/due-date', requireAuth, requireBillingAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const inv = await getOwnedInvoice(bizId, req.params.id);
   if (!inv) return res.status(404).json({ error: 'invoice not found' });
@@ -3121,11 +3483,18 @@ app.post('/api/invoices/:id/due-date', requireAuth, requireBillingAccess, async 
   res.json({ invoice: publicInvoice(await getOwnedInvoice(bizId, inv.id)) });
 });
 
-app.post('/api/invoices/:id/payments', requireAuth, requireBillingAccess, async (req, res) => {
+app.post('/api/invoices/:id/payments', requireAuth, requireBillingAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const inv = await getOwnedInvoice(bizId, req.params.id);
   if (!inv) return res.status(404).json({ error: 'invoice not found' });
   if (inv.cancelled_at) return res.status(400).json({ error: 'invoice_cancelled' });
+  // Free-plan monthly transaction budget (100/month) — a payment received
+  // is a khata entry. (Free shops reach this via vasuli; paid plans are
+  // unlimited, so this only bites if a paid shop drops to the free tier
+  // while a paid period is still live.)
+  if (await khataBudgetBlocked(bizId)) {
+    return res.status(403).json({ error: 'plan_limit', message: planLimitTxnMessage() });
+  }
   const b = req.body || {};
   if (!validNum(b.amount) || Number(b.amount) <= 0) return res.status(400).json({ error: 'amount must be greater than 0' });
   const amount = round2(Number(b.amount));
@@ -3166,7 +3535,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireBillingAccess, async 
 // removed), then apply the new lines with the SAME bill id + bill_no.
 // A bill that already has sales returns can neither be cancelled nor
 // edited — the return rows point at its items; error 'has_returns'.
-app.post('/api/invoices/:id/cancel', requireAuth, requireOwner, async (req, res) => {
+app.post('/api/invoices/:id/cancel', requireAuth, requireOwner, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const inv = await getOwnedInvoice(bizId, req.params.id);
   if (!inv) return res.status(404).json({ error: 'invoice not found' });
@@ -3201,7 +3570,7 @@ app.post('/api/invoices/:id/cancel', requireAuth, requireOwner, async (req, res)
   res.json({ invoice: publicInvoice(await getOwnedInvoice(bizId, inv.id)) });
 });
 
-app.put('/api/invoices/:id', requireAuth, requireOwner, async (req, res) => {
+app.put('/api/invoices/:id', requireAuth, requireOwner, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const inv = await getOwnedInvoice(bizId, req.params.id);
   if (!inv) return res.status(404).json({ error: 'invoice not found' });
@@ -3361,7 +3730,7 @@ async function getOwnedEstimate(bizId, id) {
   return await db.get('SELECT * FROM estimates WHERE id = ? AND business_id = ?', id, bizId);
 }
 
-app.post('/api/estimates', requireAuth, requireBillingAccess, async (req, res) => {
+app.post('/api/estimates', requireAuth, requireBillingAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const b = req.body || {};
   if (!Array.isArray(b.items) || b.items.length === 0) return res.status(400).json({ error: 'at least one item is required' });
@@ -3448,7 +3817,7 @@ app.get('/api/estimates/:id', requireAuth, requireBillingAccess, async (req, res
 // honored; GST rates re-read from the CURRENT products + business GST
 // setting, exactly like a fresh bill made today. One transaction: if
 // stock is short the whole conversion fails and the estimate stays open.
-app.post('/api/estimates/:id/convert', requireAuth, requireBillingAccess, async (req, res) => {
+app.post('/api/estimates/:id/convert', requireAuth, requireBillingAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const est = await getOwnedEstimate(bizId, req.params.id);
   if (!est) return res.status(404).json({ error: 'estimate not found' });
@@ -3605,7 +3974,7 @@ app.get('/api/bills/:id/pdf', requireAuth, requireBillingAccess, sendBillPdf);
 // store the credit note with GST-inclusive pro-rata totals. Pending,
 // GST and finance all net returns out (see the reports section).
 // =====================================================================
-app.post('/api/invoices/:id/returns', requireAuth, requireBillingAccess, async (req, res) => {
+app.post('/api/invoices/:id/returns', requireAuth, requireBillingAccess, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const inv = await getOwnedInvoice(bizId, req.params.id);
   if (!inv) return res.status(404).json({ error: 'invoice not found' });
@@ -3807,6 +4176,11 @@ app.post('/api/customers/:id/vasuli', requireAuth, requireBillingAccess, async (
   const bizId = req.user.business_id;
   const cust = await db.get('SELECT * FROM customers WHERE id = ? AND business_id = ?', req.params.id, bizId);
   if (!cust) return res.status(404).json({ error: 'customer not found' });
+  // Free-plan monthly transaction budget (100/month): a payment received
+  // is a khata entry too, so it counts — and is blocked at the limit.
+  if (await khataBudgetBlocked(bizId)) {
+    return res.status(403).json({ error: 'plan_limit', message: planLimitTxnMessage() });
+  }
   const full = await customerRow(bizId, cust.id);
   const netPending = round2(Number(full.total_billed || 0) - Number(full.total_received || 0) - Number(full.total_returns || 0));
   const b = req.body || {};
@@ -4114,7 +4488,7 @@ app.get('/api/expenses', requireAuth, requireOwner, async (req, res) => {
   res.json({ expenses: rows.map(publicExpense), total });
 });
 
-app.post('/api/expenses', requireAuth, requireOwner, async (req, res) => {
+app.post('/api/expenses', requireAuth, requireOwner, requirePlan('billing'), async (req, res) => {
   const b = req.body || {};
   const err = validExpenseBody(b, false);
   if (err) return res.status(400).json({ error: err });
@@ -4132,7 +4506,7 @@ app.post('/api/expenses', requireAuth, requireOwner, async (req, res) => {
   res.status(201).json({ expense: publicExpense(newExpense) });
 });
 
-app.put('/api/expenses/:id', requireAuth, requireOwner, async (req, res) => {
+app.put('/api/expenses/:id', requireAuth, requireOwner, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const cur = await getOwnedExpense(bizId, req.params.id);
   if (!cur) return res.status(404).json({ error: 'expense not found' });
@@ -4154,7 +4528,7 @@ app.put('/api/expenses/:id', requireAuth, requireOwner, async (req, res) => {
   res.json({ expense: publicExpense(updExpense) });
 });
 
-app.delete('/api/expenses/:id', requireAuth, requireOwner, async (req, res) => {
+app.delete('/api/expenses/:id', requireAuth, requireOwner, requirePlan('billing'), async (req, res) => {
   const bizId = req.user.business_id;
   const cur = await getOwnedExpense(bizId, req.params.id);
   if (!cur) return res.status(404).json({ error: 'expense not found' });
@@ -4302,6 +4676,85 @@ app.get('/api/reports/pending', requireAuth, requireOwner, async (req, res) => {
     suppliers: sup.map((r) => ({ id: r.id, name: r.name, phone: r.phone, pending: round2(r.pending) })),
     total_collection: pend.pending_collection,
     total_payable: pend.pending_supplier
+  });
+});
+
+// ---------- 12-features pack: Partywise P&L + simple Balance Sheet ----------
+// Partywise P&L: per customer — sales, returns, cost of goods (buy_price
+// snapshots), profit, received, and today's pending; per supplier —
+// purchases, paid, and today's pending. Sales/cost are range-bound,
+// pending is always the live figure. Owner-only, like every finance report.
+app.get('/api/reports/party-pnl', requireAuth, requireOwner, requirePlan('everything'), async (req, res) => {
+  const range = rangeFromQuery(req);
+  if (!range) return res.status(400).json({ error: 'invalid date range' });
+  const bizId = req.user.business_id;
+  const custRows = await db.all(
+    `SELECT c.id AS id, c.name AS name, c.phone AS phone,
+       COALESCE(SUM(i.total), 0) AS sales,
+       COALESCE(SUM(ii.cost), 0) AS cost,
+       COALESCE((SELECT SUM(total_amount) FROM returns r WHERE r.customer_id = c.id AND r.business_id = c.business_id AND r.date >= ? AND r.date <= ?), 0) AS returns_total,
+       COALESCE((SELECT SUM(ri.qty * ii2.buy_price) FROM return_items ri
+         JOIN invoice_items ii2 ON ii2.id = ri.invoice_item_id AND ii2.business_id = ri.business_id
+         JOIN returns r2 ON r2.id = ri.return_id AND r2.business_id = ri.business_id
+         WHERE r2.customer_id = c.id AND r2.business_id = c.business_id AND r2.date >= ? AND r2.date <= ?), 0) AS returns_cost,
+       COALESCE((SELECT SUM(cp.amount) FROM customer_payments cp
+         JOIN invoices i2 ON i2.id = cp.invoice_id AND i2.business_id = cp.business_id
+         WHERE i2.customer_id = c.id AND cp.business_id = c.business_id AND cp.date >= ? AND cp.date <= ?), 0) AS received,
+       COALESCE((SELECT SUM(total - paid_amount) FROM invoices WHERE customer_id = c.id AND business_id = c.business_id AND cancelled_at IS NULL), 0)
+         - COALESCE((SELECT SUM(total_amount) FROM returns WHERE customer_id = c.id AND business_id = c.business_id), 0) AS pending
+     FROM customers c
+     LEFT JOIN invoices i ON i.customer_id = c.id AND i.business_id = c.business_id AND i.cancelled_at IS NULL AND i.kind = 'sale' AND i.date >= ? AND i.date <= ?
+     LEFT JOIN (SELECT invoice_id, SUM(qty * buy_price) AS cost FROM invoice_items WHERE business_id = ? GROUP BY invoice_id) ii ON ii.invoice_id = i.id
+     WHERE c.business_id = ? AND c.deleted_at IS NULL
+     GROUP BY c.id, c.name, c.phone
+     ORDER BY sales DESC`
+  , range.from, range.to, range.from, range.to, range.from, range.to, range.from, range.to, bizId, bizId);
+  const supRows = await db.all(
+    `SELECT s.id AS id, s.name AS name, s.phone AS phone,
+       COALESCE(SUM(p.total), 0) AS purchases,
+       COALESCE(SUM(p.paid_amount), 0) AS paid,
+       COALESCE((SELECT SUM(total - paid_amount) FROM purchases WHERE supplier_id = s.id AND business_id = s.business_id), 0) AS pending
+     FROM suppliers s
+     LEFT JOIN purchases p ON p.supplier_id = s.id AND p.business_id = s.business_id AND p.date >= ? AND p.date <= ?
+     WHERE s.business_id = ?
+     GROUP BY s.id, s.name, s.phone
+     ORDER BY purchases DESC`
+  , range.from, range.to, bizId);
+  const customers = custRows.map((r) => {
+    const sales = round2(Number(r.sales) - Number(r.returns_total));
+    const cost = round2(Number(r.cost) - Number(r.returns_cost));
+    return {
+      id: r.id, name: r.name, phone: r.phone || '',
+      sales, returns_total: round2(r.returns_total), cost,
+      profit: round2(sales - cost),
+      received: round2(r.received),
+      pending: round2(r.pending)
+    };
+  }).filter((r) => r.sales > 0 || r.pending !== 0);
+  const suppliers = supRows.map((r) => ({
+    id: r.id, name: r.name, phone: r.phone || '',
+    purchases: round2(r.purchases), paid: round2(r.paid), pending: round2(r.pending)
+  })).filter((r) => r.purchases > 0 || r.pending !== 0);
+  res.json({ from: range.from, to: range.to, customers, suppliers });
+});
+
+// Simple balance-sheet snapshot — NOT a full audited balance sheet and
+// never labelled as one: assets = stock at buying price + what customers
+// owe; liabilities = what suppliers are owed; net = assets − liabilities.
+// Stock excludes soft-deleted products; pending nets returns out.
+app.get('/api/reports/balance-sheet', requireAuth, requireOwner, requirePlan('everything'), async (req, res) => {
+  const bizId = req.user.business_id;
+  const stock = await db.get(
+    `SELECT COALESCE(SUM(stock_qty * buy_price),0) AS s FROM products WHERE business_id = ? AND deleted_at IS NULL`
+  , bizId);
+  const pend = await pendingTotals(bizId);
+  const stockValue = round2(stock.s);
+  const receivables = pend.pending_collection;
+  const payables = pend.pending_supplier;
+  res.json({
+    stock_value: stockValue, receivables, payables,
+    assets: round2(stockValue + receivables), liabilities: payables,
+    net: round2(stockValue + receivables - payables)
   });
 });
 

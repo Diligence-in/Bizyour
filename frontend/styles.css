@@ -865,3 +865,28 @@ body.side-open{ overflow:hidden; }
 @media (min-width:821px){
   .side-overlay{ display:none !important; }
 }
+
+/* ---------- two-stage workflow: welcome choice cards (2026-11-22) ---------- */
+.ws-cards{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:6px; }
+.ws-card{ border:1px solid var(--line); border-radius:14px; padding:18px 16px; display:flex; flex-direction:column; gap:7px; background:var(--card); }
+.ws-card .ws-ic{ font-size:30px; }
+.ws-card b{ font-size:16px; }
+.ws-card span{ font-size:13px; color:var(--muted); line-height:1.45; flex:1; }
+.ws-card .btn{ margin-top:6px; }
+@media (max-width:560px){ .ws-cards{ grid-template-columns:1fr; } }
+
+/* ---------- Business Mart: workspace-setup banner (2026-11-22) ---------- */
+.mk-ws-banner{ background:var(--amber-soft); border:1px solid var(--amber); color:var(--ink); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:13.5px; }
+.mk-ws-banner a{ font-weight:700; color:var(--blue-dark); }
+
+/* ---------- subscription lock overlay (2026-11-22) ---------- */
+.sub-lock{ position:fixed; inset:0; z-index:1200; background:rgba(20,33,58,.55); display:flex; align-items:center; justify-content:center; padding:20px; }
+.sub-lock-card{ background:var(--card); border-radius:20px; box-shadow:var(--shadow); max-width:430px; width:100%; padding:30px 26px; text-align:center; display:flex; flex-direction:column; align-items:stretch; }
+.sub-lock-ic{ font-size:44px; margin-bottom:6px; }
+.sub-lock-card h2{ font-size:19px; margin:4px 0 8px; }
+.sub-lock-card p{ font-size:14px; color:var(--muted); line-height:1.55; margin:0 0 18px; }
+
+/* 12-features pack: credit-limit soft warning on the bill screen (amber,
+   never a hard block — the shopkeeper decides). */
+.bill-warn{ display:none; margin:8px 0; padding:9px 12px; border-radius:10px; background:#fff8e1; border:1px solid #f0d48a; color:#6b4e00; font-size:13px; font-weight:600; }
+.bill-warn.show{ display:block; }

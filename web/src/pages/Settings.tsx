@@ -5,6 +5,7 @@ import { Archive, Download, ImagePlus, Plus, Printer, Trash2, Upload } from 'luc
 import { del, download, get, post, put, setToken } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { useSession } from '../lib/session';
+import { PLAN_CARDS, planName } from '../lib/plan';
 import { rupees } from '../lib/format';
 import type { Business, Subscription } from '../lib/types';
 import { resizeImage } from './mart/martApi';
@@ -199,9 +200,11 @@ interface SubPay { id: number; plan_code: string; amount: number; status: string
 function PlanTab() {
   const { t, err } = useI18n();
   const toast = useToast();
+  const { refresh } = useSession();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['subscription'], queryFn: () => get<{ subscription: SubState; plans: Plan[]; payments: SubPay[]; gateway_configured: boolean }>('/api/subscription') });
+  const q = useQuery({ queryKey: ['subscription'], queryFn: () => get<{ subscription: SubState; plans: Plan[]; payments: SubPay[]; gateway_configured: boolean; plan?: string; plan_tier?: string }>('/api/subscription') });
   const [plan, setPlan] = useState(''); const [amount, setAmount] = useState(''); const [ref, setRef] = useState(''); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  const [tierBusy, setTierBusy] = useState<string | null>(null);
   const d = q.data;
   useEffect(() => { if (d && !plan && d.plans[0]) { setPlan(d.plans[0].code); setAmount(String(d.plans[0].price || '')); } }, [d]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!d) return <SkelRows rows={5} />;
@@ -231,6 +234,38 @@ function PlanTab() {
           <div className="sum-line"><span>{t('Valid till', 'कब तक', 'Kab tak')}</span><span>{s.ends_at ? `${s.ends_at.slice(0, 10)}${s.days_left >= 0 ? ` · ${s.days_left} ${t('days', 'दिन', 'din')}` : ''}` : '—'}</span></div>
           <div className="sum-line"><span>{t('Grace after it ends', 'खत्म होने के बाद छूट', 'Khatam hone ke baad chhoot')}</span><span>{s.grace_days} {t('days', 'दिन', 'din')}</span></div>
         </div>
+      </Panel>
+      <Panel title={t('Choose your plan', 'अपना प्लान चुनें', 'Apna plan chuno')}>
+        <p className="muted" style={{ margin: '0 0 12px' }}>
+          {t('Your plan now:', 'आपका प्लान अभी:', 'Aapka plan abhi:')} <b>{d.plan ? planName(d.plan) : t('No plan yet — pick Udhaar (free) below to keep using khata', 'अभी कोई प्लान नहीं — खाता चलाने के लिए नीचे Udhaar (फ्री) चुनें', 'Abhi koi plan nahi — khata chalane ke liye neeche Udhaar (free) chuno')}</b>
+          {d.plan_tier ? ` (${t('saved', 'सेव्ड', 'saved')}: ${planName(d.plan_tier)})` : ''}
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+          {PLAN_CARDS.map((c) => {
+            const current = d.plan === c.tier;
+            return (
+              <div key={c.tier} style={{ border: c.hero ? '2px solid var(--accent)' : '1px solid var(--line)', borderRadius: 12, padding: 16, position: 'relative', background: 'var(--surface)' }}>
+                {c.hero && <span style={{ position: 'absolute', top: -10, right: 12, background: 'var(--accent)', color: '#fff', fontSize: 12, padding: '2px 8px', borderRadius: 10 }}>{t('Most popular', 'सबसे लोकप्रिय', 'Sabse popular')}</span>}
+                <div style={{ fontWeight: 600 }}>{c.name}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, margin: '6px 0' }}>{c.monthly}</div>
+                <div className="muted" style={{ fontSize: 13 }}>{c.yearly}{c.tier !== 'free' && ` · ${t('GST included', 'GST सहित', 'GST included')}`}</div>
+                <p className="muted" style={{ fontSize: 13 }}>{c.blurb}</p>
+                <Button variant={current ? 'ghost' : 'primary'} size="sm" loading={tierBusy === c.tier} disabled={current || tierBusy !== null} onClick={async () => {
+                  setTierBusy(c.tier);
+                  try {
+                    await post('/api/subscription/plan', { plan: c.tier });
+                    qc.invalidateQueries({ queryKey: ['subscription'] });
+                    await refresh();
+                    toast({ text: t(`Plan set to ${c.name}.`, `प्लान ${c.name} हो गया।`, `Plan ${c.name} ho gaya.`) });
+                  } catch (e) { toast({ text: err(e), tone: 'error' }); } finally { setTierBusy(null); }
+                }}>{current ? t('Current plan', 'अभी का प्लान', 'Abhi ka plan') : t('Choose', 'चुनें', 'Chuno')}</Button>
+              </div>
+            );
+          })}
+        </div>
+        <p className="muted" style={{ margin: '12px 0 0', fontSize: 13 }}>
+          {t('Paid plans need a live trial or an active paid period — pay by UPI below and we confirm it. Checkout is coming; until then the UPI claim is how a paid plan is switched on.', 'Paid प्लान के लिए trial चालू या paid period चाहिए — नीचे UPI से पेमेंट करें, हम confirm करेंगे। Checkout आ रहा है; तब तक UPI claim से paid प्लान चालू होता है।', 'Paid plan ke liye trial chalu ya paid period chahiye — neeche UPI se payment karo, hum confirm karenge. Checkout aa raha hai; tab tak UPI claim se paid plan chalu hota hai.')}
+        </p>
       </Panel>
       <Panel title={t('Renew by UPI', 'UPI से रीन्यू करें', 'UPI se renew karo')}>
         {!d.plans.length ? <p className="muted" style={{ margin: 0 }}>{t('No plans are open for purchase yet.', 'अभी कोई प्लान उपलब्ध नहीं है।', 'Abhi koi plan available nahi hai.')}</p> : (
