@@ -248,7 +248,7 @@ function PlanTab() {
                 {c.hero && <span style={{ position: 'absolute', top: -10, right: 12, background: 'var(--accent)', color: '#fff', fontSize: 12, padding: '2px 8px', borderRadius: 10 }}>{t('Most popular', 'सबसे लोकप्रिय', 'Sabse popular')}</span>}
                 <div style={{ fontWeight: 600 }}>{c.name}</div>
                 <div style={{ fontSize: 20, fontWeight: 700, margin: '6px 0' }}>{c.monthly}</div>
-                <div className="muted" style={{ fontSize: 13 }}>{c.yearly}{c.tier !== 'free' && ` · ${t('GST included', 'GST सहित', 'GST included')}`}</div>
+                <div className="muted" style={{ fontSize: 13 }}>{c.yearly}{c.tier !== 'free' && ` · ${t('+ 18% GST', '+ 18% GST', '+ 18% GST')}`}</div>
                 <p className="muted" style={{ fontSize: 13 }}>{c.blurb}</p>
                 <Button variant={current ? 'ghost' : 'primary'} size="sm" loading={tierBusy === c.tier} disabled={current || tierBusy !== null} onClick={async () => {
                   setTierBusy(c.tier);

@@ -753,12 +753,12 @@ function publicPlan(p) {
 
 // ---------- workspace plan tiers (pricing LOCKED 28 Nov 2026) ----------
 // Tiers (founder, 28 Nov): 'free' = Udhaar FREE (udhaar/khata + Mart
-// buying only, max 25 customers); 'billing' = Billing + Stock ₹149/mo or
-// ₹1,499/yr (udhaar included + credit limit, profit on invoices, multiple
+// buying only, max 25 customers); 'billing' = Billing + Stock ₹129/mo or
+// ₹1,299/yr (udhaar included + credit limit, profit on invoices, multiple
 // pricing, party-wise rates, update messages, day-end summary); 'everything'
-// = ₹199/mo or ₹1,999/yr HERO (Billing + partywise P&L, restore deleted,
+// = ₹169/mo or ₹1,699/yr HERO (Billing + partywise P&L, restore deleted,
 // balance-sheet snapshot, custom fields, semi-auto reminders, light
-// accounting). Prices are GST-inclusive. The tier lives on businesses.plan
+// accounting). Prices exclude GST 18% (added at payment). The tier lives on businesses.plan
 // ('' = not chosen). The DURATION plans (monthly/yearly in the plans table)
 // are a separate axis — how long a paid period lasts — and are untouched.
 // Effective plan: trial = full access, exactly as today; a paid period

@@ -773,9 +773,9 @@ export default function Landing() {
             </Reveal>
             <Reveal className="lp-price-col lp-price-ws" delay={120}>
               <h3><BookOpenText size={16} aria-hidden /> {t('Billing + Stock', 'बिलिंग + स्टॉक', 'Billing + Stock')}</h3>
-              <div className="lp-price-big">₹149</div>
-              <p className="lp-price-per">{t('/month', '/महीना', '/month')} · {t('₹1,499/year', '₹1,499/साल', '₹1,499/year')}</p>
-              <p className="lp-price-gst">{t('GST included', 'GST शामिल', 'GST included')}</p>
+              <div className="lp-price-big">₹129</div>
+              <p className="lp-price-per">{t('/month', '/महीना', '/month')} · {t('₹1,299/year', '₹1,299/साल', '₹1,299/year')}</p>
+              <p className="lp-price-gst">{t('+ 18% GST', '+ 18% GST', '+ 18% GST')}</p>
               <ul className="lp-price-list">
                 <li><Check size={14} aria-hidden />{t('Everything in Udhaar, plus:', 'Udhaar का सब कुछ, और:', 'Udhaar ka sab kuch, aur:')}</li>
                 <li><Check size={14} aria-hidden />{t('Billing, stock, estimates & expenses', 'Billing, stock, estimates और expenses', 'Billing, stock, estimates aur expenses')}</li>
@@ -789,9 +789,9 @@ export default function Landing() {
             <Reveal className="lp-price-col lp-price-hero" delay={240}>
               <span className="lp-price-badge">{t('Most popular', 'सबसे लोकप्रिय', 'Sabse popular')}</span>
               <h3><Store size={16} aria-hidden /> {t('Everything', 'सब कुछ', 'Everything')}</h3>
-              <div className="lp-price-big">₹199</div>
-              <p className="lp-price-per">{t('/month', '/महीना', '/month')} · {t('₹1,999/year', '₹1,999/साल', '₹1,999/year')}</p>
-              <p className="lp-price-gst">{t('GST included', 'GST शामिल', 'GST included')}</p>
+              <div className="lp-price-big">₹169</div>
+              <p className="lp-price-per">{t('/month', '/महीना', '/month')} · {t('₹1,699/year', '₹1,699/साल', '₹1,699/year')}</p>
+              <p className="lp-price-gst">{t('+ 18% GST', '+ 18% GST', '+ 18% GST')}</p>
               <ul className="lp-price-list">
                 <li><Check size={14} aria-hidden />{t('Everything in Billing + Stock, plus:', 'Billing + Stock का सब कुछ, और:', 'Billing + Stock ka sab kuch, aur:')}</li>
                 <li><Check size={14} aria-hidden />{t('Partywise P&L', 'Partywise P&L', 'Partywise P&L')}</li>

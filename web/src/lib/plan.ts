@@ -1,6 +1,6 @@
-// Workspace plans — LOCKED by the founder 28 Nov 2026 (GST-inclusive).
+// Workspace plans — LOCKED by the founder 28 Nov 2026 (exclusive of GST 18%; GST added at payment).
 // Udhaar FREE (max 25 customers, 100 khata transactions/month) · Billing +
-// Stock ₹149/mo or ₹1,499/yr · Everything ₹199/mo or ₹1,999/yr (hero).
+// Stock ₹129/mo or ₹1,299/yr · Everything ₹169/mo or ₹1,699/yr (hero).
 // The server enforces every gate; this file is only the UI's view of it:
 // hide what a plan cannot use, show a lock card instead. An unknown plan
 // ('') means the session has not loaded the effective plan yet — treat it
@@ -41,11 +41,11 @@ export const PLAN_CARDS: PlanCard[] = [
     blurb: 'Udhaar / khata + Mart buying. Up to 25 customers, 100 transactions a month. No billing, no stock.'
   },
   {
-    tier: 'billing', name: 'Billing + Stock', monthly: '₹149/month', yearly: '₹1,499/year',
+    tier: 'billing', name: 'Billing + Stock', monthly: '₹129/month', yearly: '₹1,299/year',
     blurb: 'Everything in Udhaar, plus billing, stock, estimates, expenses and GST reports.'
   },
   {
-    tier: 'everything', name: 'Everything', monthly: '₹199/month', yearly: '₹1,999/year',
+    tier: 'everything', name: 'Everything', monthly: '₹169/month', yearly: '₹1,699/year',
     blurb: 'Everything in Billing + Stock, plus partywise P&L, restore, balance sheet, custom fields, reminders and Basic accounts.',
     hero: true
   }
